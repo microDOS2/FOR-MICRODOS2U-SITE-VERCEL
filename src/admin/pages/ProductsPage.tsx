@@ -9,6 +9,7 @@ interface Product {
   name: string
   description: string | null
   price: number
+  wholesaler_price: number | null
   retail_price: number | null
   sku: string | null
   stock: number
@@ -49,7 +50,7 @@ export function ProductsPage() {
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'details' | 'variants'>('details')
   const [formData, setFormData] = useState({
-    name: '', description: '', price: 0, retail_price: 0, sku: '', stock: 0, min_order: 1, is_active: true
+    name: '', description: '', price: 0, wholesaler_price: 0, retail_price: 0, sku: '', stock: 0, min_order: 1, is_active: true
   })
   const [variantForm, setVariantForm] = useState({ ...emptyVariantForm })
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null)
@@ -80,6 +81,7 @@ export function ProductsPage() {
     const payload = {
       ...formData,
       price: Number(formData.price),
+      wholesaler_price: Number(formData.wholesaler_price),
       retail_price: Number(formData.retail_price),
       stock: Number(formData.stock),
       min_order: Number(formData.min_order),
@@ -163,7 +165,7 @@ export function ProductsPage() {
   const openEdit = (p: Product) => {
     setEditingProduct(p)
     setFormData({
-      name: p.name, description: p.description || '', price: p.price, retail_price: p.retail_price || 0,
+      name: p.name, description: p.description || '', price: p.price, wholesaler_price: p.wholesaler_price || 0, retail_price: p.retail_price || 0,
       sku: p.sku || '', stock: p.stock, min_order: p.min_order, is_active: p.is_active
     })
     setActiveTab('details')
@@ -181,11 +183,11 @@ export function ProductsPage() {
     setShowModal(true)
   }
 
-  const resetForm = () => setFormData({ name: '', description: '', price: 0, retail_price: 0, sku: '', stock: 0, min_order: 1, is_active: true })
+  const resetForm = () => setFormData({ name: '', description: '', price: 0, wholesaler_price: 0, retail_price: 0, sku: '', stock: 0, min_order: 1, is_active: true })
 
   const exportCSV = () => {
-    downloadCSV('products', ['ID', 'Name', 'SKU', 'Distributor Price', 'MSRP', 'Stock', 'Min Order', 'Active', 'Variants', 'Created'],
-      products.map(p => [p.id, p.name, p.sku || '', String(p.price), String(p.retail_price || ''), String(p.stock), String(p.min_order), p.is_active ? 'Yes' : 'No', String(getProductVariants(p.id).length), p.created_at]))
+    downloadCSV('products', ['ID', 'Name', 'SKU', 'Distributor Price', 'Wholesaler Price', 'MSRP', 'Stock', 'Min Order', 'Active', 'Variants', 'Created'],
+      products.map(p => [p.id, p.name, p.sku || '', String(p.price), String(p.wholesaler_price || ''), String(p.retail_price || ''), String(p.stock), String(p.min_order), p.is_active ? 'Yes' : 'No', String(getProductVariants(p.id).length), p.created_at]))
   }
 
   const totalPages = Math.ceil(totalCount / pageSize)
@@ -217,7 +219,8 @@ export function ProductsPage() {
               <tr className="border-b border-white/10">
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Product</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">SKU</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Distributor Price</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Distributor</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Wholesaler</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">MSRP</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Stock</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Variants</th>
@@ -226,9 +229,9 @@ export function ProductsPage() {
             </thead>
             <tbody className="divide-y divide-white/10">
               {loading ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">Loading...</td></tr>
+                <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-500">Loading...</td></tr>
               ) : products.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">No products found</td></tr>
+                <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-500">No products found</td></tr>
               ) : products.map(p => {
                 const pVariants = getProductVariants(p.id)
                 const isExpanded = expandedProduct === p.id
@@ -248,6 +251,7 @@ export function ProductsPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-400 font-mono">{p.sku || '-'}</td>
                       <td className="px-4 py-3 text-sm font-medium text-[#44f80c]">{formatCurrency(p.price)}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-amber-400">{p.wholesaler_price ? formatCurrency(p.wholesaler_price) : '-'}</td>
                       <td className="px-4 py-3 text-sm text-gray-400">{p.retail_price ? formatCurrency(p.retail_price) : '-'}</td>
                       <td className="px-4 py-3">
                         <span className={cn('text-sm', p.stock < 10 ? 'text-red-400' : p.stock < 50 ? 'text-amber-400' : 'text-emerald-400')}>{p.stock}</span>
@@ -362,10 +366,15 @@ export function ProductsPage() {
                     <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows={2}
                       className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-400 mb-1.5">Distributor Price ($)</label>
                       <input type="number" step="0.01" value={formData.price} onChange={e => setFormData({...formData, price: Number(e.target.value)})}
+                        className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1.5">Wholesaler Price ($)</label>
+                      <input type="number" step="0.01" value={formData.wholesaler_price} onChange={e => setFormData({...formData, wholesaler_price: Number(e.target.value)})}
                         className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
                     </div>
                     <div>

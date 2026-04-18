@@ -352,8 +352,14 @@ export function LandingPage() {
               </div>
             </div>
 
-            <div className="bg-[#150f24] border border-blue-900/50 p-6 rounded-2xl relative">
-              <div className="absolute top-0 left-0 w-full h-1 bg-blue-500 rounded-t-2xl opacity-50" />
+            <a
+              href={contentLinks.lowDoseEffects}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open low dose effects research PDF"
+              className="block bg-[#150f24] border border-blue-900/50 p-6 rounded-2xl relative cursor-pointer hover:border-blue-500/70 hover:shadow-[0_0_25px_rgba(59,130,246,0.2)] transition-all duration-200"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-blue-500 rounded-t-2xl opacity-50 group-hover:opacity-100 transition-opacity" />
               <h4 className="text-2xl font-bold mb-1">MODERATE</h4>
               <div className="flex items-baseline gap-2 mb-6">
                 <span className="text-4xl font-bold text-blue-400">2</span>
@@ -377,7 +383,7 @@ export function LandingPage() {
               <div className="text-xs text-gray-500 pt-4 border-t border-white/10">
                 ≈ 1 gram dried mushrooms
               </div>
-            </div>
+            </a>
 
             <div className="bg-[#150f24] border border-[#9a02d0]/50 p-6 rounded-2xl relative">
               <div className="absolute top-0 left-0 w-full h-1 bg-[#9a02d0] rounded-t-2xl opacity-50" />

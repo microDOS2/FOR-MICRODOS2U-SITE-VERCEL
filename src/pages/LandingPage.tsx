@@ -163,10 +163,10 @@ export function LandingPage() {
               <p className="text-gray-300 text-sm">
                 <ContentLink href={contentLinks.antiInflammatoryCytokines} linkType="pdf" ariaLabel="Read Mushrooms Microdosing research PDF">
                   Blocks TNF-α, IL-1β, and IL-6 cytokines through 5-HT2A activation
-                </ContentLink>,{' '}
+                </ContentLink>{' '}
                 <ContentLink href={contentLinks.antiInflammatoryPathways} linkType="image" ariaLabel="View brain routing effects diagram">
                   providing significant anti-inflammatory pathways
-                </ContentLink>.
+                </ContentLink>
               </p>
             </div>
 

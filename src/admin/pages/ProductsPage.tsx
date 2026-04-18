@@ -88,11 +88,21 @@ export function ProductsPage() {
     if (editingProduct) {
       const { error } = await supabase.from('products').update(payload).eq('id', editingProduct.id)
       if (error) alert('Error: ' + error.message)
+      else { fetchProducts() }
     } else {
-      const { error } = await supabase.from('products').insert([payload])
-      if (error) alert('Error: ' + error.message)
+      // Insert and get the new product back so we can add variants immediately
+      const { data, error } = await supabase.from('products').insert([payload]).select().single()
+      if (error) {
+        alert('Error: ' + error.message)
+        return
+      }
+      if (data) {
+        // Load the new product into edit mode so variants can be added
+        setEditingProduct(data as Product)
+        setActiveTab('variants')
+        fetchProducts()
+      }
     }
-    setShowModal(false); setEditingProduct(null); resetForm(); fetchProducts()
   }
 
   const handleDelete = async (id: string) => {
@@ -327,18 +337,16 @@ export function ProductsPage() {
             </div>
 
             {/* Tabs */}
-            {editingProduct && (
-              <div className="flex border-b border-white/10 flex-shrink-0">
-                <button
-                  onClick={() => setActiveTab('details')}
-                  className={cn('px-5 py-3 text-sm font-medium transition-colors', activeTab === 'details' ? 'text-[#44f80c] border-b-2 border-[#44f80c]' : 'text-gray-400 hover:text-white')}
-                >Product Details</button>
-                <button
-                  onClick={() => setActiveTab('variants')}
-                  className={cn('px-5 py-3 text-sm font-medium transition-colors', activeTab === 'variants' ? 'text-[#44f80c] border-b-2 border-[#44f80c]' : 'text-gray-400 hover:text-white')}
-                >Variants ({getProductVariants(editingProduct.id).length})</button>
-              </div>
-            )}
+            <div className="flex border-b border-white/10 flex-shrink-0">
+              <button
+                onClick={() => setActiveTab('details')}
+                className={cn('px-5 py-3 text-sm font-medium transition-colors', activeTab === 'details' ? 'text-[#44f80c] border-b-2 border-[#44f80c]' : 'text-gray-400 hover:text-white')}
+              >Product Details</button>
+              <button
+                onClick={() => setActiveTab('variants')}
+                className={cn('px-5 py-3 text-sm font-medium transition-colors', activeTab === 'variants' ? 'text-[#44f80c] border-b-2 border-[#44f80c]' : 'text-gray-400 hover:text-white')}
+              >Variants ({editingProduct ? getProductVariants(editingProduct.id).length : 0})</button>
+            </div>
 
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto p-5">
@@ -393,15 +401,23 @@ export function ProductsPage() {
               ) : (
                 /* Variants Tab */
                 <div className="space-y-4">
+                  {/* If product not saved yet, prompt to save first */}
+                  {!editingProduct && (
+                    <div className="text-center py-8 text-gray-500">
+                      <PkgIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">Save the product details first, then you can add packaging variants here.</p>
+                    </div>
+                  )}
+
                   {/* Existing Variants List */}
-                  {getProductVariants(editingProduct!.id).length === 0 && !showVariantForm && (
+                  {editingProduct && getProductVariants(editingProduct.id).length === 0 && !showVariantForm && (
                     <div className="text-center py-8 text-gray-500">
                       <PkgIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
                       <p className="text-sm">No variants yet. Add one to make this product visible on the catalog.</p>
                     </div>
                   )}
 
-                  {getProductVariants(editingProduct!.id).map(v => (
+                  {editingProduct && getProductVariants(editingProduct.id).map(v => (
                     <div key={v.id} className="bg-[#0a0514] border border-white/10 rounded-lg p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -516,7 +532,7 @@ export function ProductsPage() {
                     </div>
                   )}
 
-                  {!showVariantForm && (
+                  {!showVariantForm && editingProduct && (
                     <button onClick={() => openVariantForm()}
                       className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#0a0514] hover:bg-white/5 border border-dashed border-white/10 rounded-lg text-sm text-gray-400 hover:text-[#44f80c] transition-colors">
                       <Plus className="w-4 h-4" /> Add Packaging Variant

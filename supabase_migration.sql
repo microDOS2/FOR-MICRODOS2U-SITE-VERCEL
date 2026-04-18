@@ -1,6 +1,8 @@
 -- ============================================================
 -- microDOS(2) Product Schema Migration
--- Run this in your Supabase SQL Editor: https://supabase.com/dashboard/project/fildaxejimuvfrcqmoba/sql/new
+-- Run ONCE in your Supabase SQL Editor:
+-- https://supabase.com/dashboard/project/fildaxejimuvfrcqmoba/sql/new
+-- Then click Run. Done.
 -- ============================================================
 
 -- 1. Create product_variants table
@@ -19,64 +21,36 @@ CREATE TABLE IF NOT EXISTS product_variants (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Enable RLS
+-- 2. Enable Row Level Security
 ALTER TABLE product_variants ENABLE ROW LEVEL SECURITY;
 
--- 3. RLS Policies
-CREATE POLICY "product_variants_public_read" 
+-- 3. RLS Policies (public read, admin full access)
+CREATE POLICY "product_variants_public_read"
     ON product_variants FOR SELECT USING (true);
 
-CREATE POLICY "product_variants_admin_all" 
+CREATE POLICY "product_variants_admin_all"
     ON product_variants FOR ALL USING (true) WITH CHECK (true);
 
--- 4. Update existing 3 products to correct catalog
-UPDATE products SET 
-    name = 'Box', 
-    sku = 'MD2-BX',
-    description = '10 pills per box',
-    stock = 5000,
-    min_order = 1,
-    is_active = true
-WHERE id = '1010391b-6d21-4adc-b951-3511dd33c290';
-
-UPDATE products SET 
-    name = 'Starter Card', 
-    sku = 'MD2-SC',
-    description = '2 pills in blister package',
-    stock = 3000,
-    min_order = 1,
-    is_active = true
-WHERE id = 'f9f54ceb-5015-4e24-b5f8-308d7e7cb5a4';
-
-UPDATE products SET 
-    name = 'Wholesaler Starter Kit', 
-    sku = 'MD2-KIT',
-    description = 'Everything to get started selling microDOS(2): 9 boxes, 7 starter cards, display stand, placard',
-    stock = 500,
-    min_order = 1,
-    is_active = true
-WHERE id = '38fcdbe8-77be-4793-a6b7-9a4c2838b576';
-
--- 5. Insert packaging variants for Box
+-- 4. Insert packaging variants for Box (ID: a717dcf7...)
 INSERT INTO product_variants (product_id, tier, name, quantity, total_pills, sku, msrp_price, wholesaler_price, distributor_price, in_stock)
-VALUES 
-    ('1010391b-6d21-4adc-b951-3511dd33c290', 'individual', 'Individual', 1, 10, 'MD2-BX-001', 45.00, 22.50, 16.86, true),
-    ('1010391b-6d21-4adc-b951-3511dd33c290', 'case', 'Case (12 boxes)', 12, 120, 'MD2-BX-012', 540.00, 270.00, 202.32, true),
-    ('1010391b-6d21-4adc-b951-3511dd33c290', 'master_case', 'Master Case (36 boxes)', 36, 360, 'MD2-BX-036', 1620.00, 810.00, 606.96, true);
+VALUES
+    ('a717dcf7-9d68-47f3-95a3-feecdbc5d365', 'individual', 'Individual', 1, 10, 'MD2-BX-001', 45.00, 22.50, 16.86, true),
+    ('a717dcf7-9d68-47f3-95a3-feecdbc5d365', 'case', 'Case (12 boxes)', 12, 120, 'MD2-BX-012', 540.00, 270.00, 202.32, true),
+    ('a717dcf7-9d68-47f3-95a3-feecdbc5d365', 'master_case', 'Master Case (36 boxes)', 36, 360, 'MD2-BX-036', 1620.00, 810.00, 606.96, true);
 
--- 6. Insert packaging variants for Starter Card
+-- 5. Insert packaging variants for Starter Card (ID: f3597e7b...)
 INSERT INTO product_variants (product_id, tier, name, quantity, total_pills, sku, msrp_price, wholesaler_price, distributor_price, in_stock)
-VALUES 
-    ('f9f54ceb-5015-4e24-b5f8-308d7e7cb5a4', 'individual', 'Individual', 1, 2, 'MD2-SC-001', 9.95, 4.98, 3.73, true),
-    ('f9f54ceb-5015-4e24-b5f8-308d7e7cb5a4', 'case', 'Case (21 cards)', 21, 42, 'MD2-SC-021', 208.95, 104.58, 78.33, true),
-    ('f9f54ceb-5015-4e24-b5f8-308d7e7cb5a4', 'master_case', 'Master Case (63 cards)', 63, 126, 'MD2-SC-063', 626.85, 313.74, 234.99, true);
+VALUES
+    ('f3597e7b-d43f-47f1-a649-92c12cdd52de', 'individual', 'Individual', 1, 2, 'MD2-SC-001', 9.95, 4.98, 3.73, true),
+    ('f3597e7b-d43f-47f1-a649-92c12cdd52de', 'case', 'Case (21 cards)', 21, 42, 'MD2-SC-021', 208.95, 104.58, 78.33, true),
+    ('f3597e7b-d43f-47f1-a649-92c12cdd52de', 'master_case', 'Master Case (63 cards)', 63, 126, 'MD2-SC-063', 626.85, 313.74, 234.99, true);
 
--- 7. Insert single variant for Wholesaler Starter Kit
+-- 6. Insert variant for Wholesaler Starter Kit (ID: be78528f...)
 INSERT INTO product_variants (product_id, tier, name, quantity, total_pills, sku, msrp_price, wholesaler_price, distributor_price, in_stock)
-VALUES 
-    ('38fcdbe8-77be-4793-a6b7-9a4c2838b576', 'special', 'Wholesaler Starter Kit', 1, 104, 'MD2-KIT-WHOLESALE', 474.65, 155.76, 116.82, true);
+VALUES
+    ('be78528f-5b24-498e-b0d6-98350c95ab1c', 'special', 'Wholesaler Starter Kit', 1, 104, 'MD2-KIT-WHOLESALE', 474.65, 155.76, 116.82, true);
 
--- 8. Clean up site_settings temp data if it exists
+-- 7. Clean up temporary bridge data from site_settings
 DELETE FROM site_settings WHERE key = 'product_variants';
 
--- Done! Now the Products catalog and Admin Products page read from the same live data.
+-- Done. The frontend now reads packaging variants from the real table.

@@ -22,6 +22,8 @@ import {
   ArrowRight,
   Warning
 } from '@phosphor-icons/react';
+import { ContentLink } from '@/components/ContentLink';
+import { contentLinks } from '@/lib/contentLinks';
 
 export function LandingPage() {
   return (
@@ -145,7 +147,9 @@ export function LandingPage() {
               <p className="text-sm text-gray-400 font-bold uppercase mb-3">Receptor Binding</p>
               <p className="text-gray-300 text-sm">
                 Metocin engages serotonin receptors, notably the{' '}
-                <span className="text-[#9a02d0]">5-HT2A receptor</span>, similar to psilocin. This
+                <ContentLink href={contentLinks.ht2aReceptor} linkType="image" ariaLabel="View brain routing effects diagram">
+                  <span className="text-[#44f80c]">5-HT2A receptor</span>
+                </ContentLink>, similar to psilocin. This
                 interaction yields psychedelic changes in perception, mood, and cognition while
                 maintaining a clear, energetic headspace.
               </p>
@@ -157,8 +161,12 @@ export function LandingPage() {
               <h4 className="text-xl font-bold mb-2">Anti-Inflammatory</h4>
               <p className="text-sm text-gray-400 font-bold uppercase mb-3">Systemic Response</p>
               <p className="text-gray-300 text-sm">
-                Blocks TNF-α, IL-1β, and IL-6 cytokines through 5-HT2A activation, providing
-                significant anti-inflammatory pathways.
+                <ContentLink href={contentLinks.antiInflammatoryCytokines} linkType="pdf" ariaLabel="Read Mushrooms Microdosing research PDF">
+                  Blocks TNF-α, IL-1β, and IL-6 cytokines through 5-HT2A activation
+                </ContentLink>,{' '}
+                <ContentLink href={contentLinks.antiInflammatoryPathways} linkType="image" ariaLabel="View brain routing effects diagram">
+                  providing significant anti-inflammatory pathways
+                </ContentLink>.
               </p>
             </div>
 
@@ -168,8 +176,10 @@ export function LandingPage() {
               <h4 className="text-xl font-bold mb-2">Neuroplasticity</h4>
               <p className="text-sm text-gray-400 font-bold uppercase mb-3">Cellular Growth</p>
               <p className="text-gray-300 text-sm">
-                Enhances BDNF (Brain-Derived Neurotrophic Factor) stimulation, promoting synaptic
-                growth and neural connectivity.
+                <ContentLink href={contentLinks.bdnfNeuroplasticity} linkType="pdf" ariaLabel="Read Psilocybin Microdosers research PDF">
+                  Enhances BDNF (Brain-Derived Neurotrophic Factor) stimulation, promoting synaptic
+                  growth and neural connectivity
+                </ContentLink>.
               </p>
             </div>
           </div>

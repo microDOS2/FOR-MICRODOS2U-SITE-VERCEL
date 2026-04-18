@@ -17,8 +17,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { allProducts } from '@/data/products';
 import { formatPrice, getPrice } from '@/data/products';
+import type { Product } from '@/types/products';
 
 interface InfluencerStats {
   referralCode: string;
@@ -37,6 +37,7 @@ export function InfluencerDashboard() {
   });
   const [copied, setCopied] = useState(false);
   const [userName, setUserName] = useState('Influencer');
+  const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
     const fetchInfluencerData = async () => {
@@ -60,7 +61,60 @@ export function InfluencerDashboard() {
         }
       }
     };
+    const fetchProducts = async () => {
+      try {
+        // Fetch active products
+        const { data: dbProducts } = await supabase
+          .from('products')
+          .select('*')
+          .eq('is_active', true)
+          .order('name');
+
+        // Fetch variants from site_settings
+        const { data: setting } = await supabase
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'product_variants')
+          .single();
+
+        const variants = setting?.value?.variants || [];
+
+        if (dbProducts) {
+          const transformed: Product[] = dbProducts
+            .filter((p: any) => p.sku !== 'MD2-KIT')
+            .map((dbp: any) => {
+              const prodVariants = variants.filter((v: any) => v.product_id === dbp.id);
+              const firstV = prodVariants[0];
+              return {
+                id: dbp.id,
+                name: dbp.name,
+                description: dbp.description || '',
+                basePillCount: firstV ? Math.round(firstV.total_pills / firstV.quantity) : 10,
+                image: dbp.image_url || '/placeholder-box.png',
+                packagingOptions: prodVariants.map((v: any) => ({
+                  id: v.sku,
+                  tier: v.tier,
+                  name: v.name,
+                  quantity: v.quantity,
+                  totalPills: v.total_pills,
+                  pricing: {
+                    msrp: v.msrp_price,
+                    wholesalerPrice: v.wholesaler_price,
+                    distributorPrice: v.distributor_price,
+                  },
+                  sku: v.sku,
+                  inStock: v.in_stock,
+                })),
+              };
+            });
+          setProducts(transformed);
+        }
+      } catch {
+        // Silently fail - products tab will be empty
+      }
+    };
     fetchInfluencerData();
+    fetchProducts();
   }, []);
 
   const copyReferralLink = () => {
@@ -281,7 +335,7 @@ export function InfluencerDashboard() {
               /* Products Tab */
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {allProducts.map((product) => (
+                  {products.map((product) => (
                     <Card key={product.id} className="bg-[#150f24] border-white/10">
                       <CardHeader>
                         <CardTitle className="text-white flex items-center gap-2">

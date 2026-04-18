@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { downloadCSV, formatCurrency } from '@/lib/utils'
-import { Search, Download, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Download, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Product {
@@ -9,24 +9,40 @@ interface Product {
   name: string
   description: string | null
   price: number
-  category: string | null
+  retail_price: number | null
   sku: string | null
-  stock_quantity: number
+  stock: number
+  min_order: number
   image_url: string | null
-  status: string
+  is_active: boolean
   created_at: string
+}
+
+interface Variant {
+  product_id: string
+  tier: string
+  name: string
+  quantity: number
+  total_pills: number
+  sku: string
+  msrp_price: number
+  wholesaler_price: number
+  distributor_price: number
+  in_stock: boolean
 }
 
 export function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
+  const [variants, setVariants] = useState<Variant[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
   const [showModal, setShowModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
   const [formData, setFormData] = useState({
-    name: '', description: '', price: 0, category: '', sku: '', stock_quantity: 0, status: 'active'
+    name: '', description: '', price: 0, retail_price: 0, sku: '', stock: 0, min_order: 1, is_active: true
   })
   const pageSize = 10
 
@@ -35,15 +51,37 @@ export function ProductsPage() {
   const fetchProducts = async () => {
     setLoading(true)
     let query = supabase.from('products').select('*', { count: 'exact' }).order('created_at', { ascending: false }).range(page * pageSize, (page + 1) * pageSize - 1)
-    if (search) query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%,category.ilike.%${search}%`)
+    if (search) query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%,description.ilike.%${search}%`)
     const { data, count, error } = await query
     if (error) console.error(error)
     else { setProducts(data || []); setTotalCount(count || 0) }
+
+    // Fetch variants from site_settings
+    try {
+      const { data: setting } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'product_variants')
+        .single()
+      if (setting?.value && (setting.value as any).variants) {
+        setVariants((setting.value as any).variants as Variant[])
+      }
+    } catch {
+      // No variants configured yet
+    }
+
     setLoading(false)
   }
 
   const handleSave = async () => {
-    const payload = { ...formData, price: Number(formData.price), stock_quantity: Number(formData.stock_quantity) }
+    const payload = {
+      ...formData,
+      price: Number(formData.price),
+      retail_price: Number(formData.retail_price),
+      stock: Number(formData.stock),
+      min_order: Number(formData.min_order),
+      is_active: formData.is_active,
+    }
     if (editingProduct) {
       const { error } = await supabase.from('products').update(payload).eq('id', editingProduct.id)
       if (error) alert('Error: ' + error.message)
@@ -63,16 +101,21 @@ export function ProductsPage() {
 
   const openEdit = (p: Product) => {
     setEditingProduct(p)
-    setFormData({ name: p.name, description: p.description || '', price: p.price, category: p.category || '', sku: p.sku || '', stock_quantity: p.stock_quantity, status: p.status })
+    setFormData({
+      name: p.name, description: p.description || '', price: p.price, retail_price: p.retail_price || 0,
+      sku: p.sku || '', stock: p.stock, min_order: p.min_order, is_active: p.is_active
+    })
     setShowModal(true)
   }
 
-  const resetForm = () => setFormData({ name: '', description: '', price: 0, category: '', sku: '', stock_quantity: 0, status: 'active' })
+  const resetForm = () => setFormData({ name: '', description: '', price: 0, retail_price: 0, sku: '', stock: 0, min_order: 1, is_active: true })
 
   const exportCSV = () => {
-    downloadCSV('products', ['ID', 'Name', 'SKU', 'Category', 'Price', 'Stock', 'Status', 'Created'],
-      products.map(p => [p.id, p.name, p.sku || '', p.category || '', String(p.price), String(p.stock_quantity), p.status, p.created_at]))
+    downloadCSV('products', ['ID', 'Name', 'SKU', 'Price', 'Retail Price', 'Stock', 'Min Order', 'Active', 'Created'],
+      products.map(p => [p.id, p.name, p.sku || '', String(p.price), String(p.retail_price || ''), String(p.stock), String(p.min_order), p.is_active ? 'Yes' : 'No', p.created_at]))
   }
+
+  const getProductVariants = (productId: string) => variants.filter(v => v.product_id === productId)
 
   const totalPages = Math.ceil(totalCount / pageSize)
 
@@ -101,10 +144,10 @@ export function ProductsPage() {
               <tr className="border-b border-white/10">
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Product</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">SKU</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Category</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Price</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Distributor Price</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">MSRP</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Stock</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Variants</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Actions</th>
               </tr>
             </thead>
@@ -113,36 +156,84 @@ export function ProductsPage() {
                 <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">Loading...</td></tr>
               ) : products.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">No products found</td></tr>
-              ) : products.map(p => (
-                <tr key={p.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-[#0a0514] border border-white/10 flex items-center justify-center text-lg">
-                        {p.image_url ? <img src={p.image_url} className="w-full h-full object-cover rounded-lg" alt="" /> : <Package className="w-5 h-5 text-gray-500" />}
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-white">{p.name}</div>
-                        <div className="text-xs text-gray-500 truncate max-w-[200px]">{p.description}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-400 font-mono">{p.sku || '-'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-400">{p.category || '-'}</td>
-                  <td className="px-4 py-3 text-sm font-medium text-white">{formatCurrency(p.price)}</td>
-                  <td className="px-4 py-3">
-                    <span className={cn('text-sm', p.stock_quantity < 10 ? 'text-red-400' : p.stock_quantity < 50 ? 'text-amber-400' : 'text-emerald-400')}>{p.stock_quantity}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={cn('px-2.5 py-1 rounded-full text-xs font-medium', p.status === 'active' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400')}>{p.status}</span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => openEdit(p)} className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-[#44f80c]"><Pencil className="w-4 h-4" /></button>
-                      <button onClick={() => handleDelete(p.id)} className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              ) : products.map(p => {
+                const pVariants = getProductVariants(p.id)
+                const isExpanded = expandedProduct === p.id
+                return (
+                  <>
+                    <tr key={p.id} className="hover:bg-white/5 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-[#0a0514] border border-white/10 flex items-center justify-center text-lg">
+                            {p.image_url ? <img src={p.image_url} className="w-full h-full object-cover rounded-lg" alt="" /> : <PkgIcon className="w-5 h-5 text-gray-500" />}
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-white">{p.name}</div>
+                            <div className="text-xs text-gray-500 truncate max-w-[200px]">{p.description}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-400 font-mono">{p.sku || '-'}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-[#44f80c]">{formatCurrency(p.price)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-400">{p.retail_price ? formatCurrency(p.retail_price) : '-'}</td>
+                      <td className="px-4 py-3">
+                        <span className={cn('text-sm', p.stock < 10 ? 'text-red-400' : p.stock < 50 ? 'text-amber-400' : 'text-emerald-400')}>{p.stock}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {pVariants.length > 0 ? (
+                          <button
+                            onClick={() => setExpandedProduct(isExpanded ? null : p.id)}
+                            className="flex items-center gap-1 text-xs text-[#9a02d0] hover:text-[#44f80c] transition-colors"
+                          >
+                            {pVariants.length} variant{pVariants.length > 1 ? 's' : ''}
+                            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-500">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button onClick={() => openEdit(p)} className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-[#44f80c]"><Pencil className="w-4 h-4" /></button>
+                          <button onClick={() => handleDelete(p.id)} className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                    {isExpanded && pVariants.length > 0 && (
+                      <tr key={`${p.id}-variants`}>
+                        <td colSpan={7} className="px-4 py-3 bg-[#0a0514]/50">
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Packaging Variants</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                              {pVariants.map(v => (
+                                <div key={v.sku} className="bg-[#150f24] border border-white/10 rounded-lg p-3">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-sm font-medium text-white">{v.name}</span>
+                                    <span className={cn('text-xs px-2 py-0.5 rounded-full', v.in_stock ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400')}>
+                                      {v.in_stock ? 'In Stock' : 'Out'}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-500 font-mono mb-1">{v.sku}</p>
+                                  <div className="flex items-center gap-3 text-xs">
+                                    <span className="text-gray-500"><span className="text-gray-400">{v.quantity}</span> units</span>
+                                    <span className="text-gray-600">|</span>
+                                    <span className="text-gray-500"><span className="text-gray-400">{v.total_pills}</span> pills</span>
+                                  </div>
+                                  <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+                                    <span className="text-gray-400">MSRP: <span className="text-white">{formatCurrency(v.msrp_price)}</span></span>
+                                    <span className="text-gray-400">W: <span className="text-amber-400">{formatCurrency(v.wholesaler_price)}</span></span>
+                                    <span className="text-gray-400">D: <span className="text-[#44f80c]">{formatCurrency(v.distributor_price)}</span></span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -174,31 +265,37 @@ export function ProductsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1.5">Price ($)</label>
+                  <label className="block text-sm font-medium text-gray-400 mb-1.5">Distributor Price ($)</label>
                   <input type="number" step="0.01" value={formData.price} onChange={e => setFormData({...formData, price: Number(e.target.value)})} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1.5">Stock Quantity</label>
-                  <input type="number" value={formData.stock_quantity} onChange={e => setFormData({...formData, stock_quantity: Number(e.target.value)})} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
+                  <label className="block text-sm font-medium text-gray-400 mb-1.5">MSRP ($)</label>
+                  <input type="number" step="0.01" value={formData.retail_price} onChange={e => setFormData({...formData, retail_price: Number(e.target.value)})} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1.5">Category</label>
-                  <input type="text" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
+                  <label className="block text-sm font-medium text-gray-400 mb-1.5">Stock</label>
+                  <input type="number" value={formData.stock} onChange={e => setFormData({...formData, stock: Number(e.target.value)})} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1.5">SKU</label>
-                  <input type="text" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
+                  <label className="block text-sm font-medium text-gray-400 mb-1.5">Min Order</label>
+                  <input type="number" value={formData.min_order} onChange={e => setFormData({...formData, min_order: Number(e.target.value)})} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1.5">Status</label>
-                <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50">
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="draft">Draft</option>
-                </select>
+                <label className="block text-sm font-medium text-gray-400 mb-1.5">SKU</label>
+                <input type="text" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="is_active"
+                  checked={formData.is_active}
+                  onChange={e => setFormData({...formData, is_active: e.target.checked})}
+                  className="w-4 h-4 rounded border-white/10 bg-[#0a0514] text-[#9a02d0] focus:ring-[#9a02d0]"
+                />
+                <label htmlFor="is_active" className="text-sm text-gray-300">Active</label>
               </div>
             </div>
             <div className="flex justify-end gap-3 p-5 border-t border-white/10">
@@ -212,6 +309,6 @@ export function ProductsPage() {
   )
 }
 
-function Package(props: any) {
+function PkgIcon(props: any) {
   return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
 }

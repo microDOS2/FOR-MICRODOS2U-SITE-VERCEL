@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -434,7 +435,7 @@ export function UsersPage() {
               </div>
               <div>
                 <Label className="text-gray-300">Password <span className="text-red-400">*</span></Label>
-                <Input type="password" value={accountPassword} onChange={(e) => setAccountPassword(e.target.value)} placeholder="Min 6 characters" className="bg-[#0a0514] border-white/10 text-white" />
+                <PasswordInput value={accountPassword} onChange={(e) => setAccountPassword(e.target.value)} placeholder="Min 6 characters" showLockIcon={false} className="bg-[#0a0514] border-white/10 text-white" />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

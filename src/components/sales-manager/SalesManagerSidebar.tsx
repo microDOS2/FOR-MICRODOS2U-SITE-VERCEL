@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Users,
   Store,
+  MapPin,
   TrendingUp,
   Settings,
   LogOut,
@@ -20,6 +21,7 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/sales-manager-dashboard', icon: LayoutDashboard },
   { label: 'My Team', path: '/sales-manager-team', icon: Users },
   { label: 'Accounts', path: '/sales-manager-accounts', icon: Store },
+  { label: 'Store Locations', path: '/sales-manager-stores', icon: MapPin },
   { label: 'Performance', path: '/sales-manager-performance', icon: TrendingUp },
   { label: 'Settings', path: '/sales-manager-settings', icon: Settings },
 ];

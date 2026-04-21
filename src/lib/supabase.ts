@@ -139,8 +139,12 @@ export interface WholesalerStoreLocation {
   lng: number | null;
   phone: string | null;
   email: string | null;
+  website: string | null;
+  stock: string | null;
+  license_number: string | null;
   is_primary: boolean;
   is_active: boolean;
+  source: string | null;
   created_at: string;
   updated_at: string;
 }

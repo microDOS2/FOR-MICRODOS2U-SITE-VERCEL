@@ -17,6 +17,7 @@ import { SalesManagerTeam } from './pages/SalesManagerTeam';
 import { SalesManagerAccounts } from './pages/SalesManagerAccounts';
 import { SalesManagerPerformance } from './pages/SalesManagerPerformance';
 import { SalesManagerSettings } from './pages/SalesManagerSettings';
+import { SalesManagerStores } from './pages/SalesManagerStores';
 import { SalesRepPortal } from './pages/SalesRepPortal';
 import { SalesRepDashboard } from './pages/SalesRepDashboard';
 import { AdminPortal } from './pages/AdminPortal';
@@ -63,6 +64,7 @@ function AppContent() {
     '/sales-manager-team',
     '/sales-manager-accounts',
     '/sales-manager-performance',
+    '/sales-manager-stores',
     '/sales-manager-settings',
     '/sales-rep-portal',
     '/sales-rep-dashboard',
@@ -104,6 +106,7 @@ function AppContent() {
           <Route path="/sales-manager-team" element={<SalesManagerTeam />} />
           <Route path="/sales-manager-accounts" element={<SalesManagerAccounts />} />
           <Route path="/sales-manager-performance" element={<SalesManagerPerformance />} />
+          <Route path="/sales-manager-stores" element={<SalesManagerStores />} />
           <Route path="/sales-manager-settings" element={<SalesManagerSettings />} />
           <Route path="/sales-rep-portal" element={<SalesRepPortal />} />
           <Route path="/sales-rep-dashboard" element={<SalesRepDashboard />} />

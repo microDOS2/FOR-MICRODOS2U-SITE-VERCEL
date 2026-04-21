@@ -3,7 +3,8 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Phone, Search, Loader2 } from 'lucide-react';
+import { MapPin, Phone, Search, Loader2, Globe } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -71,65 +72,74 @@ interface Store {
   lng: number;
   phone: string;
   stock: 'In Stock' | 'Low Stock' | 'Out of Stock';
+  website: string | null;
 }
 
-// Sample stores data
-const sampleStores: Store[] = [
-  {
-    id: '1',
-    name: 'Apex Wellness Arvada',
-    address: '7403 Grandview Ave',
-    city: 'Arvada',
-    state: 'CO',
-    zip: '80002',
-    lat: 39.7997,
-    lng: -105.0815,
-    phone: '(303) 555-0101',
-    stock: 'In Stock',
-  },
-  {
-    id: '2',
-    name: 'Elevated Clarity Denver',
-    address: '2000 W 32nd Ave',
-    city: 'Denver',
-    state: 'CO',
-    zip: '80211',
-    lat: 39.7621,
-    lng: -105.0105,
-    phone: '(720) 555-0102',
-    stock: 'Low Stock',
-  },
-  {
-    id: '3',
-    name: 'Highlands Precision',
-    address: '3450 W 32nd Ave',
-    city: 'Denver',
-    state: 'CO',
-    zip: '80211',
-    lat: 39.762,
-    lng: -105.0315,
-    phone: '(720) 555-0103',
-    stock: 'Out of Stock',
-  },
-  {
-    id: '4',
-    name: 'Boulder Psychedelic Supply',
-    address: '1500 Pearl St',
-    city: 'Boulder',
-    state: 'CO',
-    zip: '80302',
-    lat: 40.0185,
-    lng: -105.274,
-    phone: '(303) 555-0104',
-    stock: 'In Stock',
-  },
-];
-
 export function StoreLocator() {
-  const [stores] = useState<Store[]>(sampleStores);
-  const [loading] = useState(false);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+
+  // Fetch stores from Supabase: only wholesaler-owned, active stores
+  useEffect(() => {
+    async function fetchStores() {
+      setLoading(true);
+      try {
+        // Step 1: Get approved wholesaler IDs
+        const { data: wholesalers, error: userError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('role', 'wholesaler')
+          .eq('status', 'approved');
+
+        if (userError || !wholesalers || wholesalers.length === 0) {
+          setStores([]);
+          setLoading(false);
+          return;
+        }
+
+        const wholesalerIds = wholesalers.map((w) => w.id);
+
+        // Step 2: Get stores for those wholesalers
+        const { data, error } = await supabase
+          .from('wholesaler_store_locations')
+          .select('*')
+          .in('user_id', wholesalerIds)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Store fetch error:', error);
+          setStores([]);
+        } else if (data) {
+          // Transform to Store interface (lat/lng are non-null for active stores)
+          const transformed: Store[] = data
+            .filter((s) => s.lat != null && s.lng != null)
+            .map((s) => ({
+              id: s.id,
+              name: s.name || 'Unnamed Store',
+              address: s.address || '',
+              city: s.city || '',
+              state: s.state || '',
+              zip: s.zip || '',
+              lat: s.lat as number,
+              lng: s.lng as number,
+              phone: s.phone || '',
+              stock: (s.stock as 'In Stock' | 'Low Stock' | 'Out of Stock') || 'In Stock',
+              website: s.website || null,
+            }));
+          setStores(transformed);
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        setStores([]);
+      }
+      setLoading(false);
+    }
+
+    fetchStores();
+  }, []);
 
   // Filter stores based on search
   const filteredStores = useMemo(() => {
@@ -211,6 +221,11 @@ export function StoreLocator() {
               </div>
             </div>
 
+            {/* Store count */}
+            <div className="text-xs text-gray-500">
+              {filteredStores.length} store{filteredStores.length !== 1 ? 's' : ''} found
+            </div>
+
             {/* Store Cards */}
             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
               {filteredStores.map((store) => (
@@ -233,10 +248,26 @@ export function StoreLocator() {
                           {store.address}, {store.city}, {store.state}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-[#9a02d0]" />
-                        <span>{store.phone}</span>
-                      </div>
+                      {store.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-4 h-4 text-[#9a02d0]" />
+                          <span>{store.phone}</span>
+                        </div>
+                      )}
+                      {store.website && (
+                        <div className="flex items-center gap-2">
+                          <Globe className="w-4 h-4 text-[#44f80c]" />
+                          <a
+                            href={store.website.startsWith('http') ? store.website : `https://${store.website}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[#44f80c] hover:underline truncate"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {store.website}
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -273,9 +304,23 @@ export function StoreLocator() {
                         <h3 className="font-semibold text-gray-900">{store.name}</h3>
                         <p className="text-sm text-gray-600">{store.address}</p>
                         <p className="text-sm text-gray-600">
-                          {store.city}, {store.state}
+                          {store.city}, {store.state} {store.zip}
                         </p>
-                        <p className="text-sm text-gray-600">{store.phone}</p>
+                        {store.phone && (
+                          <p className="text-sm text-gray-600">{store.phone}</p>
+                        )}
+                        {store.website && (
+                          <p className="text-sm mt-1">
+                            <a
+                              href={store.website.startsWith('http') ? store.website : `https://${store.website}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline"
+                            >
+                              {store.website}
+                            </a>
+                          </p>
+                        )}
                         <div className="mt-2">{getStockBadge(store.stock)}</div>
                       </div>
                     </Popup>
@@ -291,7 +336,7 @@ export function StoreLocator() {
       <footer className="py-6 bg-[#150f24] border-t border-white/5">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-xs text-gray-500">
-            © 2026 microDOS(2) Inc. All rights reserved.
+            &copy; 2026 microDOS(2) Inc. All rights reserved.
           </p>
           <p className="text-xs text-gray-600 mt-1">
             This product is intended for adults. Use responsibly.

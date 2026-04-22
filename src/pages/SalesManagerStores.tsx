@@ -165,7 +165,7 @@ export function SalesManagerStores() {
           setUsers([]);
         }
 
-        // Fetch all approved reps for assignment dropdown
+        // Fetch all approved reps
         const { data: repsData } = await supabase
           .from('users')
           .select('id, business_name, email')
@@ -355,14 +355,14 @@ export function SalesManagerStores() {
     if (!repId) { toast.error('Select a Sales Rep'); return; }
     setSavingStore(storeId);
     const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: `rep:${repId}` }).eq('id', storeId);
-    if (error) { toast.error('Failed: ' + error.message); } else { toast.success('Assigned!'); fetchStores(); }
+    if (error) { toast.error('Failed: ' + error.message); } else { toast.success('Assigned!'); window.location.reload(); }
     setSavingStore(null);
   };
 
   const handleUnassignStore = async (storeId: string) => {
     if (!confirm('Remove store rep assignment?')) return;
     const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: null }).eq('id', storeId);
-    if (error) { toast.error('Error'); } else { toast.success('Unassigned'); fetchStores(); }
+    if (error) { toast.error('Error'); } else { toast.success('Unassigned'); window.location.reload(); }
   };
 
   // Split users into wholesalers and distributors for the dropdown

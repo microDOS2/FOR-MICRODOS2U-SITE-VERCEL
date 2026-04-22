@@ -128,7 +128,6 @@ export function ApplicationsPage() {
         p_license_number: app.license_number,
         p_ein: app.ein,
         p_website: app.website,
-        p_business_type: app.business_type,
         p_volume_estimate: app.volume_estimate,
       })
 

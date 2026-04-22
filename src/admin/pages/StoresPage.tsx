@@ -2,9 +2,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { downloadCSV, formatDate } from '@/lib/utils'
 import { geocodeAddress } from '@/lib/geocode'
-import { Search, Download, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Store, Globe, MapPin, Loader2, Clock } from 'lucide-react'
+import { Search, Download, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Store, Globe, MapPin, Loader2, Clock, PauseCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { DBUser } from '@/lib/supabase'
+import { toast } from 'sonner'
 
 interface StoreItem {
   id: string
@@ -19,7 +20,6 @@ interface StoreItem {
   phone: string | null
   email: string | null
   website: string | null
-  stock: string | null
   license_number: string | null
   is_primary: boolean
   is_active: boolean
@@ -54,7 +54,6 @@ export function StoresPage() {
     phone: '',
     email: '',
     website: '',
-    stock: 'In Stock',
     license_number: '',
     is_primary: false,
     is_active: true,
@@ -62,7 +61,6 @@ export function StoresPage() {
 
   const pageSize = 10
 
-  // Fetch approved wholesalers and distributors for the dropdown
   const fetchUsers = async () => {
     const { data } = await supabase
       .from('users')
@@ -76,7 +74,6 @@ export function StoresPage() {
   const fetchStores = useCallback(async () => {
     setLoading(true)
     try {
-      // Get all stores with owner info
       let query = supabase
         .from('wholesaler_store_locations')
         .select('*, users:user_id(*)', { count: 'exact' })
@@ -109,7 +106,6 @@ export function StoresPage() {
     fetchUsers()
   }, [fetchStores])
 
-  // Auto-geocode when address changes (if lat/lng not manually entered)
   const handleAddressBlur = async () => {
     if (!formData.address || formData.lat || formData.lng) return
     setGeocoding(true)
@@ -140,7 +136,6 @@ export function StoresPage() {
       phone: formData.phone || null,
       email: formData.email || null,
       website: formData.website || null,
-      stock: formData.stock,
       license_number: formData.license_number || null,
       is_primary: formData.is_primary,
       is_active: formData.is_active,
@@ -152,13 +147,21 @@ export function StoresPage() {
         .from('wholesaler_store_locations')
         .update(payload)
         .eq('id', editingStore.id)
-      if (error) alert('Error: ' + error.message)
+      if (error) {
+        toast.error('Error updating store: ' + error.message)
+      } else {
+        toast.success('Store updated')
+      }
     } else {
       payload.source = 'admin'
       const { error } = await supabase
         .from('wholesaler_store_locations')
         .insert([payload])
-      if (error) alert('Error: ' + error.message)
+      if (error) {
+        toast.error('Error creating store: ' + error.message)
+      } else {
+        toast.success('Store created')
+      }
     }
 
     setShowModal(false)
@@ -168,13 +171,44 @@ export function StoresPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this store?')) return
+    if (!confirm('Delete this store permanently?')) return
     const { error } = await supabase
       .from('wholesaler_store_locations')
       .delete()
       .eq('id', id)
-    if (error) alert('Error: ' + error.message)
-    else fetchStores()
+    if (error) {
+      toast.error('Error deleting store: ' + error.message)
+    } else {
+      toast.success('Store deleted')
+      fetchStores()
+    }
+  }
+
+  const handleSetPending = async (id: string) => {
+    if (!confirm('Set this store to Pending? It will be hidden from the public Store Locator until reactivated.')) return
+    const { error } = await supabase
+      .from('wholesaler_store_locations')
+      .update({ is_active: false })
+      .eq('id', id)
+    if (error) {
+      toast.error('Error: ' + error.message)
+    } else {
+      toast.success('Store set to Pending')
+      fetchStores()
+    }
+  }
+
+  const handleReactivate = async (id: string) => {
+    const { error } = await supabase
+      .from('wholesaler_store_locations')
+      .update({ is_active: true })
+      .eq('id', id)
+    if (error) {
+      toast.error('Error: ' + error.message)
+    } else {
+      toast.success('Store reactivated')
+      fetchStores()
+    }
   }
 
   const openEdit = (s: StoreItem) => {
@@ -191,7 +225,6 @@ export function StoresPage() {
       phone: s.phone || '',
       email: s.email || '',
       website: s.website || '',
-      stock: s.stock || 'In Stock',
       license_number: (s as any).license_number || '',
       is_primary: s.is_primary || false,
       is_active: s.is_active ?? true,
@@ -212,7 +245,6 @@ export function StoresPage() {
       phone: '',
       email: '',
       website: '',
-      stock: 'In Stock',
       license_number: '',
       is_primary: false,
       is_active: true,
@@ -221,7 +253,7 @@ export function StoresPage() {
   const exportCSV = () => {
     downloadCSV(
       'stores',
-      ['ID', 'Name', 'Owner', 'Role', 'Address', 'City', 'State', 'ZIP', 'Phone', 'Email', 'Website', 'Stock', 'Status', 'Last Updated'],
+      ['ID', 'Name', 'Owner', 'Role', 'Address', 'City', 'State', 'ZIP', 'Phone', 'Email', 'Website', 'Status', 'Last Updated'],
       stores.map((s) => [
         s.id,
         s.name || '',
@@ -234,8 +266,7 @@ export function StoresPage() {
         s.phone || '',
         s.email || '',
         s.website || '',
-        s.stock || '',
-        s.is_active ? 'Active' : 'Inactive',
+        s.is_active ? 'Active' : 'Pending',
         s.updated_at,
       ])
     )
@@ -246,7 +277,6 @@ export function StoresPage() {
 
   const totalPages = Math.ceil(totalCount / pageSize)
 
-  // Toggle sort
   const handleSort = (column: 'updated_at' | 'created_at' | 'name') => {
     if (sortBy === column) {
       setSortAsc(!sortAsc)
@@ -336,7 +366,6 @@ export function StoresPage() {
                   <Store className="w-5 h-5 text-[#44f80c]" />
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Updated at badge */}
                   <span className="flex items-center gap-1 text-xs text-gray-500 bg-[#0a0514] px-2 py-1 rounded-lg">
                     <Clock className="w-3 h-3" />
                     {formatDate(s.updated_at)}
@@ -346,10 +375,10 @@ export function StoresPage() {
                       'px-2.5 py-1 rounded-full text-xs font-medium',
                       s.is_active
                         ? 'bg-emerald-500/15 text-emerald-400'
-                        : 'bg-red-500/15 text-red-400'
+                        : 'bg-yellow-500/15 text-yellow-400'
                     )}
                   >
-                    {s.is_active ? 'Active' : 'Inactive'}
+                    {s.is_active ? 'Active' : 'Pending'}
                   </span>
                 </div>
               </div>
@@ -371,7 +400,7 @@ export function StoresPage() {
               </p>
               <div className="space-y-1.5 text-sm text-gray-500 mb-4">
                 <div className="flex items-center gap-2">
-                  <MapPin className="w-3.5 h-3.5 text-gray-600" />
+                  <MapPin className="w-3.5 h-3.5 text-gray-600 shrink-0" />
                   <span>
                     {s.address}
                     {s.city && `, ${s.city}`}
@@ -383,26 +412,29 @@ export function StoresPage() {
                 {s.email && <p className="truncate">{s.email}</p>}
                 {s.website && (
                   <div className="flex items-center gap-2">
-                    <Globe className="w-3.5 h-3.5 text-[#44f80c]" />
+                    <Globe className="w-3.5 h-3.5 text-[#44f80c] shrink-0" />
                     <span className="text-[#44f80c] truncate">{s.website}</span>
                   </div>
                 )}
-                {s.stock && (
-                  <span
-                    className={cn(
-                      'inline-block text-xs px-2 py-0.5 rounded-full',
-                      s.stock === 'In Stock'
-                        ? 'bg-green-500/15 text-green-400'
-                        : s.stock === 'Low Stock'
-                          ? 'bg-yellow-500/15 text-yellow-400'
-                          : 'bg-red-500/15 text-red-400'
-                    )}
-                  >
-                    {s.stock}
-                  </span>
-                )}
               </div>
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                {s.is_active ? (
+                  <button
+                    onClick={() => handleSetPending(s.id)}
+                    title="Set to Pending"
+                    className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-yellow-400"
+                  >
+                    <PauseCircle className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleReactivate(s.id)}
+                    title="Reactivate"
+                    className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-emerald-400"
+                  >
+                    <Store className="w-4 h-4" />
+                  </button>
+                )}
                 <button
                   onClick={() => openEdit(s)}
                   className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-[#44f80c]"
@@ -625,20 +657,6 @@ export function StoresPage() {
                     className="w-full pl-10 pr-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
                   />
                 </div>
-              </div>
-
-              {/* Stock */}
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1.5">Stock Status</label>
-                <select
-                  value={formData.stock}
-                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
-                >
-                  <option value="In Stock">In Stock</option>
-                  <option value="Low Stock">Low Stock</option>
-                  <option value="Out of Stock">Out of Stock</option>
-                </select>
               </div>
 
               {/* License */}

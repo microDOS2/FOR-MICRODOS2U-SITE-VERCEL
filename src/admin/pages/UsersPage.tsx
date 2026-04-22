@@ -439,13 +439,14 @@ export function UsersPage() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Email</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Role</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Manager</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Location</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {filtered.length === 0 && (
-                    <tr><td colSpan={6} className="text-center text-gray-500 py-8">No accounts found</td></tr>
+                    <tr><td colSpan={7} className="text-center text-gray-500 py-8">No accounts found</td></tr>
                   )}
                   {filtered.map((account) => {
                     const role = account.role || account.account_type || ''
@@ -476,6 +477,7 @@ export function UsersPage() {
                             {account.status}
                           </Badge>
                         </td>
+                        <td className="px-4 py-3 text-xs text-gray-500">—</td>
                         <td className="px-4 py-3 text-gray-400 text-sm">
                           {account.city && account.state ? `${account.city}, ${account.state}` : '—'}
                         </td>

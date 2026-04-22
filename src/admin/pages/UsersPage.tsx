@@ -124,26 +124,6 @@ export function UsersPage() {
   // Action loading
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  const [savingManager, setSavingManager] = useState<string | null>(null)
-  const [savingStates, setSavingStates] = useState<string | null>(null)
-
-  const handleToggleState = async (managerId, state, currentStates) => {
-    if (savingStates === managerId) return
-    setSavingStates(managerId)
-    const hasState = currentStates.includes(state)
-    const newStates = hasState ? currentStates.filter(s => s !== state) : [...currentStates, state]
-    const { error } = await supabase.from('users').update({ volume_estimate: JSON.stringify(newStates) }).eq('id', managerId)
-    if (error) toast.error('Error') else { toast.success(hasState ? 'Removed' : 'Added'); window.location.reload() }
-    setSavingStates(null)
-  }
-  const handleAssignManager = async (accountId, managerId) => {
-    if (savingManager === accountId) return
-    setSavingManager(accountId)
-    const { error } = await supabase.from('users').update({ manager_id: managerId || null }).eq('id', accountId)
-    if (error) toast.error('Error') else { toast.success(managerId ? 'Assigned' : 'Removed'); window.location.reload() }
-    setSavingManager(null)
-  }
-
   // ─── Fetch both users AND pending applications ───
   const fetchAll = async () => {
     setLoading(true)
@@ -502,11 +482,12 @@ export function UsersPage() {
                             const role = account.role
                             const mgrStates = (() => { try { const p = account.raw?.volume_estimate ? JSON.parse(account.raw.volume_estimate) : []; return Array.isArray(p) ? p : [] } catch { return [] } })()
                             const salesManagers = allAccounts.filter(u => u.role === 'sales_manager' && u.status === 'approved')
-                            if (role === 'sales_manager' && account.source === 'users') {
-                              return <div className="flex flex-wrap gap-1 items-center">{mgrStates.map(s => <span key={s} className="inline-flex items-center gap-0.5 text-xs bg-[#44f80c]/20 text-[#44f80c] px-2 py-0.5 rounded">{s}<button onClick={() => handleToggleState(account.id, s, mgrStates)} className="hover:text-white"><X className="w-3 h-3" /></button></span>)}<select onChange={e => { if (e.target.value) handleToggleState(account.id, e.target.value, mgrStates); e.target.value = '' }} className="h-6 text-xs bg-[#0a0514] border border-white/10 text-white rounded px-1"><option value="">+</option>{ALL_STATES.filter(s => !mgrStates.includes(s)).map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+                            if (role === 'sales_manager' && account.source === 'users' && mgrStates.length > 0) {
+                              return <div className="flex flex-wrap gap-1">{mgrStates.map((s) => <span key={s} className="text-xs bg-[#44f80c]/20 text-[#44f80c] px-2 py-0.5 rounded">{s}</span>)}</div>
                             }
-                            if ((role === 'wholesaler' || role === 'distributor') && account.source === 'users') {
-                              return <div className="flex items-center gap-2">{account.raw?.manager_id ? <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded flex items-center gap-1"><UserCheck className="w-3 h-3" />{salesManagers.find(m => m.id === account.raw.manager_id)?.business_name || 'Assigned'}</span> : <span className="text-xs text-gray-500">Unassigned</span>}<select value={account.raw?.manager_id || ''} onChange={e => handleAssignManager(account.id, e.target.value)} className="h-6 text-xs bg-[#0a0514] border border-white/10 text-white rounded px-1"><option value="">— Manager —</option>{salesManagers.map(m => <option key={m.id} value={m.id}>{m.business_name || m.email}</option>)}</select></div>
+                            if ((role === 'wholesaler' || role === 'distributor') && account.source === 'users' && account.raw?.manager_id) {
+                              const mgr = salesManagers.find(m => m.id === account.raw.manager_id)
+                              return <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">{mgr?.business_name || 'Assigned'}</span>
                             }
                             return <span className="text-xs text-gray-500">—</span>
                           })()}

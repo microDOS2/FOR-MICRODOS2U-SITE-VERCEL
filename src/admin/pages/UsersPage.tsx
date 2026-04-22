@@ -124,6 +124,9 @@ export function UsersPage() {
   // Action loading
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
+  // Manager assignment state
+  const [savingManager, setSavingManager] = useState<string | null>(null)
+
   // ─── Fetch both users AND pending applications ───
   const fetchAll = async () => {
     setLoading(true)

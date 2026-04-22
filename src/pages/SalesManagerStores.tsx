@@ -68,6 +68,7 @@ export function SalesManagerStores() {
   const [sortBy, setSortBy] = useState<'updated_at' | 'created_at' | 'name'>('updated_at');
   const [sortAsc, setSortAsc] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [allReps, setAllReps] = useState<DBUser[]>([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -160,7 +161,9 @@ export function SalesManagerStores() {
   const fetchStores = useCallback(async () => {
     if (territoryAccountIds.length === 0) {
       setStores([]);
-      toast.success('Stores loaded');
+      const { data: repsData } = await supabase.from('users').select('id, business_name, email').eq('role', 'sales_rep').eq('status', 'approved');
+      setAllReps((repsData || []) as DBUser[]);
+      toast.success(`Stores loaded, ${(repsData || []).length} reps`);
     setLoading(false);
       return;
     }
@@ -195,7 +198,9 @@ export function SalesManagerStores() {
       setError(err.message || 'Failed to fetch stores');
     }
 
-    toast.success('Stores loaded');
+    const { data: repsData } = await supabase.from('users').select('id, business_name, email').eq('role', 'sales_rep').eq('status', 'approved');
+      setAllReps((repsData || []) as DBUser[]);
+      toast.success(`Stores loaded, ${(repsData || []).length} reps`);
     setLoading(false);
   }, [territoryAccountIds, search, page, sortBy, sortAsc]);
 

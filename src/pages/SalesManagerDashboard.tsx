@@ -26,7 +26,6 @@ import {
   Loader2,
   Shield,
   Check,
-  UserMinus,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';

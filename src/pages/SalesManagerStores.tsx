@@ -29,7 +29,6 @@ import {
   AlertCircle,
   Users,
   Check,
-  UserMinus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DBUser } from '@/lib/supabase';

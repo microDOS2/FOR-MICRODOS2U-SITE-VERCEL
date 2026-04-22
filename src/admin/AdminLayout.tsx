@@ -28,7 +28,7 @@ const navItems = [
   { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
   { name: 'Users', path: '/admin/users', icon: Users },
   { name: 'Applications', path: '/admin/applications', icon: ClipboardList },
-  { name: 'Assignments', path: '/admin/assignments', icon: UserCog },
+  { name: 'Accounts', path: '/admin/accounts', icon: UserCog },
   { name: 'Influencers', path: '/admin/influencers', icon: UserCheck },
   { name: 'Products', path: '/admin/products', icon: Package },
   { name: 'Orders', path: '/admin/orders', icon: ShoppingCart },

@@ -86,6 +86,7 @@ function MapInteraction({ selectedStore, markerRefs }: { selectedStore: Store | 
 interface Store {
   id: string;
   name: string;
+  store_number?: string;
   address: string;
   city: string;
   state: string;
@@ -102,6 +103,12 @@ export function StoreLocator() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const markerRefs = useRef<Map<string, L.Marker>>(new Map());
+
+  // Parse store number from name
+  const parseStoreNumber = (name: string): { number: string; cleanName: string } => {
+    const m = name.match(/^(\d+[a-z])\s*-\s*(.+)$/);
+    return m ? { number: m[1], cleanName: m[2] } : { number: '', cleanName: name };
+  };
 
   // Fetch stores + geocode missing coordinates
   useEffect(() => {
@@ -159,9 +166,11 @@ export function StoreLocator() {
                 }
               }
 
+              const { number: storeNum, cleanName } = parseStoreNumber(s.name || '');
               return {
                 id: s.id,
-                name: s.name || 'Unnamed Store',
+                name: cleanName || s.name || 'Unnamed Store',
+                store_number: storeNum,
                 address: s.address || '',
                 city: s.city || '',
                 state: s.state || '',
@@ -323,7 +332,10 @@ export function StoreLocator() {
                   >
                     <Popup>
                       <div className="p-2 min-w-[200px]">
-                        <h3 className="font-semibold text-gray-900">{store.name}</h3>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-gray-900">{store.name}</h3>
+                          {store.store_number && <span className="text-xs font-mono bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">{store.store_number}</span>}
+                        </div>
                         <p className="text-sm text-gray-600">{store.address}</p>
                         <p className="text-sm text-gray-600">
                           {store.city}, {store.state} {store.zip}

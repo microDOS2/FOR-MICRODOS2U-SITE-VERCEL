@@ -68,6 +68,7 @@ export function SalesManagerStores() {
   const [sortBy, setSortBy] = useState<'updated_at' | 'created_at' | 'name'>('updated_at');
   const [sortAsc, setSortAsc] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [allReps, setAllReps] = useState<any[]>([]);
   const [allReps, setAllReps] = useState<DBUser[]>([]);
 
   const [formData, setFormData] = useState({

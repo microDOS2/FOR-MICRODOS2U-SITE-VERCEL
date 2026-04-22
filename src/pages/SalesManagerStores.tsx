@@ -18,19 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertCircle,
-  Users,
-  Check,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { DBUser } from '@/lib/supabase';
 
@@ -79,9 +67,6 @@ export function SalesManagerStores() {
   const [sortBy, setSortBy] = useState<'updated_at' | 'created_at' | 'name'>('updated_at');
   const [sortAsc, setSortAsc] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [allReps, setAllReps] = useState<any[]>([]);
-  const [selectedStoreRep, setSelectedStoreRep] = useState<Record<string, string>>({});
-  const [savingStore, setSavingStore] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -336,26 +321,6 @@ export function SalesManagerStores() {
     setPage(0);
   };
 
-  // Rep assignment handlers
-  const extractRepFromLicense = (license: string | null): string | null => {
-    return license && license.startsWith('rep:') ? license.slice(4) : null;
-  };
-
-  const handleAssignStore = async (storeId: string) => {
-    const repId = selectedStoreRep[storeId];
-    if (!repId) { toast.error('Select a Sales Rep'); return; }
-    setSavingStore(storeId);
-    const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: `rep:${repId}` }).eq('id', storeId);
-    if (error) { toast.error('Failed: ' + error.message); } else { toast.success('Assigned!'); window.location.reload(); }
-    setSavingStore(null);
-  };
-
-  const handleUnassignStore = async (storeId: string) => {
-    if (!confirm('Remove store rep assignment?')) return;
-    const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: null }).eq('id', storeId);
-    if (error) { toast.error('Error'); } else { toast.success('Unassigned'); window.location.reload(); }
-  };
-
   // Split users into wholesalers and distributors for the dropdown
   const territoryWholesalers = users.filter((u) => u.role === 'wholesaler');
   const territoryDistributors = users.filter((u) => u.role === 'distributor');
@@ -530,48 +495,9 @@ export function SalesManagerStores() {
                         <span className="text-[#44f80c] truncate">{s.website}</span>
                       </div>
                     )}
-                    {/* Rep Assignment */}
-                    {(() => {
-                      const storeRepId = extractRepFromLicense(s.license_number);
-                      const storeRep = allReps.find((r: any) => r.id === storeRepId);
-                      return (
-                        <div className="mt-2 pt-2 border-t border-white/5">
-                          {storeRep ? (
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge className="bg-[#44f80c]/20 text-[#44f80c] text-xs">
-                                <Users className="w-3 h-3 mr-1" /> Rep: {storeRep.business_name || storeRep.email}
-                              </Badge>
-                              <button onClick={() => handleUnassignStore(s.id)} className="text-xs text-red-400 hover:text-red-300 underline">Remove</button>
-                            </div>
-                          ) : (
-                            <Badge className="bg-gray-700 text-gray-400 text-xs mb-2">Unassigned</Badge>
-                          )}
-                          <div className="flex items-center gap-2">
-                            <Select
-                              value={selectedStoreRep[s.id] || storeRepId || ''}
-                              onValueChange={(val) => setSelectedStoreRep((p: any) => ({ ...p, [s.id]: val }))}
-                            >
-                              <SelectTrigger className="w-40 bg-[#0a0514] border-white/10 text-white text-xs h-8">
-                                <SelectValue placeholder="Select Rep" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-[#150f24] border-white/10">
-                                {allReps.map((r: any) => (
-                                  <SelectItem key={r.id} value={r.id}>{r.business_name || r.email}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Button
-                              size="sm"
-                              onClick={() => handleAssignStore(s.id)}
-                              disabled={savingStore === s.id}
-                              className="bg-gradient-to-r from-[#44f80c] to-[#9a02d0] text-white h-8 px-2"
-                            >
-                              {savingStore === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })()}
+                    <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-400">
+                      In Stock
+                    </span>
                   </div>
                   <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
                     <button

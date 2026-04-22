@@ -52,6 +52,12 @@ interface RepAssignment {
   account_id: string;
 }
 
+interface SalesRep {
+  id: string;
+  business_name: string | null;
+  email: string | null;
+}
+
 export function SalesManagerStores() {
   const navigate = useNavigate();
   const [stores, setStores] = useState<StoreItem[]>([]);
@@ -68,7 +74,7 @@ export function SalesManagerStores() {
   const [sortBy, setSortBy] = useState<'updated_at' | 'created_at' | 'name'>('updated_at');
   const [sortAsc, setSortAsc] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [salesReps, setSalesReps] = useState<DBUser[]>([]);
+  const [salesReps, setSalesReps] = useState<SalesRep[]>([]);
   const [assigningStore, setAssigningStore] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
@@ -122,7 +128,7 @@ export function SalesManagerStores() {
           .eq('role', 'sales_rep')
           .eq('manager_id', session.user.id);
 
-        setSalesReps(repsData || []);
+        setSalesReps((repsData || []) as SalesRep[]);
 
         if (repsData && repsData.length > 0) {
           const repIds = repsData.map((r) => r.id);

@@ -167,12 +167,12 @@ export function ApplicationsPage() {
                       )}
                       {app.license_number && (
                         <Badge className="bg-[#9a02d0]/20 text-[#9a02d0] text-xs">
-                          License: {app.license_number}
+                          Business License #: {app.license_number}
                         </Badge>
                       )}
                       {app.ein && (
                         <Badge className="bg-gray-700 text-gray-400 text-xs">
-                          EIN: {app.ein}
+                          EIN/TaxID #: {app.ein}
                         </Badge>
                       )}
                     </div>

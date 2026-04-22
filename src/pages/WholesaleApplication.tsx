@@ -147,8 +147,8 @@ export function WholesaleApplication() {
       const newErrors: Record<string, string> = {};
       if (step === 1) {
         if (!formData.business_name) newErrors.business_name = 'Business name is required';
-        if (!formData.license_number) newErrors.license_number = 'Business license number is required';
-        if (!formData.ein) newErrors.ein = 'EIN / Tax ID is required';
+        if (!formData.license_number) newErrors.license_number = 'Business License # is required';
+        if (!formData.ein) newErrors.ein = 'EIN/TaxID # is required';
         if (!formData.email) newErrors.email = 'Email is required';
         if (!formData.password) newErrors.password = 'Password is required';
         if (formData.password && formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
@@ -391,7 +391,7 @@ export function WholesaleApplication() {
 
                   <div className="space-y-2">
                     <Label htmlFor="license_number" className="text-gray-300">
-                      Business License Number <span className="text-red-400">*</span>
+                      Business License # <span className="text-red-400">*</span>
                     </Label>
                     <div className="relative">
                       <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -410,7 +410,7 @@ export function WholesaleApplication() {
 
                   <div className="space-y-2">
                     <Label htmlFor="ein" className="text-gray-300">
-                      EIN (Tax ID) <span className="text-red-400">*</span>
+                      EIN/TaxID # <span className="text-red-400">*</span>
                     </Label>
                     <Input
                       id="ein"

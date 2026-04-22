@@ -22,7 +22,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import {
-  Users, Plus, Search, Check, Copy, Store, UserPlus, Loader2, X, Info, Pencil, Eye, Shield, UserCheck
+  Users, Plus, Search, Check, Copy, Store, UserPlus, Loader2, X, Info, Pencil, Eye
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DBUser } from '@/lib/supabase'
@@ -60,15 +60,13 @@ const roleLabels: Record<string, string> = {
 
 const roleBadgeClasses: Record<string, string> = {
   admin: 'bg-red-500/20 text-red-500',
-  sales_manager: 'bg-blue-500/20 text-blue-400',
-  sales_rep: 'bg-orange-500/20 text-orange-400',
+  sales_manager: 'bg-purple-500/20 text-purple-500',
+  sales_rep: 'bg-blue-500/20 text-blue-500',
   wholesaler: 'bg-[#44f80c]/20 text-[#44f80c]',
   distributor: 'bg-[#ff66c4]/20 text-[#ff66c4]',
   influencer: 'bg-orange-500/20 text-orange-500',
   retailer: 'bg-gray-500/20 text-gray-400',
 }
-
-const ALL_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC']
 
 function generatePassword(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
@@ -125,10 +123,6 @@ export function UsersPage() {
 
   // Action loading
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-
-  // Manager assignment loading
-  const [savingManager, setSavingManager] = useState<string | null>(null)
-  const [savingStates, setSavingStates] = useState<string | null>(null)
 
   // ─── Fetch both users AND pending applications ───
   const fetchAll = async () => {
@@ -386,28 +380,6 @@ export function UsersPage() {
     toast.success('Password copied')
   }
 
-  // ──── MANAGER ASSIGNMENT ────
-  const salesManagers = allAccounts.filter(u => u.role === 'sales_manager' && u.status === 'approved')
-  const accountRoles = ['wholesaler', 'distributor']
-
-  const handleAssignManager = async (accountId: string, managerId: string) => {
-    if (savingManager === accountId) return
-    setSavingManager(accountId)
-    const { error } = await supabase.from('users').update({ manager_id: managerId || null }).eq('id', accountId)
-    if (error) { toast.error('Error: ' + error.message) } else { toast.success(managerId ? 'Manager assigned' : 'Manager removed'); fetchAll() }
-    setSavingManager(null)
-  }
-
-  const handleToggleState = async (managerId: string, state: string, currentStates: string[]) => {
-    if (savingStates === managerId) return
-    setSavingStates(managerId)
-    const hasState = currentStates.includes(state)
-    const newStates = hasState ? currentStates.filter((s: string) => s !== state) : [...currentStates, state]
-    const { error } = await supabase.from('users').update({ volume_estimate: JSON.stringify(newStates) }).eq('id', managerId)
-    if (error) { toast.error('Error: ' + error.message) } else { toast.success(hasState ? 'State removed' : 'State added'); fetchAll() }
-    setSavingStates(null)
-  }
-
   const accountTypeLabel = () => {
     switch (accountType) {
       case 'wholesaler': return 'Wholesaler'
@@ -467,14 +439,13 @@ export function UsersPage() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Email</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Role</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Manager / Territory</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Location</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {filtered.length === 0 && (
-                    <tr><td colSpan={7} className="text-center text-gray-500 py-8">No accounts found</td></tr>
+                    <tr><td colSpan={6} className="text-center text-gray-500 py-8">No accounts found</td></tr>
                   )}
                   {filtered.map((account) => {
                     const role = account.role || account.account_type || ''
@@ -504,54 +475,6 @@ export function UsersPage() {
                           }>
                             {account.status}
                           </Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          {/* Sales Manager: Show assigned states */}
-                          {role === 'sales_manager' && account.source === 'users' && (() => {
-                            const managerStates: string[] = account.raw?.volume_estimate ? JSON.parse(account.raw.volume_estimate as string) : []
-                            return (
-                              <div className="flex flex-wrap gap-1 items-center">
-                                {managerStates.map((s: string) => (
-                                  <span key={s} className="inline-flex items-center gap-0.5 text-xs bg-[#44f80c]/20 text-[#44f80c] px-2 py-0.5 rounded">
-                                    {s} <button onClick={() => handleToggleState(account.id, s, managerStates)} className="hover:text-white"><X className="w-3 h-3" /></button>
-                                  </span>
-                                ))}
-                                <Select onValueChange={(val) => handleToggleState(account.id, val, managerStates)}>
-                                  <SelectTrigger className="h-6 w-auto text-xs bg-[#0a0514] border-white/10 text-white px-2 py-0"><Plus className="w-3 h-3" /></SelectTrigger>
-                                  <SelectContent className="bg-[#150f24] border-white/10 max-h-60">
-                                    {ALL_STATES.filter((s: string) => !managerStates.includes(s)).map(s => (
-                                      <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            )
-                          })()}
-                          {/* Account: Show assigned manager */}
-                          {accountRoles.includes(role) && account.source === 'users' && (
-                            <div className="flex items-center gap-2">
-                              {savingManager === account.id ? <Loader2 className="w-3 h-3 animate-spin text-gray-400" /> : (
-                                <>
-                                  {account.raw?.manager_id ? (
-                                    <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded flex items-center gap-1">
-                                      <UserCheck className="w-3 h-3" />
-                                      {salesManagers.find((m: any) => m.id === account.raw.manager_id)?.business_name || 'Assigned'}
-                                    </span>
-                                  ) : <span className="text-xs text-gray-500">Unassigned</span>}
-                                  <Select value={account.raw?.manager_id || ''} onValueChange={(val) => handleAssignManager(account.id, val)}>
-                                    <SelectTrigger className="h-6 w-auto text-xs bg-[#0a0514] border-white/10 text-white px-2"><Shield className="w-3 h-3 mr-1" />{account.raw?.manager_id ? 'Change' : 'Assign'}</SelectTrigger>
-                                    <SelectContent className="bg-[#150f24] border-white/10">
-                                      <SelectItem value="" className="text-xs text-red-400">Remove Manager</SelectItem>
-                                      {salesManagers.map((m: any) => (
-                                        <SelectItem key={m.id} value={m.id} className="text-xs">{m.business_name || m.email}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </>
-                              )}
-                            </div>
-                          )}
-                          {!['sales_manager', 'wholesaler', 'distributor'].includes(role) && <span className="text-xs text-gray-500">—</span>}
                         </td>
                         <td className="px-4 py-3 text-gray-400 text-sm">
                           {account.city && account.state ? `${account.city}, ${account.state}` : '—'}

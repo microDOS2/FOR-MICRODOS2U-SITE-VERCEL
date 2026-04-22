@@ -19,6 +19,7 @@ import {
   ChevronRight,
   AlertCircle,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { DBUser } from '@/lib/supabase';
 
@@ -159,7 +160,8 @@ export function SalesManagerStores() {
   const fetchStores = useCallback(async () => {
     if (territoryAccountIds.length === 0) {
       setStores([]);
-      setLoading(false);
+      toast.success('Stores loaded');
+    setLoading(false);
       return;
     }
 
@@ -193,6 +195,7 @@ export function SalesManagerStores() {
       setError(err.message || 'Failed to fetch stores');
     }
 
+    toast.success('Stores loaded');
     setLoading(false);
   }, [territoryAccountIds, search, page, sortBy, sortAsc]);
 

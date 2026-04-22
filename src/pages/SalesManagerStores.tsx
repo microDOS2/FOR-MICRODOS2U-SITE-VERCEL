@@ -493,20 +493,9 @@ export function SalesManagerStores() {
                         <span className="text-[#44f80c] truncate">{s.website}</span>
                       </div>
                     )}
-                    {s.stock && (
-                      <span
-                        className={cn(
-                          'inline-block text-xs px-2 py-0.5 rounded-full',
-                          s.stock === 'In Stock'
-                            ? 'bg-green-500/15 text-green-400'
-                            : s.stock === 'Low Stock'
-                              ? 'bg-yellow-500/15 text-yellow-400'
-                              : 'bg-red-500/15 text-red-400'
-                        )}
-                      >
-                        {s.stock}
-                      </span>
-                    )}
+                    <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-400">
+                      In Stock
+                    </span>
                   </div>
                   <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
                     <button
@@ -728,20 +717,6 @@ export function SalesManagerStores() {
                     className="w-full pl-10 pr-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
                   />
                 </div>
-              </div>
-
-              {/* Stock */}
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1.5">Stock Status</label>
-                <select
-                  value={formData.stock}
-                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
-                >
-                  <option value="In Stock">In Stock</option>
-                  <option value="Low Stock">Low Stock</option>
-                  <option value="Out of Stock">Out of Stock</option>
-                </select>
               </div>
 
               {/* License */}

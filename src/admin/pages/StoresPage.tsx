@@ -2,8 +2,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { downloadCSV, formatDate } from '@/lib/utils'
 import { geocodeAddress } from '@/lib/geocode'
-import { Search, Download, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Store, Globe, MapPin, Loader2, Clock, PauseCircle } from 'lucide-react'
+import { Search, Download, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Store, Globe, MapPin, Loader2, Clock, PauseCircle, Users, UserMinus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
 import type { DBUser } from '@/lib/supabase'
 import { toast } from 'sonner'
 
@@ -30,6 +32,7 @@ interface StoreItem {
   store_number?: string
   account_number?: string
   assigned_rep?: string | null
+  assigned_rep_id?: string | null
 }
 
 export function StoresPage() {
@@ -42,6 +45,9 @@ export function StoresPage() {
   const [editingStore, setEditingStore] = useState<StoreItem | null>(null)
   const [users, setUsers] = useState<DBUser[]>([])
   const [geocoding, setGeocoding] = useState(false)
+  const [reps, setReps] = useState<any[]>([])
+  const [selectedStoreRep, setSelectedStoreRep] = useState<Record<string, string>>({})
+  const [savingStore, setSavingStore] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'updated_at' | 'created_at' | 'name'>('updated_at')
   const [sortAsc, setSortAsc] = useState(false)
 
@@ -84,8 +90,13 @@ export function StoresPage() {
         const assignedRepId = assignmentMap.get(s.id)
         const assignedRep = assignedRepId ? repMap.get(assignedRepId) : null
         const m = s.name?.match(/^(\d+[a-z])\s*-\s*/)
-        return { ...s, name: m ? s.name.replace(m[0], '') : s.name, store_number: m ? m[1] : '', account_number: owner?.referral_code || '', owner, assigned_rep: assignedRep ? (assignedRep.business_name || assignedRep.email) : null }
+        return { ...s, name: m ? s.name.replace(m[0], '') : s.name, store_number: m ? m[1] : '', account_number: owner?.referral_code || '', owner, assigned_rep: assignedRep ? (assignedRep.business_name || assignedRep.email) : null,
+          assigned_rep_id: assignedRepId || null }
       })
+
+      // Fetch sales reps for store-level assignment
+      const { data: repsData } = await supabase.from('users').select('id, business_name, email').eq('role', 'sales_rep').eq('status', 'approved')
+      setReps(repsData || [])
 
       setStores(transformed); setTotalCount(count || 0)
     } catch (err) { console.error(err); setStores([]) }
@@ -120,6 +131,24 @@ export function StoresPage() {
 
   const openEdit = (s: StoreItem) => { setEditingStore(s); setFormData({ name: s.name || '', user_id: s.user_id || '', address: s.address || '', city: s.city || '', state: s.state || '', zip: s.zip || '', lat: s.lat != null ? String(s.lat) : '', lng: s.lng != null ? String(s.lng) : '', phone: s.phone || '', email: s.email || '', website: s.website || '', license_number: (s as any).license_number || '', is_primary: s.is_primary || false, is_active: s.is_active ?? true }); setShowModal(true) }
   const resetForm = () => setFormData({ name: '', user_id: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '', website: '', license_number: '', is_primary: false, is_active: true })
+
+  const handleAssignStore = async (storeId: string) => {
+    const repId = selectedStoreRep[storeId]
+    if (!repId) { toast.error('Select a Sales Rep first'); return }
+    setSavingStore(storeId)
+    await supabase.from('store_assignments').delete().eq('store_id', storeId)
+    const { error } = await supabase.from('store_assignments').insert([{ store_id: storeId, rep_id: repId }])
+    if (error) toast.error('Failed: ' + error.message)
+    else { toast.success('Store rep assigned!'); fetchStores() }
+    setSavingStore(null)
+  }
+
+  const handleUnassignStore = async (storeId: string) => {
+    if (!confirm('Remove store rep assignment?')) return
+    const { error } = await supabase.from('store_assignments').delete().eq('store_id', storeId)
+    if (error) toast.error('Error: ' + error.message)
+    else { toast.success('Unassigned'); fetchStores() }
+  }
 
   const exportCSV = () => downloadCSV('stores', ['Store #','ID','Name','Owner','Role','Address','City','State','ZIP','Phone','Email','Website','Status','Assigned Rep','Last Updated'], stores.map((s) => [s.store_number||'', s.id, s.name||'', s.owner?.business_name||s.owner?.email||s.user_id, s.owner?.role||'', s.address, s.city||'', s.state||'', s.zip||'', s.phone||'', s.email||'', s.website||'', s.is_active?'Active':'Pending', s.assigned_rep||'Unassigned', s.updated_at]))
 

@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Search, Pencil, Trash2, X, ChevronLeft, ChevronRight, Store, MapPin, Phone, Loader2, PauseCircle, PlayCircle, Users, UserMinus, Check } from 'lucide-react'
@@ -19,9 +18,7 @@ interface StoreItem {
   lng: number | null
   phone: string | null
   email: string | null
-  stock: string
   is_active: boolean
-  created_at: string
   store_number: string
   account_number: string
   owner_name: string
@@ -41,9 +38,7 @@ export function StoresPage() {
   const [reps, setReps] = useState<any[]>([])
   const [selectedRep, setSelectedRep] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState<string | null>(null)
-
   const [formData, setFormData] = useState({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '' })
-
   const pageSize = 10
 
   const parseStoreNumber = (name: string): { number: string; cleanName: string } => {
@@ -51,47 +46,37 @@ export function StoresPage() {
     return m ? { number: m[1], cleanName: m[2] } : { number: '', cleanName: name }
   }
 
+  const extractRepFromLicense = (license: string | null): string | null => {
+    return license && license.startsWith('rep:') ? license.slice(4) : null
+  }
+
   const fetchStores = useCallback(async () => {
     setLoading(true)
     try {
-      let query = supabase.from('stores').select('*', { count: 'exact' }).eq('is_active', true).order('name', { ascending: true })
+      let query = supabase.from('wholesaler_store_locations').select('*', { count: 'exact' }).order('name', { ascending: true })
       if (search) query = query.or(`name.ilike.%${search}%,address.ilike.%${search}%,city.ilike.%${search}%`)
       const { data: storeData, count, error } = await query
       if (error) { console.error(error); setStores([]); setLoading(false); return }
 
-      // Fetch approved accounts for matching
       const { data: usersData } = await supabase.from('users').select('id, business_name, email, role, referral_code').eq('status', 'approved').in('role', ['wholesaler', 'distributor'])
       const userMap = new Map(); (usersData || []).forEach((u: any) => userMap.set(u.referral_code, u))
 
-      // Fetch store-level assignments
-      const { data: assignData } = await supabase.from('store_assignments').select('store_id, rep_id')
-      const assignmentMap = new Map(); (assignData || []).forEach((a: any) => assignmentMap.set(a.store_id, a.rep_id))
-
-      // Fetch rep names
-      const repIds = [...new Set((assignData || []).map((a: any) => a.rep_id))]
-      let repMap = new Map()
-      if (repIds.length > 0) {
-        const { data: repData } = await supabase.from('users').select('id, business_name, email').in('id', repIds)
-        ;(repData || []).forEach((r: any) => repMap.set(r.id, r))
-      }
-
-      // Fetch all reps for dropdown
-      const { data: allReps } = await supabase.from('users').select('id, business_name, email').eq('role', 'sales_rep').eq('status', 'approved')
-      setReps(allReps || [])
+      const { data: repsData } = await supabase.from('users').select('id, business_name, email').eq('role', 'sales_rep').eq('status', 'approved')
+      setReps(repsData || [])
+      const repMap = new Map(); (repsData || []).forEach((r: any) => repMap.set(r.id, r))
 
       const transformed = (storeData || []).map((s: any) => {
         const { number: sn, cleanName } = parseStoreNumber(s.name || '')
-        const acctNum = sn.replace(/[a-z]$/, '') // "100a" -> "100"
+        const acctNum = sn.replace(/[a-z]$/, '')
         const owner = userMap.get(acctNum)
-        const repId = assignmentMap.get(s.id)
+        const repId = extractRepFromLicense(s.license_number)
         const rep = repId ? repMap.get(repId) : null
         return {
-          id: s.id, name: cleanName, address: s.address || '', city: s.city || '', state: s.state || '', zip: s.zip || '',
-          lat: s.lat, lng: s.lng, phone: s.phone || '', email: s.email || '', stock: s.stock || 'In Stock',
-          is_active: s.is_active ?? true, created_at: s.created_at,
-          store_number: sn, account_number: acctNum,
+          id: s.id, name: cleanName, address: s.address || '', city: s.city || '', state: s.state || '',
+          zip: s.zip || '', lat: s.lat, lng: s.lng, phone: s.phone || '', email: s.email || '',
+          is_active: s.is_active ?? true, store_number: sn, account_number: acctNum,
           owner_name: owner ? (owner.business_name || owner.email) : 'Unknown',
-          owner_role: owner?.role || '', assigned_rep_id: repId || null,
+          owner_role: owner?.role || '', assigned_rep_id: repId,
           assigned_rep_name: rep ? (rep.business_name || rep.email) : null,
         }
       })
@@ -103,30 +88,24 @@ export function StoresPage() {
   useEffect(() => { fetchStores() }, [fetchStores])
 
   const handleSave = async () => {
-    const payload: any = { name: formData.name, address: formData.address, city: formData.city, state: formData.state, zip: formData.zip, lat: formData.lat ? parseFloat(formData.lat) : null, lng: formData.lng ? parseFloat(formData.lng) : null, phone: formData.phone || null, email: formData.email || null, stock: 'In Stock', is_active: true }
-    if (editingStore) {
-      const { error } = await supabase.from('stores').update(payload).eq('id', editingStore.id)
-      error ? toast.error('Error: ' + error.message) : toast.success('Store updated')
-    } else {
-      const { error } = await supabase.from('stores').insert([payload])
-      error ? toast.error('Error: ' + error.message) : toast.success('Store created')
-    }
+    const payload: any = { name: formData.name, address: formData.address, city: formData.city, state: formData.state, zip: formData.zip, lat: formData.lat ? parseFloat(formData.lat) : null, lng: formData.lng ? parseFloat(formData.lng) : null, phone: formData.phone || null, email: formData.email || null }
+    if (editingStore) { const { error } = await supabase.from('wholesaler_store_locations').update(payload).eq('id', editingStore.id); error ? toast.error('Error') : toast.success('Updated') }
+    else { const { error } = await supabase.from('wholesaler_store_locations').insert([{ ...payload, stock: 'In Stock', is_active: true, source: 'admin' }]); error ? toast.error('Error') : toast.success('Created') }
     setShowModal(false); setEditingStore(null); setFormData({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '' }); fetchStores()
   }
-
-  const handleDelete = async (id: string) => { if (!confirm('Delete?')) return; const { error } = await supabase.from('stores').delete().eq('id', id); error ? toast.error('Error') : toast.success('Deleted'); fetchStores() }
-  const handleSetPending = async (id: string) => { if (!confirm('Set to Pending?')) return; const { error } = await supabase.from('stores').update({ is_active: false }).eq('id', id); error ? toast.error('Error') : toast.success('Pending'); fetchStores() }
-  const handleReactivate = async (id: string) => { const { error } = await supabase.from('stores').update({ is_active: true }).eq('id', id); error ? toast.error('Error') : toast.success('Active'); fetchStores() }
+  const handleDelete = async (id: string) => { if (!confirm('Delete?')) return; const { error } = await supabase.from('wholesaler_store_locations').delete().eq('id', id); error ? toast.error('Error') : toast.success('Deleted'); fetchStores() }
+  const handleSetPending = async (id: string) => { if (!confirm('Set to Pending?')) return; const { error } = await supabase.from('wholesaler_store_locations').update({ is_active: false }).eq('id', id); error ? toast.error('Error') : toast.success('Pending'); fetchStores() }
+  const handleReactivate = async (id: string) => { const { error } = await supabase.from('wholesaler_store_locations').update({ is_active: true }).eq('id', id); error ? toast.error('Error') : toast.success('Active'); fetchStores() }
   const openEdit = (s: StoreItem) => { setEditingStore(s); setFormData({ name: s.name, address: s.address, city: s.city, state: s.state, zip: s.zip || '', lat: s.lat != null ? String(s.lat) : '', lng: s.lng != null ? String(s.lng) : '', phone: s.phone || '', email: s.email || '' }); setShowModal(true) }
 
   const handleAssignStore = async (storeId: string) => {
     const repId = selectedRep[storeId]; if (!repId) { toast.error('Select a Sales Rep'); return }
-    setSaving(storeId); await supabase.from('store_assignments').delete().eq('store_id', storeId)
-    const { error } = await supabase.from('store_assignments').insert([{ store_id: storeId, rep_id: repId }])
-    if (error) toast.error('Failed: ' + error.message); else { toast.success('Assigned!'); fetchStores() }
+    setSaving(storeId)
+    const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: `rep:${repId}` }).eq('id', storeId)
+    error ? toast.error('Failed: ' + error.message) : (toast.success('Assigned!'), fetchStores())
     setSaving(null)
   }
-  const handleUnassignStore = async (storeId: string) => { if (!confirm('Remove?')) return; const { error } = await supabase.from('store_assignments').delete().eq('store_id', storeId); if (error) toast.error('Error'); else { toast.success('Unassigned'); fetchStores() } }
+  const handleUnassignStore = async (storeId: string) => { if (!confirm('Remove?')) return; const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: null }).eq('id', storeId); error ? toast.error('Error') : (toast.success('Unassigned'), fetchStores()) }
 
   const totalPages = Math.ceil(totalCount / pageSize)
 
@@ -137,7 +116,6 @@ export function StoresPage() {
         <button onClick={() => { setEditingStore(null); setFormData({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '' }); setShowModal(true) }} className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white"><Store className="w-4 h-4" /> Add</button>
       </div>
       <p className="text-sm text-gray-500">{totalCount} store{totalCount !== 1 ? 's' : ''}</p>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? <div className="col-span-full text-center py-12 text-gray-500 flex justify-center gap-2"><Loader2 className="w-5 h-5 animate-spin" /> Loading...</div> : stores.length === 0 ? <div className="col-span-full text-center py-12 text-gray-500">No stores</div> : stores.map((s) => (
           <Card key={s.id} className="bg-[#150f24] border-white/10 hover:border-[#9a02d0]/30 transition-colors">
@@ -155,8 +133,6 @@ export function StoresPage() {
                 <span className="text-sm text-gray-400">{s.owner_name}</span>
                 {s.owner_role && <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full uppercase', s.owner_role === 'wholesaler' ? 'bg-[#44f80c]/20 text-[#44f80c]' : 'bg-[#ff66c4]/20 text-[#ff66c4]')}>{s.owner_role}</span>}
               </div>
-
-              {/* Rep assignment */}
               <div className="flex flex-col gap-2 mt-2 mb-3">
                 {s.assigned_rep_name ? (
                   <div className="flex items-center gap-2">
@@ -172,7 +148,6 @@ export function StoresPage() {
                   <Button size="sm" onClick={() => handleAssignStore(s.id)} disabled={saving === s.id} className="h-8 w-8 p-0 bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]">{saving === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}</Button>
                 </div>
               </div>
-
               <div className="space-y-1 text-sm text-gray-500 mb-3">
                 <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-gray-600 shrink-0" /><span>{s.address}{s.city && `, ${s.city}`}{s.state && `, ${s.state}`}</span></div>
                 {s.phone && <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-gray-600 shrink-0" /><span>{s.phone}</span></div>}
@@ -187,9 +162,7 @@ export function StoresPage() {
           </Card>
         ))}
       </div>
-
       {totalCount > pageSize && <div className="flex justify-between bg-[#150f24] border border-white/10 rounded-xl px-4 py-3"><span className="text-sm text-gray-500">{totalCount} total</span><div className="flex gap-2"><button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="p-2 hover:bg-white/5 rounded-lg disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button><span className="text-sm text-gray-400">Page {page + 1} of {totalPages || 1}</span><button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="p-2 hover:bg-white/5 rounded-lg disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button></div></div>}
-
       {showModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"><div className="bg-[#150f24] border border-white/10 rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between p-5 border-b border-white/10"><h3 className="text-lg font-semibold text-white">{editingStore ? 'Edit' : 'Add'} Store</h3><button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-white/5 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button></div>
         <div className="p-5 space-y-4">

@@ -75,7 +75,7 @@ export function AccountsPage() {
 
     // 3. Fetch all stores
     const { data: storesData } = await supabase
-      .from('wholesaler_store_locations')
+      .from('stores')
       .select('*')
       .order('name', { ascending: true })
 

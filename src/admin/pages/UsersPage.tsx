@@ -124,6 +124,9 @@ export function UsersPage() {
   // Action loading
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
+  // Manager assignment loading
+  const [savingManager, setSavingManager] = useState<string | null>(null)
+
   // ─── Fetch both users AND pending applications ───
   const fetchAll = async () => {
     setLoading(true)
@@ -368,6 +371,23 @@ export function UsersPage() {
     setActionLoading(null)
   }
 
+  // ──── ASSIGN MANAGER TO ACCOUNT ────
+  const handleAssignManager = async (accountId: string, managerId: string) => {
+    setSavingManager(accountId)
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ manager_id: managerId || null })
+        .eq('id', accountId)
+      if (error) throw error
+      toast.success(managerId ? 'Manager assigned!' : 'Manager removed!')
+      await fetchAll()
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update')
+    }
+    setSavingManager(null)
+  }
+
   // ──── APPROVE APPLICATION ────
   const handleApproveFromUsers = async (_app: UnifiedUser) => {
     navigate('/admin/applications')
@@ -478,19 +498,21 @@ export function UsersPage() {
                           </Badge>
                         </td>
                         <td className="px-4 py-3">
-                          {(() => {
-                            const role = account.role
-                            const mgrStates = (() => { try { const p = account.raw?.volume_estimate ? JSON.parse(account.raw.volume_estimate) : []; return Array.isArray(p) ? p : [] } catch { return [] } })()
-                            const salesManagers = allAccounts.filter(u => u.role === 'sales_manager' && u.status === 'approved')
-                            if (role === 'sales_manager' && account.source === 'users' && mgrStates.length > 0) {
-                              return <div className="flex flex-wrap gap-1">{mgrStates.map((s) => <span key={s} className="text-xs bg-[#44f80c]/20 text-[#44f80c] px-2 py-0.5 rounded">{s}</span>)}</div>
-                            }
-                            if ((role === 'wholesaler' || role === 'distributor') && account.source === 'users' && account.raw?.manager_id) {
-                              const mgr = salesManagers.find(m => m.id === account.raw.manager_id)
-                              return <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">{mgr?.business_name || 'Assigned'}</span>
-                            }
-                            return <span className="text-xs text-gray-500">—</span>
-                          })()}
+                          {account.role === 'sales_manager' && account.source === 'users' ? (
+                            (() => { try { const p = account.raw?.volume_estimate ? JSON.parse(account.raw.volume_estimate) : []; return Array.isArray(p) && p.length > 0 ? <div className="flex flex-wrap gap-1">{p.map((s: string) => <span key={s} className="text-xs bg-[#44f80c]/20 text-[#44f80c] px-2 py-0.5 rounded">{s}</span>)}</div> : <span className="text-xs text-gray-500">No states</span> } catch { return <span className="text-xs text-gray-500">No states</span> } })()
+                          ) : (account.role === 'wholesaler' || account.role === 'distributor') && account.source === 'users' ? (
+                            <select
+                              className="text-xs bg-[#0a0514] border border-white/10 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-[#44f80c]/50 w-full max-w-[140px]"
+                              value={account.raw?.manager_id || ''}
+                              onChange={(e) => handleAssignManager(account.id, e.target.value)}
+                              disabled={savingManager === account.id}
+                            >
+                              <option value="">— No Manager —</option>
+                              {(() => { const sm = allAccounts.filter(u => u.role === 'sales_manager' && u.status === 'approved'); return sm.map(m => <option key={m.id} value={m.id}>{m.business_name}</option>) })()}
+                            </select>
+                          ) : (
+                            <span className="text-xs text-gray-500">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-gray-400 text-sm">
                           {account.city && account.state ? `${account.city}, ${account.state}` : '—'}

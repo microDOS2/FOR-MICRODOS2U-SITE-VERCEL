@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { CheckCircle, Clock, MapPin, Globe, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
-interface ApprovedApp {
+interface ApprovedAccount {
   id: string
   business_name: string
   contact_name: string | null
@@ -25,6 +25,7 @@ interface ApprovedApp {
   reviewed_at: string
   submitted_at: string
   auth_user_id: string | null
+  source: 'applications' | 'users'
 }
 
 const typeBadgeClasses: Record<string, string> = {
@@ -34,21 +35,92 @@ const typeBadgeClasses: Record<string, string> = {
 }
 
 export function ApprovalsPage() {
-  const [approvals, setApprovals] = useState<ApprovedApp[]>([])
+  const [approvals, setApprovals] = useState<ApprovedAccount[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchApprovals = async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('applications')
-      .select('*')
-      .eq('status', 'approved')
-      .order('reviewed_at', { ascending: false })
+    try {
+      // Fetch from applications table
+      const { data: appData, error: appError } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('status', 'approved')
+        .order('reviewed_at', { ascending: false })
 
-    if (error) {
-      toast.error('Failed to fetch: ' + error.message)
-    } else {
-      setApprovals((data || []) as ApprovedApp[])
+      if (appError) {
+        toast.error('Failed to fetch applications: ' + appError.message)
+      }
+
+      // Fetch from users table (accounts created without applications)
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('status', 'approved')
+        .in('role', ['wholesaler', 'distributor'])
+        .order('updated_at', { ascending: false })
+
+      if (userError) {
+        toast.error('Failed to fetch users: ' + userError.message)
+      }
+
+      // Transform applications
+      const fromApps: ApprovedAccount[] = (appData || []).map((a: any) => ({
+        id: a.id,
+        business_name: a.business_name,
+        contact_name: a.contact_name,
+        email: a.email,
+        phone: a.phone,
+        address: a.address,
+        city: a.city,
+        state: a.state,
+        zip: a.zip,
+        license_number: a.license_number,
+        ein: a.ein,
+        website: a.website,
+        account_type: a.account_type,
+        business_type: a.business_type,
+        volume_estimate: a.volume_estimate,
+        reviewed_at: a.reviewed_at || a.submitted_at,
+        submitted_at: a.submitted_at,
+        auth_user_id: a.auth_user_id,
+        source: 'applications' as const,
+      }))
+
+      // Transform users — only add ones NOT already in applications
+      const appEmails = new Set(fromApps.map((a) => a.email.toLowerCase()))
+      const fromUsers: ApprovedAccount[] = (userData || [])
+        .filter((u: any) => !appEmails.has(u.email.toLowerCase()))
+        .map((u: any) => ({
+          id: u.id,
+          business_name: u.business_name,
+          contact_name: u.business_name,
+          email: u.email,
+          phone: u.phone,
+          address: u.address,
+          city: u.city,
+          state: u.state,
+          zip: u.zip,
+          license_number: u.license_number,
+          ein: u.ein,
+          website: u.website,
+          account_type: u.role,
+          business_type: null,
+          volume_estimate: u.volume_estimate,
+          reviewed_at: u.updated_at || u.created_at,
+          submitted_at: u.created_at,
+          auth_user_id: u.id,
+          source: 'users' as const,
+        }))
+
+      // Merge and sort by reviewed_at descending
+      const merged = [...fromApps, ...fromUsers].sort((a, b) => {
+        return new Date(b.reviewed_at).getTime() - new Date(a.reviewed_at).getTime()
+      })
+
+      setApprovals(merged)
+    } catch (err: any) {
+      toast.error('Failed to fetch approvals: ' + err.message)
     }
     setLoading(false)
   }
@@ -96,7 +168,7 @@ export function ApprovalsPage() {
             <div className="space-y-4">
               {approvals.map((app) => (
                 <div
-                  key={app.id}
+                  key={`${app.source}-${app.id}`}
                   className="p-4 bg-[#0a0514] rounded-lg border border-white/10"
                 >
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -154,7 +226,6 @@ export function ApprovalsPage() {
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        // Navigate to assignments page
                         window.location.hash = '/admin/assignments'
                       }}
                       className="border-[#9a02d0]/30 text-[#9a02d0] hover:bg-[#9a02d0]/10"

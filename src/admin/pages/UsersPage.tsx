@@ -128,11 +128,9 @@ export function UsersPage() {
   const fetchAll = async () => {
     setLoading(true)
     try {
-      // 1. Fetch approved users
+      // 1. Fetch approved users via RPC (bypasses RLS for admin)
       const { data: usersData, error: usersError } = await supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false })
+        .rpc('get_all_users')
 
       // 2. Fetch pending applications
       const { data: appsData, error: appsError } = await supabase

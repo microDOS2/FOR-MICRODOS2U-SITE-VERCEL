@@ -124,10 +124,6 @@ export function UsersPage() {
   // Action loading
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  // Manager assignment
-  const [savingManager, setSavingManager] = useState<string | null>(null)
-  const [savingStates, setSavingStates] = useState<string | null>(null)
-
   // ─── Fetch both users AND pending applications ───
   const fetchAll = async () => {
     setLoading(true)
@@ -384,26 +380,6 @@ export function UsersPage() {
     toast.success('Password copied')
   }
 
-  // Manager Assignment
-  const salesManagers = allAccounts.filter(u => u.role === 'sales_manager' && u.status === 'approved')
-  const accountRoles = ['wholesaler', 'distributor']
-  const handleAssignManager = async (accountId: string, managerId: string) => {
-    if (savingManager === accountId) return
-    setSavingManager(accountId)
-    const { error } = await supabase.from('users').update({ manager_id: managerId || null }).eq('id', accountId)
-    if (error) { toast.error('Error: ' + error.message) } else { toast.success(managerId ? 'Manager assigned' : 'Manager removed'); fetchAll() }
-    setSavingManager(null)
-  }
-  const handleToggleState = async (managerId: string, state: string, currentStates: string[]) => {
-    if (savingStates === managerId) return
-    setSavingStates(managerId)
-    const hasState = currentStates.includes(state)
-    const newStates = hasState ? currentStates.filter((s: string) => s !== state) : [...currentStates, state]
-    const { error } = await supabase.from('users').update({ volume_estimate: JSON.stringify(newStates) }).eq('id', managerId)
-    if (error) { toast.error('Error: ' + error.message) } else { toast.success(hasState ? 'State removed' : 'State added'); fetchAll() }
-    setSavingStates(null)
-  }
-
   const accountTypeLabel = () => {
     switch (accountType) {
       case 'wholesaler': return 'Wholesaler'
@@ -463,14 +439,13 @@ export function UsersPage() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Email</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Role</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Manager / Territory</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Location</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {filtered.length === 0 && (
-                    <tr><td colSpan={7} className="text-center text-gray-500 py-8">No accounts found</td></tr>
+                    <tr><td colSpan={6} className="text-center text-gray-500 py-8">No accounts found</td></tr>
                   )}
                   {filtered.map((account) => {
                     const role = account.role || account.account_type || ''
@@ -500,21 +475,6 @@ export function UsersPage() {
                           }>
                             {account.status}
                           </Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          {role === 'sales_manager' && account.source === 'users' && (() => {
-                            const mgrStates = (() => { try { const p = account.raw?.volume_estimate ? JSON.parse(account.raw.volume_estimate) : []; return Array.isArray(p) ? p : [] } catch { return [] } })()
-                            return <div className="flex flex-wrap gap-1 items-center">{mgrStates.map((s: string) => <span key={s} className="inline-flex items-center gap-0.5 text-xs bg-[#44f80c]/20 text-[#44f80c] px-2 py-0.5 rounded">{s}<button onClick={() => handleToggleState(account.id, s, mgrStates)} className="hover:text-white ml-0.5"><X className="w-3 h-3" /></button></span>)}<select onChange={(e) => { if (e.target.value) handleToggleState(account.id, e.target.value, mgrStates); e.target.value = '' }} className="h-6 text-xs bg-[#0a0514] border border-white/10 text-white rounded px-1"><option value="">+</option>{ALL_STATES.filter((s: string) => !mgrStates.includes(s)).map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-                          })()}
-                          {accountRoles.includes(role) && account.source === 'users' && (
-                            <div className="flex items-center gap-2">
-                              {savingManager === account.id ? <Loader2 className="w-3 h-3 animate-spin text-gray-400" /> : <>
-                                {account.raw?.manager_id ? <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded flex items-center gap-1"><UserCheck className="w-3 h-3" />{salesManagers.find((m: any) => m.id === account.raw.manager_id)?.business_name || 'Assigned'}</span> : <span className="text-xs text-gray-500">Unassigned</span>}
-                                <select value={account.raw?.manager_id || ''} onChange={(e) => handleAssignManager(account.id, e.target.value)} className="h-6 text-xs bg-[#0a0514] border border-white/10 text-white rounded px-1"><option value="">— Manager —</option>{salesManagers.map((m: any) => <option key={m.id} value={m.id}>{m.business_name || m.email}</option>)}</select>
-                              </>}
-                            </div>
-                          )}
-                          {!['sales_manager', 'wholesaler', 'distributor'].includes(role) && <span className="text-xs text-gray-500">—</span>}
                         </td>
                         <td className="px-4 py-3 text-gray-400 text-sm">
                           {account.city && account.state ? `${account.city}, ${account.state}` : '—'}

@@ -242,7 +242,6 @@ export function UsersPage() {
       await supabase.from('users').insert({
         id: authData.user.id,
         email: newUserEmail,
-        full_name: newUserName,
         business_name: newUserName,
         role: newUserRole,
         status: 'approved',
@@ -282,7 +281,6 @@ export function UsersPage() {
       await supabase.from('users').insert({
         id: authData.user.id,
         email: accountEmail,
-        full_name: accountContactName,
         business_name: accountBusinessName,
         license_number: accountLicense,
         ein: accountEin,
@@ -324,16 +322,15 @@ export function UsersPage() {
     if (!editingUser) return
     setSavingEdit(true)
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({
-          business_name: editName,
-          phone: editPhone || null,
-          city: editCity || null,
-          state: editState || null,
-          status: editStatus,
-        })
-        .eq('id', editingUser.id)
+      // Use RPC to bypass RLS and update any user
+      const { error } = await supabase.rpc('update_user', {
+        p_id: editingUser.id,
+        p_business_name: editName,
+        p_phone: editPhone || null,
+        p_city: editCity || null,
+        p_state: editState || null,
+        p_status: editStatus,
+      })
       if (error) {
         toast.error('Failed to update: ' + error.message)
       } else {
@@ -353,14 +350,20 @@ export function UsersPage() {
     setActionLoading(user.id + '-delete')
     try {
       if (user.source === 'users') {
-        await supabase.from('users').delete().eq('id', user.id)
+        // Use RPC to bypass RLS and delete any user
+        const { error } = await supabase.rpc('delete_user', { p_id: user.id })
+        if (error) {
+          toast.error('Delete failed: ' + error.message)
+          setActionLoading(null)
+          return
+        }
       } else {
         await supabase.from('applications').delete().eq('id', user.id)
       }
       toast.success('Deleted')
       await fetchAll()
-    } catch {
-      toast.error('Delete failed')
+    } catch (err: any) {
+      toast.error(err?.message || 'Delete failed')
     }
     setActionLoading(null)
   }

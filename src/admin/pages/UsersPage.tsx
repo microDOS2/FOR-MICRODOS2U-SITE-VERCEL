@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -21,10 +22,31 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import {
-  Users, Plus, Search, Check, Copy, Store, UserPlus, Loader2, X, Info
+  Users, Plus, Search, Check, Copy, Store, UserPlus, Loader2, X, Info, Pencil, Eye
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DBUser } from '@/lib/supabase'
+
+// ─── Types ───
+interface UnifiedUser {
+  id: string
+  source: 'users' | 'applications'
+  business_name: string
+  contact_name?: string | null
+  email: string
+  phone?: string | null
+  role?: string | null
+  account_type?: string | null
+  status: string
+  city?: string | null
+  state?: string | null
+  zip?: string | null
+  license_number?: string | null
+  ein?: string | null
+  website?: string | null
+  address?: string | null
+  raw: DBUser | any
+}
 
 const roleLabels: Record<string, string> = {
   admin: 'Admin',
@@ -56,7 +78,8 @@ function generatePassword(): string {
 }
 
 export function UsersPage() {
-  const [dbUsers, setDbUsers] = useState<DBUser[]>([])
+  const navigate = useNavigate()
+  const [allAccounts, setAllAccounts] = useState<UnifiedUser[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -67,7 +90,7 @@ export function UsersPage() {
   const [newUserRole, setNewUserRole] = useState('')
   const [creatingUser, setCreatingUser] = useState(false)
 
-  // Add account modal state (BUSINESS ACCOUNTS: Wholesaler/Distributor/Influencer)
+  // Add account modal state (BUSINESS ACCOUNTS)
   const [showAddAccountModal, setShowAddAccountModal] = useState(false)
   const [accountBusinessName, setAccountBusinessName] = useState('')
   const [accountContactName, setAccountContactName] = useState('')
@@ -83,6 +106,16 @@ export function UsersPage() {
   const [accountEin, setAccountEin] = useState('')
   const [addingAccount, setAddingAccount] = useState(false)
 
+  // Edit user modal
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingUser, setEditingUser] = useState<UnifiedUser | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editCity, setEditCity] = useState('')
+  const [editState, setEditState] = useState('')
+  const [editStatus, setEditStatus] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
+
   // Password modal
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [generatedPassword, setGeneratedPassword] = useState('')
@@ -91,38 +124,108 @@ export function UsersPage() {
   // Action loading
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  const fetchUsers = async () => {
+  // ─── Fetch both users AND pending applications ───
+  const fetchAll = async () => {
     setLoading(true)
-    const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false })
-    if (error) {
-      toast.error('Failed to fetch users: ' + error.message)
-    } else {
-      setDbUsers((data || []) as DBUser[])
+    try {
+      // 1. Fetch approved users
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      // 2. Fetch pending applications
+      const { data: appsData, error: appsError } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('status', 'pending')
+        .order('submitted_at', { ascending: false })
+
+      if (usersError) console.error('Users error:', usersError)
+      if (appsError) console.error('Apps error:', appsError)
+
+      const combined: UnifiedUser[] = []
+
+      // Add approved users
+      ;(usersData || []).forEach((u: DBUser) => {
+        combined.push({
+          id: u.id,
+          source: 'users',
+          business_name: u.business_name || u.email,
+          contact_name: u.business_name || u.email,
+          email: u.email,
+          phone: u.phone,
+          role: u.role,
+          status: u.status || 'approved',
+          city: u.city,
+          state: u.state,
+          zip: u.zip,
+          license_number: u.license_number,
+          ein: u.ein,
+          website: u.website,
+          address: u.address,
+          raw: u,
+        })
+      })
+
+      // Add pending applications
+      ;(appsData || []).forEach((a: any) => {
+        combined.push({
+          id: a.id,
+          source: 'applications',
+          business_name: a.business_name || a.email,
+          contact_name: a.contact_name,
+          email: a.email,
+          phone: a.phone,
+          account_type: a.account_type,
+          role: a.account_type,
+          status: 'pending',
+          city: a.city,
+          state: a.state,
+          zip: a.zip,
+          license_number: a.license_number,
+          ein: a.ein,
+          website: a.website,
+          address: a.address,
+          raw: a,
+        })
+      })
+
+      setAllAccounts(combined)
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to load accounts')
     }
     setLoading(false)
   }
 
   useEffect(() => {
-    fetchUsers()
+    fetchAll()
   }, [])
 
-  const filteredUsers = dbUsers.filter(
-    (u) =>
-      (u.business_name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.role.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Filter
+  const filtered = allAccounts.filter((a) => {
+    const q = searchQuery.toLowerCase()
+    return (
+      a.business_name.toLowerCase().includes(q) ||
+      a.email.toLowerCase().includes(q) ||
+      (a.role || '').toLowerCase().includes(q) ||
+      a.status.toLowerCase().includes(q)
+    )
+  })
 
-  // ──── CREATE USER: Internal roles only (admin, sales_manager, sales_rep) ────
+  const approvedCount = allAccounts.filter((a) => a.status === 'approved').length
+  const pendingCount = allAccounts.filter((a) => a.status === 'pending').length
+
+  // ──── CREATE USER (internal roles only) ────
   const handleCreateUser = async () => {
     if (!newUserName || !newUserEmail || !newUserRole) {
       toast.error('Please fill in all fields')
       return
     }
-    // Block business roles from being created as standalone users
     const blockedRoles = ['wholesaler', 'distributor', 'influencer']
     if (blockedRoles.includes(newUserRole)) {
-      toast.error(`"${roleLabels[newUserRole]}" accounts must be created via "Add Business Account" (tied to a business)`)
+      toast.error(`"${roleLabels[newUserRole]}" accounts must be created via "Add Business Account"`)
       return
     }
     setCreatingUser(true)
@@ -138,7 +241,7 @@ export function UsersPage() {
         setCreatingUser(false)
         return
       }
-      const { error: dbError } = await supabase.from('users').insert({
+      await supabase.from('users').insert({
         id: authData.user.id,
         email: newUserEmail,
         full_name: newUserName,
@@ -146,29 +249,24 @@ export function UsersPage() {
         role: newUserRole,
         status: 'approved',
       })
-      if (dbError) {
-        toast.error('Failed to create profile: ' + dbError.message)
-        setCreatingUser(false)
-        return
-      }
-      await fetchUsers()
+      await fetchAll()
       setGeneratedPassword(password)
       setShowCreateModal(false)
       setShowPasswordModal(true)
-      toast.success('User created successfully!')
+      toast.success('User created!')
       setNewUserName('')
       setNewUserEmail('')
       setNewUserRole('')
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to create user')
+      toast.error(err?.message || 'Failed')
     }
     setCreatingUser(false)
   }
 
-  // ──── ADD ACCOUNT: Business accounts (wholesaler/distributor/influencer) ────
+  // ──── ADD BUSINESS ACCOUNT ────
   const handleAddAccount = async () => {
     if (!accountBusinessName || !accountContactName || !accountEmail || !accountPassword || !accountLicense || !accountEin) {
-      toast.error('Please fill in all required fields (Business License # and EIN/TaxID # are mandatory)')
+      toast.error('Please fill in all required fields')
       return
     }
     setAddingAccount(true)
@@ -183,7 +281,7 @@ export function UsersPage() {
         setAddingAccount(false)
         return
       }
-      const { error: dbError } = await supabase.from('users').insert({
+      await supabase.from('users').insert({
         id: authData.user.id,
         email: accountEmail,
         full_name: accountContactName,
@@ -198,50 +296,80 @@ export function UsersPage() {
         role: accountType,
         status: 'approved',
       })
-      if (dbError) {
-        toast.error('Failed to create profile: ' + dbError.message)
-        setAddingAccount(false)
-        return
-      }
-      await fetchUsers()
+      await fetchAll()
       toast.success(`${roleLabels[accountType]} account created!`)
       setShowAddAccountModal(false)
       setGeneratedPassword(accountPassword)
       setShowPasswordModal(true)
-      // Reset form
       setAccountBusinessName(''); setAccountContactName(''); setAccountEmail('')
       setAccountPassword(''); setAccountPhone(''); setAccountAddress('')
       setAccountCity(''); setAccountState(''); setAccountZip('')
       setAccountLicense(''); setAccountEin('')
     } catch (err: any) {
-      toast.error(err?.message || 'An unexpected error occurred')
+      toast.error(err?.message || 'Error')
     }
     setAddingAccount(false)
   }
 
-  const handleApprove = async (userId: string) => {
-    setActionLoading(userId + '-approve')
-    const { error } = await supabase.from('users').update({ status: 'approved' }).eq('id', userId)
-    if (error) toast.error('Failed: ' + error.message)
-    else { toast.success('Approved'); await fetchUsers() }
+  // ──── EDIT USER ────
+  const openEdit = (user: UnifiedUser) => {
+    setEditingUser(user)
+    setEditName(user.business_name || '')
+    setEditPhone(user.phone || '')
+    setEditCity(user.city || '')
+    setEditState(user.state || '')
+    setEditStatus(user.status || 'approved')
+    setShowEditModal(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingUser) return
+    setSavingEdit(true)
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          business_name: editName,
+          phone: editPhone || null,
+          city: editCity || null,
+          state: editState || null,
+          status: editStatus,
+        })
+        .eq('id', editingUser.id)
+      if (error) {
+        toast.error('Failed to update: ' + error.message)
+      } else {
+        toast.success('User updated!')
+        setShowEditModal(false)
+        await fetchAll()
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Error')
+    }
+    setSavingEdit(false)
+  }
+
+  // ──── DELETE ────
+  const handleDelete = async (user: UnifiedUser) => {
+    if (!confirm(`Delete ${user.business_name}?`)) return
+    setActionLoading(user.id + '-delete')
+    try {
+      if (user.source === 'users') {
+        await supabase.from('users').delete().eq('id', user.id)
+      } else {
+        await supabase.from('applications').delete().eq('id', user.id)
+      }
+      toast.success('Deleted')
+      await fetchAll()
+    } catch {
+      toast.error('Delete failed')
+    }
     setActionLoading(null)
   }
 
-  const handleReject = async (userId: string) => {
-    setActionLoading(userId + '-reject')
-    const { error } = await supabase.from('users').update({ status: 'rejected' }).eq('id', userId)
-    if (error) toast.error('Failed: ' + error.message)
-    else { toast.success('Rejected'); await fetchUsers() }
-    setActionLoading(null)
-  }
-
-  const handleDelete = async (userId: string) => {
-    if (!confirm('Are you sure?')) return
-    setActionLoading(userId + '-delete')
-    const { error } = await supabase.from('users').delete().eq('id', userId)
-    if (error) toast.error('Failed: ' + error.message)
-    else { toast.success('Deleted'); await fetchUsers() }
-    setActionLoading(null)
+  // ──── APPROVE APPLICATION ────
+  const handleApproveFromUsers = async (_app: UnifiedUser) => {
+    navigate('/admin/applications')
   }
 
   const copyPassword = () => {
@@ -251,7 +379,6 @@ export function UsersPage() {
     toast.success('Password copied')
   }
 
-  // Helper for account type label
   const accountTypeLabel = () => {
     switch (accountType) {
       case 'wholesaler': return 'Wholesaler'
@@ -265,7 +392,9 @@ export function UsersPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white mb-1">User Management</h2>
-          <p className="text-gray-400">Manage accounts and create new users</p>
+          <p className="text-gray-400">
+            {approvedCount} approved • {pendingCount} pending
+          </p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setShowAddAccountModal(true)} className="bg-gradient-to-r from-[#ff66c4] to-[#9a02d0] text-white">
@@ -282,19 +411,19 @@ export function UsersPage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
         <Input
           type="text"
-          placeholder="Search by name, email, or role..."
+          placeholder="Search by name, email, role, or status..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-10 bg-[#0a0514] border-white/10 text-white"
         />
       </div>
 
-      {/* Users Table */}
+      {/* ─── UNIFIED TABLE: Approved + Pending ─── */}
       <Card className="bg-[#150f24] border-white/10">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <Users className="w-5 h-5 text-[#9a02d0]" />
-            Users ({filteredUsers.length})
+            All Accounts ({filtered.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -314,52 +443,71 @@ export function UsersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {filteredUsers.length === 0 && (
-                    <tr><td colSpan={6} className="text-center text-gray-500 py-8">No users found</td></tr>
+                  {filtered.length === 0 && (
+                    <tr><td colSpan={6} className="text-center text-gray-500 py-8">No accounts found</td></tr>
                   )}
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-white/5 transition-colors">
-                      <td className="px-4 py-3 text-white font-medium">{user.business_name || '—'}</td>
-                      <td className="px-4 py-3 text-gray-300 text-sm">{user.email}</td>
-                      <td className="px-4 py-3">
-                        <Badge className={roleBadgeClasses[user.role] || 'bg-gray-500/20 text-gray-400'}>
-                          {roleLabels[user.role] || user.role}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge className={
-                          user.status === 'approved' ? 'bg-green-500/20 text-green-500' :
-                          user.status === 'pending' ? 'bg-yellow-500/20 text-yellow-500' :
-                          'bg-red-500/20 text-red-500'
-                        }>
-                          {user.status}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-gray-400 text-sm">
-                        {user.city && user.state ? `${user.city}, ${user.state}` : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {user.status === 'pending' && (
-                            <>
-                              <Button size="sm" onClick={() => handleApprove(user.id)} disabled={actionLoading === user.id + '-approve'}
-                                className="bg-green-500/20 text-green-500 hover:bg-green-500/30 h-7 px-2">
-                                {actionLoading === user.id + '-approve' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => handleReject(user.id)} disabled={actionLoading === user.id + '-reject'}
-                                className="border-red-500/30 text-red-400 hover:bg-red-500/10 h-7 px-2">
-                                {actionLoading === user.id + '-reject' ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
-                              </Button>
-                            </>
+                  {filtered.map((account) => {
+                    const role = account.role || account.account_type || ''
+                    const displayName = account.source === 'applications'
+                      ? (account.contact_name ? `${account.contact_name} — ${account.business_name}` : account.business_name)
+                      : account.business_name
+
+                    return (
+                      <tr key={`${account.source}-${account.id}`} className="hover:bg-white/5 transition-colors">
+                        <td className="px-4 py-3">
+                          <span className="text-white font-medium">{displayName}</span>
+                          {account.source === 'applications' && (
+                            <Badge className="ml-2 bg-yellow-500/20 text-yellow-400 text-[10px]">APPLICATION</Badge>
                           )}
-                          <Button size="sm" variant="outline" onClick={() => handleDelete(user.id)} disabled={actionLoading === user.id + '-delete'}
-                            className="border-red-500/30 text-red-400 hover:bg-red-500/10 h-7 px-2">
-                            {actionLoading === user.id + '-delete' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Delete'}
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-4 py-3 text-gray-300 text-sm">{account.email}</td>
+                        <td className="px-4 py-3">
+                          <Badge className={roleBadgeClasses[role] || 'bg-gray-500/20 text-gray-400'}>
+                            {roleLabels[role] || role}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge className={
+                            account.status === 'approved' ? 'bg-green-500/20 text-green-500' :
+                            account.status === 'pending' ? 'bg-yellow-500/20 text-yellow-500' :
+                            'bg-red-500/20 text-red-500'
+                          }>
+                            {account.status}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-gray-400 text-sm">
+                          {account.city && account.state ? `${account.city}, ${account.state}` : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {account.source === 'users' ? (
+                              <>
+                                <Button size="sm" onClick={() => openEdit(account)} disabled={actionLoading === account.id + '-edit'}
+                                  className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 h-7 px-2">
+                                  <Pencil className="w-3 h-3" />
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => handleDelete(account)} disabled={actionLoading === account.id + '-delete'}
+                                  className="border-red-500/30 text-red-400 hover:bg-red-500/10 h-7 px-2">
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button size="sm" onClick={() => handleApproveFromUsers(account)} disabled={actionLoading === account.id + '-review'}
+                                  className="bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 h-7 px-2" title="Review Application">
+                                  <Eye className="w-3 h-3" />
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => handleDelete(account)} disabled={actionLoading === account.id + '-delete'}
+                                  className="border-red-500/30 text-red-400 hover:bg-red-500/10 h-7 px-2">
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -367,17 +515,14 @@ export function UsersPage() {
         </CardContent>
       </Card>
 
-      {/* ═══ CREATE USER MODAL — Internal roles only ═══ */}
+      {/* ═══ CREATE USER MODAL ═══ */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
         <DialogContent className="bg-[#150f24] border border-white/10 text-white max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-[#9a02d0]" />
-              Create New User
+              <UserPlus className="w-5 h-5 text-[#9a02d0]" /> Create New User
             </DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Create a new account for an internal team member
-            </DialogDescription>
+            <DialogDescription className="text-gray-400">Create an internal team member account</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -391,21 +536,17 @@ export function UsersPage() {
             <div>
               <Label className="text-gray-300">Role</Label>
               <Select value={newUserRole} onValueChange={setNewUserRole}>
-                <SelectTrigger className="bg-[#0a0514] border-white/10 text-white">
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
+                <SelectTrigger className="bg-[#0a0514] border-white/10 text-white"><SelectValue placeholder="Select role" /></SelectTrigger>
                 <SelectContent className="bg-[#150f24] border-white/10">
-                  {/* Internal team roles only */}
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="sales_manager">Sales Manager</SelectItem>
                   <SelectItem value="sales_rep">Sales Rep</SelectItem>
                 </SelectContent>
               </Select>
-              {/* Info message about business accounts */}
               <div className="flex items-start gap-2 mt-2 p-2 bg-[#ff66c4]/10 border border-[#ff66c4]/20 rounded-lg">
                 <Info className="w-4 h-4 text-[#ff66c4] mt-0.5 shrink-0" />
                 <p className="text-xs text-[#ff66c4]">
-                  Wholesaler, Distributor, and Influencer accounts must be created via <strong>Add Business Account</strong> (tied to a business) or through the <strong>Applications</strong> page.
+                  Wholesaler, Distributor, and Influencer accounts must be created via <strong>Add Business Account</strong>.
                 </p>
               </div>
             </div>
@@ -417,34 +558,25 @@ export function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ═══ ADD BUSINESS ACCOUNT MODAL — Wholesaler/Distributor/Influencer ═══ */}
+      {/* ═══ ADD BUSINESS ACCOUNT MODAL ═══ */}
       <Dialog open={showAddAccountModal} onOpenChange={setShowAddAccountModal}>
         <DialogContent className="bg-[#150f24] border border-white/10 text-white max-h-[90vh] overflow-y-auto max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Store className="w-5 h-5 text-[#ff66c4]" />
-              Add Business Account
+              <Store className="w-5 h-5 text-[#ff66c4]" /> Add Business Account
             </DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Create a new business account tied to a licensed entity
-            </DialogDescription>
+            <DialogDescription className="text-gray-400">Create a business account tied to a licensed entity</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label className="text-gray-300">Account Type <span className="text-red-400">*</span></Label>
               <div className="flex gap-4 mt-1 flex-wrap">
-                <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${accountType === 'wholesaler' ? 'border-[#44f80c] bg-[#44f80c]/10' : 'border-white/10 hover:border-white/30'}`}>
-                  <input type="radio" name="acct_type" value="wholesaler" checked={accountType === 'wholesaler'} onChange={() => setAccountType('wholesaler')} className="w-4 h-4 accent-[#44f80c]" />
-                  <span className="text-white">Wholesaler</span>
-                </label>
-                <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${accountType === 'distributor' ? 'border-[#9a02d0] bg-[#9a02d0]/10' : 'border-white/10 hover:border-white/30'}`}>
-                  <input type="radio" name="acct_type" value="distributor" checked={accountType === 'distributor'} onChange={() => setAccountType('distributor')} className="w-4 h-4 accent-[#9a02d0]" />
-                  <span className="text-white">Distributor</span>
-                </label>
-                <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${accountType === 'influencer' ? 'border-[#ff66c4] bg-[#ff66c4]/10' : 'border-white/10 hover:border-white/30'}`}>
-                  <input type="radio" name="acct_type" value="influencer" checked={accountType === 'influencer'} onChange={() => setAccountType('influencer')} className="w-4 h-4 accent-[#ff66c4]" />
-                  <span className="text-white">Influencer</span>
-                </label>
+                {(['wholesaler', 'distributor', 'influencer'] as const).map((t) => (
+                  <label key={t} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${accountType === t ? 'border-[#9a02d0] bg-[#9a02d0]/10' : 'border-white/10 hover:border-white/30'}`}>
+                    <input type="radio" name="acct_type" value={t} checked={accountType === t} onChange={() => setAccountType(t)} className="w-4 h-4 accent-[#9a02d0]" />
+                    <span className="text-white">{roleLabels[t]}</span>
+                  </label>
+                ))}
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -498,17 +630,61 @@ export function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Password Display Modal */}
+      {/* ═══ EDIT USER MODAL ═══ */}
+      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+        <DialogContent className="bg-[#150f24] border border-white/10 text-white max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-blue-400" /> Edit User
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">Update account information</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-gray-300">Business / Full Name</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="bg-[#0a0514] border-white/10 text-white" />
+            </div>
+            <div>
+              <Label className="text-gray-300">Phone</Label>
+              <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="bg-[#0a0514] border-white/10 text-white" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-gray-300">City</Label>
+                <Input value={editCity} onChange={(e) => setEditCity(e.target.value)} className="bg-[#0a0514] border-white/10 text-white" />
+              </div>
+              <div>
+                <Label className="text-gray-300">State</Label>
+                <Input value={editState} onChange={(e) => setEditState(e.target.value)} className="bg-[#0a0514] border-white/10 text-white" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-gray-300">Status</Label>
+              <Select value={editStatus} onValueChange={setEditStatus}>
+                <SelectTrigger className="bg-[#0a0514] border-white/10 text-white"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-[#150f24] border-white/10">
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleSaveEdit} disabled={savingEdit} className="w-full bg-gradient-to-r from-blue-500 to-[#9a02d0] text-white">
+              {savingEdit ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ PASSWORD MODAL ═══ */}
       <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
         <DialogContent className="bg-[#150f24] border border-white/10 text-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Check className="w-5 h-5 text-[#44f80c]" />
-              Account Created
+              <Check className="w-5 h-5 text-[#44f80c]" /> Account Created
             </DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Copy and securely share these credentials
-            </DialogDescription>
+            <DialogDescription className="text-gray-400">Copy and securely share these credentials</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="bg-[#0a0514] p-4 rounded-lg border border-white/10">

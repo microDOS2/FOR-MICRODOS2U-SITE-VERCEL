@@ -59,29 +59,20 @@ export function AccountsPage() {
     return m ? { number: m[1], cleanName: m[2] } : { number: '', cleanName: name }
   }
 
+  const extractRepFromLicense = (license: string | null): string | null => {
+    return license && license.startsWith('rep:') ? license.slice(4) : null
+  }
+
   const fetchAll = useCallback(async () => {
     setLoading(true)
-
-    // 1. Fetch approved accounts
     const { data: usersData } = await supabase.from('users').select('id, business_name, email, phone, role, city, state, referral_code').eq('status', 'approved').in('role', ['wholesaler', 'distributor']).order('referral_code', { ascending: true })
-
-    // 2. Fetch account-level assignments
     const { data: acctAssignData } = await supabase.from('rep_account_assignments').select('account_id, rep_id')
-
-    // 3. Fetch ALL stores from stores table
-    const { data: storesData } = await supabase.from('stores').select('*').order('name', { ascending: true })
-
-    // 4. Fetch store-level assignments
-    const { data: storeAssignData } = await supabase.from('store_assignments').select('store_id, rep_id')
-
-    // 5. Fetch reps
+    const { data: storesData } = await supabase.from('wholesaler_store_locations').select('*').order('name', { ascending: true })
     const { data: repsData } = await supabase.from('users').select('id, business_name, email').eq('role', 'sales_rep').eq('status', 'approved')
 
     const repMap = new Map(); (repsData || []).forEach((r: any) => repMap.set(r.id, r))
     const acctAssignMap = new Map(); (acctAssignData || []).forEach((a: any) => acctAssignMap.set(a.account_id, a.rep_id))
-    const storeAssignMap = new Map(); (storeAssignData || []).forEach((a: any) => storeAssignMap.set(a.store_id, a.rep_id))
 
-    // Group stores by account number
     const storesByAcctNum = new Map<string, any[]>()
     ;(storesData || []).forEach((s: any) => {
       const { number: sn } = parseStoreNumber(s.name || '')
@@ -99,11 +90,11 @@ export function AccountsPage() {
 
       const storeItems: StoreItem[] = userStores.map((s: any) => {
         const { number: sn, cleanName } = parseStoreNumber(s.name || '')
-        const storeRepId = storeAssignMap.get(s.id)
+        const storeRepId = extractRepFromLicense(s.license_number)
         const storeRep = storeRepId ? repMap.get(storeRepId) : null
         return {
           id: s.id, name: cleanName, address: s.address || '', city: s.city || '', state: s.state || '',
-          store_number: sn, assigned_rep_id: storeRepId || null,
+          store_number: sn, assigned_rep_id: storeRepId,
           assigned_rep_name: storeRep ? (storeRep.business_name || storeRep.email) : null,
         }
       })
@@ -135,12 +126,12 @@ export function AccountsPage() {
 
   const handleAssignStore = async (storeId: string) => {
     const repId = selectedStoreRep[storeId]; if (!repId) { toast.error('Select a Sales Rep'); return }
-    setSavingStore(storeId); await supabase.from('store_assignments').delete().eq('store_id', storeId)
-    const { error } = await supabase.from('store_assignments').insert([{ store_id: storeId, rep_id: repId }])
+    setSavingStore(storeId)
+    const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: `rep:${repId}` }).eq('id', storeId)
     error ? toast.error('Failed: ' + error.message) : (toast.success('Assigned!'), fetchAll())
     setSavingStore(null)
   }
-  const handleUnassignStore = async (storeId: string) => { if (!confirm('Remove?')) return; const { error } = await supabase.from('store_assignments').delete().eq('store_id', storeId); error ? toast.error('Error') : (toast.success('Unassigned'), fetchAll()) }
+  const handleUnassignStore = async (storeId: string) => { if (!confirm('Remove?')) return; const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: null }).eq('id', storeId); error ? toast.error('Error') : (toast.success('Unassigned'), fetchAll()) }
 
   const toggle = (id: string) => setExpanded(p => ({ ...p, [id]: !p[id] }))
   const assignedCount = accounts.filter(a => a.assigned_rep_id).length

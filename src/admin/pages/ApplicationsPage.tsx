@@ -150,7 +150,30 @@ export function ApplicationsPage() {
         return
       }
 
-      // 4. Show success + password modal
+      // 4. Auto-create store location for wholesaler/distributor
+      if (app.account_type === 'wholesaler' || app.account_type === 'distributor') {
+        const { error: storeError } = await supabase.rpc('insert_store_location', {
+          p_user_id: userId,
+          p_name: app.business_name,
+          p_address: app.address,
+          p_city: app.city,
+          p_state: app.state,
+          p_zip: app.zip,
+          p_phone: app.phone,
+          p_email: app.email,
+          p_website: app.website,
+          p_stock: 'In Stock',
+          p_license_number: app.license_number,
+          p_source: 'admin',
+        })
+        if (storeError) {
+          toast.error('Account approved but store creation failed: ' + storeError.message)
+        } else {
+          toast.success('Store location created and published to Store Locator!')
+        }
+      }
+
+      // 5. Show success + password modal
       toast.success(`${app.business_name} approved! Account created.`)
       setGeneratedPassword(password)
       setApprovedApp(app)

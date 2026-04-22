@@ -1,164 +1,173 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { formatDate, downloadCSV } from '@/lib/utils'
-import { Search, Download, Trash2, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { CheckCircle, Clock, MapPin, Globe, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
-interface Approval {
+interface ApprovedApp {
   id: string
-  type: string
-  requester_id: string
-  approver_id: string | null
-  data: string | null
-  status: string
-  notes: string | null
-  created_at: string
-  requester?: { full_name: string; email: string }
-  approver?: { full_name: string; email: string }
+  business_name: string
+  contact_name: string | null
+  email: string
+  phone: string | null
+  address: string | null
+  city: string | null
+  state: string | null
+  zip: string | null
+  license_number: string | null
+  ein: string | null
+  website: string | null
+  account_type: string
+  business_type: string | null
+  volume_estimate: string | null
+  reviewed_at: string
+  submitted_at: string
+  auth_user_id: string | null
+}
+
+const typeBadgeClasses: Record<string, string> = {
+  wholesaler: 'bg-[#44f80c]/20 text-[#44f80c]',
+  distributor: 'bg-[#ff66c4]/20 text-[#ff66c4]',
+  influencer: 'bg-orange-500/20 text-orange-400',
 }
 
 export function ApprovalsPage() {
-  const [approvals, setApprovals] = useState<Approval[]>([])
+  const [approvals, setApprovals] = useState<ApprovedApp[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('all')
-  const [page, setPage] = useState(0)
-  const [totalCount, setTotalCount] = useState(0)
-  const pageSize = 10
-
-  useEffect(() => { fetchApprovals() }, [page, search, filter])
 
   const fetchApprovals = async () => {
     setLoading(true)
-    let query = supabase
-      .from('approvals')
-      .select('*, requester:profiles!approvals_requester_id_fkey(full_name, email), approver:profiles!approvals_approver_id_fkey(full_name, email)', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(page * pageSize, (page + 1) * pageSize - 1)
+    const { data, error } = await supabase
+      .from('applications')
+      .select('*')
+      .eq('status', 'approved')
+      .order('reviewed_at', { ascending: false })
 
-    if (search) query = query.or(`type.ilike.%${search}%,notes.ilike.%${search}%`)
-    if (filter !== 'all') query = query.eq('status', filter)
-
-    const { data, count, error } = await query
-    if (error) console.error(error)
-    else { setApprovals((data as any) || []); setTotalCount(count || 0) }
+    if (error) {
+      toast.error('Failed to fetch: ' + error.message)
+    } else {
+      setApprovals((data || []) as ApprovedApp[])
+    }
     setLoading(false)
   }
 
-  const handleApprove = async (id: string) => {
-    const { error } = await supabase.from('approvals').update({ status: 'approved', approver_id: 'current-user' }).eq('id', id)
-    if (error) alert('Error: ' + error.message)
-    else fetchApprovals()
-  }
+  useEffect(() => {
+    fetchApprovals()
+  }, [])
 
-  const handleReject = async (id: string) => {
-    const { error } = await supabase.from('approvals').update({ status: 'rejected' }).eq('id', id)
-    if (error) alert('Error: ' + error.message)
-    else fetchApprovals()
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
   }
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this approval request?')) return
-    const { error } = await supabase.from('approvals').delete().eq('id', id)
-    if (error) alert('Error: ' + error.message)
-    else fetchApprovals()
-  }
-
-  const exportCSV = () => {
-    downloadCSV('approvals', ['ID', 'Type', 'Requester', 'Status', 'Notes', 'Created'],
-      approvals.map(a => [a.id, a.type, a.requester?.full_name || a.requester_id, a.status, a.notes || '', a.created_at]))
-  }
-
-  const totalPages = Math.ceil(totalCount / pageSize)
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3 justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-          <input type="text" placeholder="Search approvals..." value={search} onChange={e => { setSearch(e.target.value); setPage(0) }}
-            className="w-full pl-10 pr-4 py-2.5 bg-[#150f24] border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
-        </div>
-        <div className="flex gap-2">
-          <select value={filter} onChange={e => { setFilter(e.target.value); setPage(0) }} className="px-3 py-2.5 bg-[#150f24] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50">
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
-          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 transition-colors">
-            <Download className="w-4 h-4" /> Export CSV
-          </button>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-1">Approved Applications</h2>
+        <p className="text-gray-400">All approved business accounts ({approvals.length})</p>
       </div>
 
-      <div className="bg-[#150f24] border border-white/10 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-white/10">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Type</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Requester</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Data</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Created</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10">
-              {loading ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">Loading...</td></tr>
-              ) : approvals.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">No approvals found</td></tr>
-              ) : approvals.map(a => (
-                <tr key={a.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm font-medium text-white capitalize">{a.type}</span>
+      <Card className="bg-[#150f24] border-white/10">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-[#44f80c]" />
+            Approved Accounts ({approvals.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-[#9a02d0]" />
+            </div>
+          ) : approvals.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <CheckCircle className="w-12 h-12 mx-auto mb-3 text-gray-600" />
+              <p className="text-lg font-medium text-gray-400">No approved accounts yet</p>
+              <p className="text-sm">Approved applications will appear here</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {approvals.map((app) => (
+                <div
+                  key={app.id}
+                  className="p-4 bg-[#0a0514] rounded-lg border border-white/10"
+                >
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <h4 className="text-white font-medium">{app.business_name}</h4>
+                        <Badge className={typeBadgeClasses[app.account_type] || 'bg-gray-500/20 text-gray-400'}>
+                          {app.account_type}
+                        </Badge>
+                      </div>
+                      <p className="text-gray-400 text-sm">
+                        {app.contact_name} • {app.email}
+                      </p>
+                      <div className="flex items-center gap-1 text-gray-500 text-sm mt-1">
+                        <MapPin className="w-3 h-3" />
+                        <span>
+                          {app.address || ''}
+                          {app.city && app.state ? `, ${app.city}, ${app.state} ${app.zip || ''}` : ''}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-2 flex-wrap text-sm">
+                        {app.phone && <span className="text-gray-400">{app.phone}</span>}
+                        {app.website && (
+                          <a
+                            href={app.website.startsWith('http') ? app.website : `https://${app.website}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[#44f80c] hover:underline flex items-center gap-1"
+                          >
+                            <Globe className="w-3 h-3" />
+                            Website
+                          </a>
+                        )}
+                        {app.license_number && (
+                          <Badge className="bg-[#9a02d0]/20 text-[#9a02d0] text-xs">
+                            License: {app.license_number}
+                          </Badge>
+                        )}
+                        {app.ein && (
+                          <Badge className="bg-gray-700 text-gray-400 text-xs">
+                            EIN/TaxID: {app.ein}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                        {app.business_type && <span>{app.business_type}</span>}
+                        {app.volume_estimate && <span>• {app.volume_estimate}</span>}
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Approved {formatDate(app.reviewed_at || app.submitted_at)}
+                        </span>
+                      </div>
                     </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-300">{a.requester?.full_name || 'Unknown'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-400 max-w-[200px] truncate">{a.data || '-'}</td>
-                  <td className="px-4 py-3">
-                    <span className={cn('px-2.5 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1.5',
-                      a.status === 'approved' ? 'bg-emerald-500/15 text-emerald-400' :
-                      a.status === 'rejected' ? 'bg-red-500/15 text-red-400' :
-                      'bg-amber-500/15 text-amber-400')}>
-                      {a.status === 'approved' ? <CheckCircle className="w-3 h-3" /> : a.status === 'rejected' ? <XCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                      {a.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{formatDate(a.created_at)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {a.status === 'pending' && (
-                        <>
-                          <button onClick={() => handleApprove(a.id)} className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-emerald-400" title="Approve">
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleReject(a.id)} className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-red-400" title="Reject">
-                            <XCircle className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                      <button onClick={() => handleDelete(a.id)} className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                  </td>
-                </tr>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        // Navigate to assignments page
+                        window.location.hash = '/admin/assignments'
+                      }}
+                      className="border-[#9a02d0]/30 text-[#9a02d0] hover:bg-[#9a02d0]/10"
+                    >
+                      Assign Rep
+                    </Button>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex items-center justify-between px-4 py-3 border-t border-white/10">
-          <span className="text-sm text-gray-500">{totalCount} total</span>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="p-2 hover:bg-white/5 rounded-lg disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button>
-            <span className="text-sm text-gray-400">Page {page + 1} of {totalPages || 1}</span>
-            <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="p-2 hover:bg-white/5 rounded-lg disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button>
-          </div>
-        </div>
-      </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

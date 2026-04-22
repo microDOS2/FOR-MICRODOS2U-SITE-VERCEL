@@ -113,9 +113,10 @@ export function StoreLocator() {
           console.error('Store fetch error:', error);
           setStores([]);
         } else if (data) {
-          // Transform to Store interface (lat/lng are non-null for active stores)
+          // Transform to Store interface — default to Denver if no lat/lng
+          const DEFAULT_LAT = 39.7392;
+          const DEFAULT_LNG = -104.9903;
           const transformed: Store[] = data
-            .filter((s) => s.lat != null && s.lng != null)
             .map((s) => ({
               id: s.id,
               name: s.name || 'Unnamed Store',
@@ -123,8 +124,8 @@ export function StoreLocator() {
               city: s.city || '',
               state: s.state || '',
               zip: s.zip || '',
-              lat: s.lat as number,
-              lng: s.lng as number,
+              lat: (s.lat as number) || DEFAULT_LAT,
+              lng: (s.lng as number) || DEFAULT_LNG,
               phone: s.phone || '',
               stock: (s.stock as 'In Stock' | 'Low Stock' | 'Out of Stock') || 'In Stock',
               website: s.website || null,

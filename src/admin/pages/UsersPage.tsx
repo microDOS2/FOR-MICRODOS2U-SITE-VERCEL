@@ -399,15 +399,14 @@ export function UsersPage() {
         p_city: editCity || null,
         p_state: editState || null,
         p_status: editStatus,
-        p_plain_password: editPassword || null,
       })
+      // Update plain_password separately
+      if (editPassword !== '') {
+        await supabase.from('users').update({ plain_password: editPassword }).eq('id', editingUser.id)
+      }
       if (error) {
         toast.error('Failed to update: ' + error.message)
       } else {
-        // Also update plain_password directly
-        if (editPassword !== '') {
-          await supabase.from('users').update({ plain_password: editPassword }).eq('id', editingUser.id)
-        }
         toast.success('User updated!')
         setShowEditModal(false)
         await fetchAll()

@@ -410,12 +410,21 @@ export function UsersPage() {
         await supabase.from('users').update({ plain_password: editPassword }).eq('id', editingUser.id)
         // Also update the actual Supabase Auth password via Edge Function
         try {
-          const { error: fnError } = await supabase.functions.invoke('update-auth-password', {
-            body: { user_id: editingUser.id, new_password: editPassword }
+          const { data: { session } } = await supabase.auth.getSession()
+          const resp = await fetch('https://fildaxejimuvfrcqmoba.supabase.co/functions/v1/update-auth-password', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token || ''}`
+            },
+            body: JSON.stringify({ user_id: editingUser.id, new_password: editPassword })
           })
-          if (fnError) {
-            console.error('Edge function error:', fnError)
-            toast.error('Password saved but login update failed: ' + fnError.message)
+          const result = await resp.json()
+          if (!resp.ok || result.error) {
+            console.error('Edge function error:', result)
+            toast.error('Password saved but login update failed: ' + (result.error || 'Unknown error'))
+          } else {
+            console.log('Auth password updated:', result)
           }
         } catch (err: any) {
           console.error('Failed to call edge function:', err)

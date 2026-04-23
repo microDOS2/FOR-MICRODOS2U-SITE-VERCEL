@@ -437,10 +437,10 @@ export function UsersPage() {
   const handleAssignManager = async (accountId: string, managerId: string) => {
     setSavingManager(accountId)
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ manager_id: managerId || null })
-        .eq('id', accountId)
+      const { error } = await supabase.rpc('assign_manager', {
+        target_user_id: accountId,
+        new_manager_id: managerId || null
+      })
       if (error) throw error
       // Optimistic UI update — update local state immediately
       setAllAccounts(prev => prev.map(a =>
@@ -449,7 +449,6 @@ export function UsersPage() {
       toast.success(managerId ? 'Manager assigned successfully' : 'Manager removed')
     } catch (err: any) {
       toast.error(err?.message || 'Failed to update manager')
-      // Refresh on error to revert optimistic update
       await fetchAll()
     }
     setSavingManager(null)

@@ -29,6 +29,7 @@ interface ApprovedAccount {
   account_number: string
   assigned_rep_name: string | null
   assigned_rep_id: string | null
+  manager_name: string | null
 }
 
 const typeBadgeClasses: Record<string, string> = {
@@ -55,10 +56,20 @@ export function ApprovalsPage() {
         // Fetch users (accounts without applications)
         const { data: userData } = await supabase
           .from('users')
-          .select('*')
+          .select('*, manager_id')
           .eq('status', 'approved')
           .in('role', ['wholesaler', 'distributor'])
           .order('updated_at', { ascending: false })
+
+        // Fetch sales managers for name lookup
+        const { data: managersData } = await supabase
+          .from('users')
+          .select('id, business_name, email')
+          .eq('role', 'sales_manager')
+          .eq('status', 'approved')
+
+        const managerMap = new Map()
+        ;(managersData || []).forEach((m: any) => managerMap.set(m.id, m))
 
         // Fetch account-level assignments
         const { data: assignData } = await supabase
@@ -111,6 +122,7 @@ export function ApprovalsPage() {
             account_number: user?.referral_code || '',
             assigned_rep_id: repId || null,
             assigned_rep_name: rep ? (rep.business_name || rep.email) : null,
+            manager_name: user?.manager_id ? (managerMap.get(user.manager_id)?.business_name || managerMap.get(user.manager_id)?.email || null) : null,
           }
         })
 
@@ -143,6 +155,7 @@ export function ApprovalsPage() {
               account_number: u.referral_code || '',
               assigned_rep_id: repId || null,
               assigned_rep_name: rep ? (rep.business_name || rep.email) : null,
+              manager_name: u.manager_id ? (managerMap.get(u.manager_id)?.business_name || managerMap.get(u.manager_id)?.email || null) : null,
             }
           })
 
@@ -239,11 +252,17 @@ export function ApprovalsPage() {
                       </div>
 
                       {/* Assignment Status */}
-                      <div className="mt-2">
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {app.manager_name && (
+                          <Badge className="bg-[#9a02d0]/20 text-[#9a02d0]">
+                            <Users className="w-3 h-3 mr-1" />
+                            Manager: {app.manager_name}
+                          </Badge>
+                        )}
                         {app.assigned_rep_name ? (
                           <Badge className="bg-[#44f80c]/20 text-[#44f80c]">
                             <Users className="w-3 h-3 mr-1" />
-                            Assigned to: {app.assigned_rep_name}
+                            Rep: {app.assigned_rep_name}
                           </Badge>
                         ) : (
                           <Badge className="bg-gray-700 text-gray-400">Unassigned</Badge>

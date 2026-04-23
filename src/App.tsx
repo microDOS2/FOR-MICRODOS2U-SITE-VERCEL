@@ -23,6 +23,7 @@ import { SalesRepDashboard } from './pages/SalesRepDashboard';
 import { AdminPortal } from './pages/AdminPortal';
 import { Products } from './pages/Products';
 import { InfluencerPortal } from './pages/InfluencerPortal';
+import { ForgotPassword } from './pages/ForgotPassword';
 import { InfluencerDashboard } from './pages/InfluencerDashboard';
 import { Navigation } from './components/Navigation';
 import { Footer } from './components/Footer';
@@ -114,6 +115,7 @@ function AppContent() {
           <Route path="/products" element={<Products />} />
           <Route path="/influencer-portal" element={<InfluencerPortal />} />
           <Route path="/influencer-dashboard" element={<InfluencerDashboard />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
 
           {/* Admin Command Center — /admin/* */}
           <Route path="/admin" element={<AdminLayout />}>

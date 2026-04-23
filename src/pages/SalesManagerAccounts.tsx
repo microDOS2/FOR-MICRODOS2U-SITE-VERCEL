@@ -284,16 +284,23 @@ export function SalesManagerAccounts() {
                                   <MapPin className="w-3 h-3 text-gray-600" />
                                   <span>{store.address}{store.city && `, ${store.city}`}{store.state && `, ${store.state}`}</span>
                                 </div>
-                                {store.assigned_rep_name ? (
-                                  <div className="flex items-center gap-2 mt-1.5">
-                                    <Badge className="bg-[#44f80c]/20 text-[#44f80c] text-xs">
-                                      <Users className="w-3 h-3 mr-1" /> Rep: {store.assigned_rep_name}
+                                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                  {managerName && (
+                                    <Badge className="bg-[#9a02d0]/20 text-[#9a02d0] text-xs">
+                                      <Shield className="w-3 h-3 mr-1" /> Manager: {managerName}
                                     </Badge>
-                                    <button onClick={() => handleUnassignStore(store.id)} className="text-xs text-red-400 hover:text-red-300 underline">Remove</button>
-                                  </div>
-                                ) : (
-                                  <Badge className="bg-gray-700 text-gray-400 text-xs mt-1.5">Unassigned</Badge>
-                                )}
+                                  )}
+                                  {store.assigned_rep_name ? (
+                                    <>
+                                      <Badge className="bg-[#44f80c]/20 text-[#44f80c] text-xs">
+                                        <Users className="w-3 h-3 mr-1" /> Rep: {store.assigned_rep_name}
+                                      </Badge>
+                                      <button onClick={() => handleUnassignStore(store.id)} className="text-xs text-red-400 hover:text-red-300 underline">Remove</button>
+                                    </>
+                                  ) : (
+                                    <Badge className="bg-gray-700 text-gray-400 text-xs">Unassigned</Badge>
+                                  )}
+                                </div>
                               </div>
                               <div className="flex items-center gap-2 w-full sm:w-auto">
                                 <Select

@@ -40,6 +40,7 @@ export function SalesManagerAccounts() {
   const [searchQuery, setSearchQuery] = useState('');
   const [accounts, setAccounts] = useState<DBUser[]>([]);
   const [managerStates, setManagerStates] = useState<string[]>([]);
+  const [managerName, setManagerName] = useState<string>('');
   const [stores, setStores] = useState<StoreItem[]>([]);
   const [allReps, setAllReps] = useState<DBUser[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -76,6 +77,7 @@ export function SalesManagerAccounts() {
       // Parse manager territory states
       const myStates: string[] = userData?.volume_estimate ? JSON.parse(userData.volume_estimate) : [];
       setManagerStates(myStates);
+      setManagerName(userData?.business_name || '');
 
       // Fetch accounts assigned to this manager (territory)
       const { data: accountsData, error: accountsError } = await supabase
@@ -198,12 +200,20 @@ export function SalesManagerAccounts() {
             <h1 className="text-3xl font-bold text-white">My Territory Accounts ({accounts.length})</h1>
           </div>
 
-          {managerStates.length > 0 && (
-            <div className="mb-6 ml-[72px] flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 text-base font-medium text-[#9a02d0] bg-[#9a02d0]/10 px-3 py-1 rounded-full">
-                <Shield className="w-4 h-4" />
-                Territory: {managerStates.join(', ')}
-              </span>
+          {(managerStates.length > 0 || managerName) && (
+            <div className="mb-6 ml-[72px] flex items-center gap-2 flex-wrap">
+              {managerStates.length > 0 && (
+                <span className="inline-flex items-center gap-1.5 text-base font-medium text-[#9a02d0] bg-[#9a02d0]/10 px-3 py-1 rounded-full">
+                  <Shield className="w-4 h-4" />
+                  Territory: {managerStates.join(', ')}
+                </span>
+              )}
+              {managerName && (
+                <span className="inline-flex items-center gap-1.5 text-base font-medium text-[#44f80c] bg-[#44f80c]/10 px-3 py-1 rounded-full">
+                  <Users className="w-4 h-4" />
+                  Manager: {managerName}
+                </span>
+              )}
             </div>
           )}
 

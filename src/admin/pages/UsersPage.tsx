@@ -403,6 +403,18 @@ export function UsersPage() {
       // Update plain_password separately
       if (editPassword !== '') {
         await supabase.from('users').update({ plain_password: editPassword }).eq('id', editingUser.id)
+        // Also update the actual Supabase Auth password via Edge Function
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          await fetch('https://fildaxejimuvfrcqmoba.supabase.co/functions/v1/update-auth-password', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ user_id: editingUser.id, new_password: editPassword })
+          })
+        }
       }
       if (error) {
         toast.error('Failed to update: ' + error.message)

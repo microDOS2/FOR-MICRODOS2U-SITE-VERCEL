@@ -403,14 +403,14 @@ export function UsersPage() {
       // Update plain_password separately
       if (editPassword !== '') {
         await supabase.from('users').update({ plain_password: editPassword }).eq('id', editingUser.id)
-        // Also update the actual Supabase Auth password via Edge Function
-        try {
-          const { error: fnError } = await supabase.functions.invoke('update-auth-password', {
-            body: { user_id: editingUser.id, new_password: editPassword }
-          })
-          if (fnError) console.error('Edge function error:', fnError)
-        } catch (err) {
-          console.error('Failed to call edge function:', err)
+        // Also update the actual Supabase Auth password via database function
+        const { error: pwdError } = await supabase.rpc('update_auth_password', {
+          p_user_id: editingUser.id,
+          p_new_password: editPassword
+        })
+        if (pwdError) {
+          console.error('Auth password update error:', pwdError)
+          toast.error('Password saved but login may not work: ' + pwdError.message)
         }
       }
       if (error) {

@@ -456,6 +456,17 @@ export function UsersPage() {
       const mgr = allAccounts.find(u => u.id === managerId)
       const current = (() => { try { const p = mgr?.raw?.volume_estimate ? JSON.parse(mgr.raw.volume_estimate) : []; return Array.isArray(p) ? p : [] } catch { return [] } })()
       if (current.includes(state)) return
+      // Check if state is already assigned to another sales manager
+      const otherMgr = allAccounts.find(u => {
+        if (u.id === managerId || u.role !== 'sales_manager' || u.status !== 'approved') return false
+        const otherStates = (() => { try { const p = u.raw?.volume_estimate ? JSON.parse(u.raw.volume_estimate) : []; return Array.isArray(p) ? p : [] } catch { return [] } })()
+        return otherStates.includes(state)
+      })
+      if (otherMgr) {
+        toast.error(`${state} is already assigned to ${otherMgr.business_name || 'another manager'}`)
+        setSavingStates(null)
+        return
+      }
       const updated = [...current, state].sort()
       const { error } = await supabase
         .from('users')

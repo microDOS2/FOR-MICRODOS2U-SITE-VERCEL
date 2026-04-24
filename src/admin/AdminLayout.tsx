@@ -28,7 +28,7 @@ import {
 const navItems = [
   { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
   { name: 'Users', path: '/admin/users', icon: Users },
-  { name: 'Applications', path: '/admin/applications', icon: ClipboardList },
+  { name: 'Pending Applications', path: '/admin/applications', icon: ClipboardList },
   { name: 'Accounts', path: '/admin/accounts', icon: UserCog },
   { name: 'Influencers', path: '/admin/influencers', icon: UserCheck },
   { name: 'Products', path: '/admin/products', icon: Package },

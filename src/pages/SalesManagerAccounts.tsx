@@ -44,8 +44,8 @@ export function SalesManagerAccounts() {
   const [stores, setStores] = useState<StoreItem[]>([]);
   const [allReps, setAllReps] = useState<DBUser[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [selectedStoreRep, setSelectedStoreRep] = useState<Record<string, string>>({});
-  const [savingStore, setSavingStore] = useState<string | null>(null);
+  const [selectedAccountRep, setSelectedAccountRep] = useState<Record<string, string>>({});
+  const [savingAccountRep, setSavingAccountRep] = useState<string | null>(null);
 
   // Account-level rep assignments lookup
   const [accountRepMap, setAccountRepMap] = useState<Map<string, DBUser>>(new Map());
@@ -179,6 +179,43 @@ export function SalesManagerAccounts() {
     init();
   }, [navigate]);
 
+  const handleAssignAccountRep = async (accountId: string) => {
+    const repId = selectedAccountRep[accountId];
+    if (!repId) { toast.error('Select a Sales Rep'); return; }
+    setSavingAccountRep(accountId);
+    try {
+      const { error: delError } = await supabase.from('rep_account_assignments').delete().eq('account_id', accountId);
+      if (delError) throw delError;
+      const { error: insError } = await supabase.from('rep_account_assignments').insert([{ account_id: accountId, rep_id: repId }]);
+      if (insError) throw insError;
+      setAccountRepMap(prev => {
+        const next = new Map(prev);
+        const rep = allReps.find(r => r.id === repId);
+        if (rep) next.set(accountId, rep);
+        return next;
+      });
+      setSelectedAccountRep(prev => { const next = { ...prev }; delete next[accountId]; return next; });
+      toast.success('Account Rep assigned!');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to assign rep');
+    }
+    setSavingAccountRep(null);
+  };
+
+  const handleUnassignAccountRep = async (accountId: string) => {
+    if (!confirm('Remove account rep assignment?')) return;
+    setSavingAccountRep(accountId);
+    try {
+      const { error } = await supabase.from('rep_account_assignments').delete().eq('account_id', accountId);
+      if (error) throw error;
+      setAccountRepMap(prev => { const next = new Map(prev); next.delete(accountId); return next; });
+      toast.success('Account Rep removed');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to remove rep');
+    }
+    setSavingAccountRep(null);
+  };
+
   const handleAssignStore = async (storeId: string) => {
     const repId = selectedStoreRep[storeId];
     if (!repId) { toast.error('Select a Sales Rep'); return; }
@@ -295,6 +332,34 @@ export function SalesManagerAccounts() {
                                 </Badge>
                               ) : null;
                             })()}
+                            <div className="flex items-center gap-2 mt-1">
+                              <select
+                                className="text-xs bg-[#0a0514] border border-white/10 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-[#44f80c]/50 w-40"
+                                value={selectedAccountRep[account.id] || ''}
+                                onChange={e => setSelectedAccountRep(prev => ({ ...prev, [account.id]: e.target.value }))}
+                                disabled={savingAccountRep === account.id}
+                              >
+                                <option value="">— Select Rep —</option>
+                                {allReps.map(r => <option key={r.id} value={r.id}>{r.business_name || r.email}</option>)}
+                              </select>
+                              <Button
+                                size="sm"
+                                onClick={(e) => { e.stopPropagation(); handleAssignAccountRep(account.id); }}
+                                disabled={savingAccountRep === account.id || !selectedAccountRep[account.id]}
+                                className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white h-6 px-2"
+                              >
+                                {savingAccountRep === account.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                              </Button>
+                              {accountRepMap.has(account.id) && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleUnassignAccountRep(account.id); }}
+                                  className="text-xs text-red-400 hover:text-red-300 underline"
+                                  disabled={savingAccountRep === account.id}
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <p className="text-gray-400 text-sm">{account.email}</p>
                           <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">

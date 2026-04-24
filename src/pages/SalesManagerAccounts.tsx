@@ -82,8 +82,8 @@ export function SalesManagerAccounts() {
       const { data: statesData } = await supabase
         .from('manager_state_assignments')
         .select('state_code')
-        .eq('manager_id', session.user.id)
-      const myStates: string[] = (statesData || []).map((s: any) => s.state_code).sort()
+        .eq('manager_id', session.user.id);
+      const myStates: string[] = (statesData || []).map((s: any) => s.state_code).sort();
       setManagerStates(myStates);
       setManagerName(userData?.business_name || '');
 
@@ -326,19 +326,20 @@ export function SalesManagerAccounts() {
                                 <Shield className="w-3 h-3 mr-1" /> Manager: {managerName}
                               </Badge>
                             )}
-                            {(() => {
-                              const rep = accountRepMap.get(account.id);
-                              return rep ? (
-                                <Badge className="bg-[#44f80c]/20 text-[#44f80c] text-xs">
-                                  <Users className="w-3 h-3 mr-1" /> Account Rep: {rep.business_name || rep.email}
-                                </Badge>
-                              ) : null;
-                            })()}
                           </div>
                           <p className="text-gray-400 text-sm">{account.email}</p>
                           <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
                             <MapPin className="w-3 h-3" />
                             {account.city && account.state ? `${account.city}, ${account.state}` : 'No location'}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            {accountRepMap.has(account.id) ? (
+                              <Badge className="bg-[#44f80c]/20 text-[#44f80c] text-xs">
+                                <Users className="w-3 h-3 mr-1" /> Account Rep: {accountRepMap.get(account.id)?.business_name || accountRepMap.get(account.id)?.email}
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-gray-700 text-gray-400 text-xs">No Account Rep Assigned</Badge>
+                            )}
                           </div>
                         </div>
                       </div>

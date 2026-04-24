@@ -697,6 +697,7 @@ export function UsersPage() {
                               const states = managerStateMap.get(account.id) || []
                               const isSaving = savingStates === account.id
                               const available = ALL_US_STATES.filter(s => !states.includes(s))
+                              const teamReps = allAccounts.filter(u => u.role === 'sales_rep' && u.status === 'approved' && u.raw?.manager_id === account.id)
                               return (
                                 <div className="space-y-2">
                                   {states.length > 0 ? (
@@ -738,9 +739,28 @@ export function UsersPage() {
                                   {available.length === 0 && states.length > 0 && !isSaving && (
                                     <span className="text-[10px] text-gray-500">All available states assigned</span>
                                   )}
+                                  {teamReps.length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {teamReps.map((rep) => (
+                                        <span key={rep.id} className="inline-flex items-center gap-1 text-xs bg-[#9a02d0]/20 text-[#9a02d0] px-2 py-0.5 rounded">
+                                          <Users className="w-3 h-3" /> {rep.business_name || rep.email}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               )
                             })()
+                          ) : account.role === 'sales_rep' && account.source === 'users' ? (
+                            <select
+                              className="text-xs bg-[#0a0514] border border-white/10 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-[#44f80c]/50 w-full max-w-[160px]"
+                              value={account.raw?.manager_id || ''}
+                              onChange={(e) => handleAssignManager(account.id, e.target.value)}
+                              disabled={savingManager === account.id}
+                            >
+                              <option value="">— No Manager —</option>
+                              {(() => { const sm = allAccounts.filter(u => u.role === 'sales_manager' && u.status === 'approved'); return sm.map(m => <option key={m.id} value={m.id}>{m.business_name}</option>) })()}
+                            </select>
                           ) : (account.role === 'wholesaler' || account.role === 'distributor') && account.source === 'users' ? (
                             <select
                               className="text-xs bg-[#0a0514] border border-white/10 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-[#44f80c]/50 w-full max-w-[140px]"

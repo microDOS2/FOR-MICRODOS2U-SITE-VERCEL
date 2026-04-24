@@ -334,34 +334,6 @@ export function SalesManagerAccounts() {
                                 </Badge>
                               ) : null;
                             })()}
-                            <div className="flex items-center gap-2 mt-1">
-                              <select
-                                className="text-xs bg-[#0a0514] border border-white/10 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-[#44f80c]/50 w-40"
-                                value={selectedAccountRep[account.id] || ''}
-                                onChange={e => setSelectedAccountRep(prev => ({ ...prev, [account.id]: e.target.value }))}
-                                disabled={savingAccountRep === account.id}
-                              >
-                                <option value="">— Select Rep —</option>
-                                {allReps.map(r => <option key={r.id} value={r.id}>{r.business_name || r.email}</option>)}
-                              </select>
-                              <Button
-                                size="sm"
-                                onClick={(e) => { e.stopPropagation(); handleAssignAccountRep(account.id); }}
-                                disabled={savingAccountRep === account.id || !selectedAccountRep[account.id]}
-                                className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white h-6 px-2"
-                              >
-                                {savingAccountRep === account.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                              </Button>
-                              {accountRepMap.has(account.id) && (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleUnassignAccountRep(account.id); }}
-                                  className="text-xs text-red-400 hover:text-red-300 underline"
-                                  disabled={savingAccountRep === account.id}
-                                >
-                                  Remove
-                                </button>
-                              )}
-                            </div>
                           </div>
                           <p className="text-gray-400 text-sm">{account.email}</p>
                           <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
@@ -373,6 +345,36 @@ export function SalesManagerAccounts() {
                       <span className="text-gray-500 text-sm">{acctStores.length} stores</span>
                     </div>
                   </button>
+
+                  {/* Account-level rep assignment controls */}
+                  <div className="flex items-center gap-2 px-4 py-2 bg-[#0a0514]/50">
+                    <select
+                      className="text-xs bg-[#0a0514] border border-white/10 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-[#44f80c]/50 w-40"
+                      value={selectedAccountRep[account.id] || ''}
+                      onChange={e => setSelectedAccountRep(prev => ({ ...prev, [account.id]: e.target.value }))}
+                      disabled={savingAccountRep === account.id}
+                    >
+                      <option value="">— Select Rep —</option>
+                      {allReps.map(r => <option key={r.id} value={r.id}>{r.business_name || r.email}</option>)}
+                    </select>
+                    <Button
+                      size="sm"
+                      onClick={() => handleAssignAccountRep(account.id)}
+                      disabled={savingAccountRep === account.id || !selectedAccountRep[account.id]}
+                      className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white h-6 px-2"
+                    >
+                      {savingAccountRep === account.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                    </Button>
+                    {accountRepMap.has(account.id) && (
+                      <button
+                        onClick={() => handleUnassignAccountRep(account.id)}
+                        className="text-xs text-red-400 hover:text-red-300 underline"
+                        disabled={savingAccountRep === account.id}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
 
                   {expanded[account.id] && acctStores.length > 0 && (
                     <div className="border-t border-white/10 px-4 pb-4">

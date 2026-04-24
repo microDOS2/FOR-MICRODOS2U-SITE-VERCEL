@@ -22,7 +22,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import {
-  Users, Plus, Search, Check, Copy, Store, UserPlus, Loader2, X, Info, Pencil, Eye
+  Users, Plus, Search, Check, Copy, Store, UserPlus, Loader2, X, Info, Pencil
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DBUser } from '@/lib/supabase'
@@ -163,7 +163,7 @@ export function UsersPage() {
   const [sortColumn, setSortColumn] = useState<SortColumn>('role')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
-  // ─── Fetch both users AND pending applications ───
+  // ─── Fetch approved users only ───
   const fetchAll = async () => {
     setLoading(true)
     try {
@@ -171,15 +171,7 @@ export function UsersPage() {
       const { data: usersData, error: usersError } = await supabase
         .rpc('get_all_users')
 
-      // 2. Fetch pending applications
-      const { data: appsData, error: appsError } = await supabase
-        .from('applications')
-        .select('*')
-        .eq('status', 'pending')
-        .order('submitted_at', { ascending: false })
-
       if (usersError) console.error('Users error:', usersError)
-      if (appsError) console.error('Apps error:', appsError)
 
       const combined: UnifiedUser[] = []
 
@@ -205,32 +197,9 @@ export function UsersPage() {
         })
       })
 
-      // Add pending applications
-      ;(appsData || []).forEach((a: any) => {
-        combined.push({
-          id: a.id,
-          source: 'applications',
-          business_name: a.business_name || a.email,
-          contact_name: a.contact_name,
-          email: a.email,
-          phone: a.phone,
-          account_type: a.account_type,
-          role: a.account_type,
-          status: 'pending',
-          city: a.city,
-          state: a.state,
-          zip: a.zip,
-          license_number: a.license_number,
-          ein: a.ein,
-          website: a.website,
-          address: a.address,
-          raw: a,
-        })
-      })
-
       setAllAccounts(combined)
 
-      // 3. Fetch manager state assignments (replaces volume_estimate JSON)
+      // 2. Fetch manager state assignments (replaces volume_estimate JSON)
       const { data: assignmentsData } = await supabase
         .from('manager_state_assignments')
         .select('manager_id,state_code')
@@ -296,7 +265,6 @@ export function UsersPage() {
   })
 
   const approvedCount = allAccounts.filter((a) => a.status === 'approved').length
-  const pendingCount = allAccounts.filter((a) => a.status === 'pending').length
 
   // ──── CREATE USER (internal roles only) ────
   const handleCreateUser = async () => {
@@ -561,11 +529,6 @@ export function UsersPage() {
     setSavingStates(null)
   }
 
-  // ──── APPROVE APPLICATION ────
-  const handleApproveFromUsers = async (_app: UnifiedUser) => {
-    navigate('/admin/applications')
-  }
-
   const copyPassword = () => {
     navigator.clipboard.writeText(generatedPassword)
     setCopied(true)
@@ -587,7 +550,7 @@ export function UsersPage() {
         <div>
           <h2 className="text-2xl font-bold text-white mb-1">User Management</h2>
           <p className="text-gray-400">
-            {approvedCount} approved • {pendingCount} pending
+            {approvedCount} approved users
           </p>
         </div>
         <div className="flex gap-2">
@@ -612,12 +575,12 @@ export function UsersPage() {
         />
       </div>
 
-      {/* ─── UNIFIED TABLE: Approved + Pending ─── */}
+      {/* ─── APPROVED USERS TABLE ─── */}
       <Card className="bg-[#150f24] border-white/10">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <Users className="w-5 h-5 text-[#9a02d0]" />
-            All Accounts ({filtered.length})
+            Approved Users ({filtered.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -660,21 +623,16 @@ export function UsersPage() {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {sorted.length === 0 && (
-                    <tr><td colSpan={7} className="text-center text-gray-500 py-8">No accounts found</td></tr>
+                    <tr><td colSpan={7} className="text-center text-gray-500 py-8">No approved users found</td></tr>
                   )}
                   {sorted.map((account) => {
-                    const role = account.role || account.account_type || ''
-                    const displayName = account.source === 'applications'
-                      ? (account.contact_name ? `${account.business_name} — ${account.contact_name}` : account.business_name)
-                      : account.business_name
+                    const role = account.role || ''
+                    const displayName = account.business_name
 
                     return (
-                      <tr key={`${account.source}-${account.id}`} className="hover:bg-white/5 transition-colors">
+                      <tr key={account.id} className="hover:bg-white/5 transition-colors">
                         <td className="px-4 py-3">
                           <span className="text-white font-medium">{displayName}</span>
-                          {account.source === 'applications' && (
-                            <Badge className="ml-2 bg-yellow-500/20 text-yellow-400 text-[10px]">APPLICATION</Badge>
-                          )}
                         </td>
                         <td className="px-4 py-3 text-gray-300 text-sm">{account.email}</td>
                         <td className="px-4 py-3">
@@ -751,7 +709,7 @@ export function UsersPage() {
                                 </div>
                               )
                             })()
-                          ) : account.role === 'sales_rep' && account.source === 'users' ? (
+                          ) : account.role === 'sales_rep' ? (
                             <select
                               className="text-xs bg-[#0a0514] border border-white/10 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-[#44f80c]/50 w-full max-w-[160px]"
                               value={account.raw?.manager_id || ''}
@@ -761,7 +719,7 @@ export function UsersPage() {
                               <option value="">— No Manager —</option>
                               {(() => { const sm = allAccounts.filter(u => u.role === 'sales_manager' && u.status === 'approved'); return sm.map(m => <option key={m.id} value={m.id}>{m.business_name}</option>) })()}
                             </select>
-                          ) : (account.role === 'wholesaler' || account.role === 'distributor') && account.source === 'users' ? (
+                          ) : (account.role === 'wholesaler' || account.role === 'distributor') ? (
                             <select
                               className="text-xs bg-[#0a0514] border border-white/10 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-[#44f80c]/50 w-full max-w-[140px]"
                               value={account.raw?.manager_id || ''}
@@ -780,29 +738,14 @@ export function UsersPage() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {account.source === 'users' ? (
-                              <>
-                                <Button size="sm" onClick={() => openEdit(account)} disabled={actionLoading === account.id + '-edit'}
-                                  className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 h-7 px-2">
-                                  <Pencil className="w-3 h-3" />
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => handleDelete(account)} disabled={actionLoading === account.id + '-delete'}
-                                  className="border-red-500/30 text-red-400 hover:bg-red-500/10 h-7 px-2">
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <Button size="sm" onClick={() => handleApproveFromUsers(account)} disabled={actionLoading === account.id + '-review'}
-                                  className="bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 h-7 px-2" title="Review Application">
-                                  <Eye className="w-3 h-3" />
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => handleDelete(account)} disabled={actionLoading === account.id + '-delete'}
-                                  className="border-red-500/30 text-red-400 hover:bg-red-500/10 h-7 px-2">
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
+                            <Button size="sm" onClick={() => openEdit(account)} disabled={actionLoading === account.id + '-edit'}
+                              className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 h-7 px-2">
+                              <Pencil className="w-3 h-3" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleDelete(account)} disabled={actionLoading === account.id + '-delete'}
+                              className="border-red-500/30 text-red-400 hover:bg-red-500/10 h-7 px-2">
+                              <X className="w-3 h-3" />
+                            </Button>
                           </div>
                         </td>
                       </tr>

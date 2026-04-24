@@ -153,18 +153,16 @@ export function StoresPage() {
                 {s.manager_name && (
                   <span className="text-xs text-[#9a02d0] bg-[#9a02d0]/10 px-2 py-0.5 rounded flex items-center gap-1 w-fit"><Shield className="w-3 h-3" /> Manager: {s.manager_name}</span>
                 )}
-                {s.assigned_rep_name ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-[#44f80c] bg-[#44f80c]/10 px-2 py-0.5 rounded flex items-center gap-1"><Users className="w-3 h-3" /> {s.assigned_rep_name}</span>
-                    {(() => {
-                      const hasMgr = s.assigned_rep_id ? repHasManager.get(s.assigned_rep_id) : true
-                      return hasMgr === false ? (
-                        <span className="text-xs text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded flex items-center gap-1">⚠️ Unmanaged</span>
-                      ) : null
-                    })()}
-                    <button onClick={() => handleUnassignStore(s.id)} className="text-xs text-red-400 hover:text-red-300 underline"><UserMinus className="w-3 h-3 inline" /></button>
-                  </div>
-                ) : <span className="text-xs text-gray-500">Unassigned</span>}
+                {(() => {
+                  const hasMgr = s.assigned_rep_id ? repHasManager.get(s.assigned_rep_id) : true
+                  if (s.assigned_rep_name && hasMgr === false) {
+                    return <div className="flex items-center gap-2"><span className="text-xs text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded flex items-center gap-1">⚠️ Unmanaged</span><button onClick={() => handleUnassignStore(s.id)} className="text-xs text-red-400 hover:text-red-300 underline"><UserMinus className="w-3 h-3 inline" /></button></div>
+                  }
+                  if (s.assigned_rep_name) {
+                    return <div className="flex items-center gap-2"><span className="text-xs text-[#44f80c] bg-[#44f80c]/10 px-2 py-0.5 rounded flex items-center gap-1"><Users className="w-3 h-3" /> {s.assigned_rep_name}</span><button onClick={() => handleUnassignStore(s.id)} className="text-xs text-red-400 hover:text-red-300 underline"><UserMinus className="w-3 h-3 inline" /></button></div>
+                  }
+                  return <span className="text-xs text-gray-500">Unassigned</span>
+                })()}
                 <div className="flex items-center gap-1">
                   <Select value={selectedRep[s.id] || ''} onValueChange={(val) => setSelectedRep(p => ({ ...p, [s.id]: val }))}>
                     <SelectTrigger className="h-8 text-xs bg-[#0a0514] border-white/10 text-white flex-1"><SelectValue placeholder="Assign Rep" /></SelectTrigger>

@@ -46,6 +46,8 @@ export function SalesManagerAccounts() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [selectedAccountRep, setSelectedAccountRep] = useState<Record<string, string>>({});
   const [savingAccountRep, setSavingAccountRep] = useState<string | null>(null);
+  const [selectedStoreRep, setSelectedStoreRep] = useState<Record<string, string>>({});
+  const [savingStore, setSavingStore] = useState<string | null>(null);
 
   // Account-level rep assignments lookup
   const [accountRepMap, setAccountRepMap] = useState<Map<string, DBUser>>(new Map());

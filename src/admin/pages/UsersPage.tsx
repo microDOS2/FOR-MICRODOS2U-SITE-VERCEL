@@ -54,7 +54,6 @@ const roleLabels: Record<string, string> = {
   wholesaler: 'Wholesaler',
   distributor: 'Distributor',
   influencer: 'Influencer',
-  retailer: 'Retailer',
 }
 
 const roleBadgeClasses: Record<string, string> = {
@@ -64,7 +63,6 @@ const roleBadgeClasses: Record<string, string> = {
   wholesaler: 'bg-[#44f80c]/20 text-[#44f80c]',
   distributor: 'bg-[#ff66c4]/20 text-[#ff66c4]',
   influencer: 'bg-orange-500/20 text-orange-500',
-  retailer: 'bg-gray-500/20 text-gray-400',
 }
 
 const ALL_US_STATES = [
@@ -161,6 +159,13 @@ export function UsersPage() {
   const [sortColumn, setSortColumn] = useState<SortColumn>('role')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
+  // Toggle filter state
+  type FilterMode = 'all' | 'employees' | 'business'
+  const [filterMode, setFilterMode] = useState<FilterMode>('all')
+
+  const employeeRoles = ['admin', 'sales_manager', 'sales_rep']
+  const businessRoles = ['wholesaler', 'distributor', 'influencer']
+
   // ─── Fetch approved users only ───
   const fetchAll = async () => {
     setLoading(true)
@@ -224,12 +229,17 @@ export function UsersPage() {
   // Filter
   const filtered = allAccounts.filter((a) => {
     const q = searchQuery.toLowerCase()
-    return (
+    const matchesSearch = (
       a.business_name.toLowerCase().includes(q) ||
       a.email.toLowerCase().includes(q) ||
       (a.role || '').toLowerCase().includes(q) ||
       a.status.toLowerCase().includes(q)
     )
+    if (!matchesSearch) return false
+
+    if (filterMode === 'employees') return employeeRoles.includes(a.role || '')
+    if (filterMode === 'business') return businessRoles.includes(a.role || '')
+    return true
   })
 
   // Sort
@@ -561,16 +571,35 @@ export function UsersPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-        <Input
-          type="text"
-          placeholder="Search by name, email, role, or status..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 bg-[#0a0514] border-white/10 text-white"
-        />
+      {/* Search + Toggle */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <Input
+            type="text"
+            placeholder="Search by name, email, role, or status..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 bg-[#0a0514] border-white/10 text-white"
+          />
+        </div>
+        <div className="flex gap-1.5">
+          {(['all', 'employees', 'business'] as FilterMode[]).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setFilterMode(mode)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                filterMode === mode
+                  ? 'bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white'
+                  : 'bg-[#0a0514] text-gray-400 border border-white/10 hover:text-white hover:border-white/20'
+              }`}
+            >
+              {mode === 'all' && 'Show All'}
+              {mode === 'employees' && 'Employees'}
+              {mode === 'business' && 'Business Users'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ─── APPROVED USERS TABLE ─── */}

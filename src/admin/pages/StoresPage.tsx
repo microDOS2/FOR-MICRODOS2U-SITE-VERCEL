@@ -72,7 +72,12 @@ export function StoresPage() {
       const transformed = (storeData || []).map((s: any) => {
         const { number: sn, cleanName } = parseStoreNumber(s.name || '')
         const acctNum = sn.replace(/[a-z]$/, '')
-        const owner = userMap.get(acctNum)
+        let owner: any = userMap.get(acctNum)
+        // Fallback: match store name directly against wholesaler business_name
+        if (!owner && s.name) {
+          const storeNameLower = (s.name || '').toLowerCase().trim()
+          owner = (usersData || []).find((u: any) => u.business_name && u.business_name.toLowerCase().trim() === storeNameLower)
+        }
         const repId = extractRepFromLicense(s.license_number)
         const rep = repId ? repMap.get(repId) : null
         return {

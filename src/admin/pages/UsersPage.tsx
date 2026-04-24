@@ -154,8 +154,13 @@ export function UsersPage() {
   // Manager state assignments map (replaces volume_estimate JSON)
   const [managerStateMap, setManagerStateMap] = useState<Map<string, string[]>>(new Map())
 
+  // Details column data
+  const [storeCountMap, setStoreCountMap] = useState<Map<string, number>>(new Map())
+  const [accountRepMap, setAccountRepMap] = useState<Map<string, DBUser>>(new Map())
+  const [managerLookup, setManagerLookup] = useState<Map<string, DBUser>>(new Map())
+
   // Sort state
-  type SortColumn = 'name' | 'email' | 'role' | 'status' | 'manager' | 'location'
+  type SortColumn = 'name' | 'email' | 'role' | 'manager' | 'location'
   const [sortColumn, setSortColumn] = useState<SortColumn>('role')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
@@ -202,7 +207,43 @@ export function UsersPage() {
 
       setAllAccounts(combined)
 
-      // 2. Fetch manager state assignments (replaces volume_estimate JSON)
+      // Build manager lookup from users
+      const mgrMap = new Map<string, DBUser>()
+      ;(usersData || []).forEach((u: DBUser) => mgrMap.set(u.id, u))
+      setManagerLookup(mgrMap)
+
+      // 2. Fetch store counts per user
+      const { data: storesData } = await supabase
+        .from('wholesaler_store_locations')
+        .select('user_id')
+      const scMap = new Map<string, number>()
+      ;(storesData || []).forEach((s: any) => {
+        const uid = s.user_id
+        if (uid) scMap.set(uid, (scMap.get(uid) || 0) + 1)
+      })
+      setStoreCountMap(scMap)
+
+      // 3. Fetch account rep assignments
+      const { data: raaData } = await supabase
+        .from('rep_account_assignments')
+        .select('account_id,rep_id')
+      if (raaData && raaData.length > 0) {
+        const repIds = raaData.map((a: any) => a.rep_id)
+        const { data: repsData } = await supabase
+          .from('users')
+          .select('id,business_name,email')
+          .in('id', repIds)
+        const repMap = new Map<string, DBUser>()
+        ;(repsData || []).forEach((r: any) => repMap.set(r.id, r))
+        const arMap = new Map<string, DBUser>()
+        ;(raaData || []).forEach((a: any) => {
+          const rep = repMap.get(a.rep_id)
+          if (rep) arMap.set(a.account_id, rep)
+        })
+        setAccountRepMap(arMap)
+      }
+
+      // 4. Fetch manager state assignments (replaces volume_estimate JSON)
       const { data: assignmentsData } = await supabase
         .from('manager_state_assignments')
         .select('manager_id,state_code')
@@ -232,8 +273,7 @@ export function UsersPage() {
     const matchesSearch = (
       a.business_name.toLowerCase().includes(q) ||
       a.email.toLowerCase().includes(q) ||
-      (a.role || '').toLowerCase().includes(q) ||
-      a.status.toLowerCase().includes(q)
+      (a.role || '').toLowerCase().includes(q)
     )
     if (!matchesSearch) return false
 
@@ -249,7 +289,6 @@ export function UsersPage() {
         case 'name': return acct.business_name.toLowerCase()
         case 'email': return acct.email.toLowerCase()
         case 'role': return (acct.role || acct.account_type || '').toLowerCase()
-        case 'status': return acct.status.toLowerCase()
         case 'manager': {
           if (acct.role === 'sales_manager') {
             const states = managerStateMap.get(acct.id) || []
@@ -266,10 +305,10 @@ export function UsersPage() {
     const bVal = getVal(b, sortColumn)
     let cmp = aVal.localeCompare(bVal)
     if (cmp !== 0) return sortDirection === 'asc' ? cmp : -cmp
-    // Multi-key fallback: role → status
+    // Multi-key fallback: role → name
     const roleCmp = ((a.role || '') as string).localeCompare((b.role || '') as string)
     if (roleCmp !== 0) return roleCmp
-    return a.status.localeCompare(b.status)
+    return a.business_name.toLowerCase().localeCompare(b.business_name.toLowerCase())
   })
 
   const approvedCount = allAccounts.filter((a) => a.status === 'approved').length
@@ -622,7 +661,6 @@ export function UsersPage() {
                       { key: 'name' as SortColumn, label: 'Name', align: 'left' },
                       { key: 'email' as SortColumn, label: 'Email', align: 'left' },
                       { key: 'role' as SortColumn, label: 'Role', align: 'left' },
-                      { key: 'status' as SortColumn, label: 'Status', align: 'left' },
                       { key: 'manager' as SortColumn, label: 'Manager', align: 'left' },
                       { key: 'location' as SortColumn, label: 'Location', align: 'left' },
                     ].map((col) => (
@@ -645,6 +683,7 @@ export function UsersPage() {
                         {col.label} {sortColumn === col.key && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                     ))}
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Details</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
@@ -665,15 +704,6 @@ export function UsersPage() {
                         <td className="px-4 py-3">
                           <Badge className={roleBadgeClasses[role] || 'bg-gray-500/20 text-gray-400'}>
                             {roleLabels[role] || role}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge className={
-                            account.status === 'approved' ? 'bg-green-500/20 text-green-500' :
-                            account.status === 'pending' ? 'bg-yellow-500/20 text-yellow-500' :
-                            'bg-red-500/20 text-red-500'
-                          }>
-                            {account.status}
                           </Badge>
                         </td>
                         <td className="px-4 py-3">
@@ -762,6 +792,63 @@ export function UsersPage() {
                         </td>
                         <td className="px-4 py-3 text-gray-400 text-sm">
                           {account.city && account.state ? `${account.city}, ${account.state}` : '—'}
+                        </td>
+                        {/* ─── Details Column ─── */}
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1.5 items-center">
+                            {(account.role === 'wholesaler' || account.role === 'distributor') ? (
+                              <>
+                                <Badge className="bg-[#44f80c]/20 text-[#44f80c] text-xs">
+                                  {storeCountMap.get(account.id) || 0} store{storeCountMap.get(account.id) === 1 ? '' : 's'}
+                                </Badge>
+                                {(() => {
+                                  const rep = accountRepMap.get(account.id)
+                                  if (rep) {
+                                    return (
+                                      <Badge className="bg-[#44f80c]/20 text-[#44f80c] text-xs">
+                                        <Users className="w-3 h-3 mr-1" /> Rep: {rep.business_name || rep.email}
+                                      </Badge>
+                                    )
+                                  }
+                                  return (
+                                    <Badge className="bg-gray-700 text-gray-400 text-xs">No Rep Assigned</Badge>
+                                  )
+                                })()}
+                              </>
+                            ) : account.role === 'sales_manager' ? (
+                              <>
+                                {(() => {
+                                  const teamReps = allAccounts.filter(u => u.role === 'sales_rep' && u.raw?.manager_id === account.id)
+                                  if (teamReps.length > 0) {
+                                    return (
+                                      <Badge className="bg-[#9a02d0]/20 text-[#9a02d0] text-xs">
+                                        <Users className="w-3 h-3 mr-1" /> {teamReps.length} team rep{teamReps.length === 1 ? '' : 's'}
+                                      </Badge>
+                                    )
+                                  }
+                                  return <span className="text-xs text-gray-500">No team reps</span>
+                                })()}
+                              </>
+                            ) : account.role === 'sales_rep' ? (
+                              <>
+                                {(() => {
+                                  const mgr = managerLookup.get(account.raw?.manager_id || '')
+                                  if (mgr) {
+                                    return (
+                                      <Badge className="bg-[#9a02d0]/20 text-[#9a02d0] text-xs">
+                                        Manager: {mgr.business_name || mgr.email}
+                                      </Badge>
+                                    )
+                                  }
+                                  return (
+                                    <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">⚠️ Unmanaged</Badge>
+                                  )
+                                })()}
+                              </>
+                            ) : (
+                              <span className="text-xs text-gray-500">—</span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">

@@ -407,7 +407,7 @@ export function SalesManagerDashboard() {
                               )}
                               {acctRep && (
                                 <Badge className="bg-[#44f80c]/20 text-[#44f80c] text-xs">
-                                  <Users className="w-3 h-3 mr-1" /> Rep: {acctRep.business_name || acctRep.email}
+                                  <Users className="w-3 h-3 mr-1" /> Account Rep: {acctRep.business_name || acctRep.email}
                                 </Badge>
                               )}
                               <span className="text-gray-400 text-sm">({acctStores.length} stores)</span>

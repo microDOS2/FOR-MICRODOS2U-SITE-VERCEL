@@ -41,6 +41,7 @@ const typeBadgeClasses: Record<string, string> = {
 export function ApprovalsPage() {
   const [approvals, setApprovals] = useState<ApprovedAccount[]>([])
   const [loading, setLoading] = useState(true)
+  const [repHasManager, setRepHasManager] = useState<Map<string, boolean>>(new Map())
 
   useEffect(() => {
     async function fetchApprovals() {
@@ -76,16 +77,22 @@ export function ApprovalsPage() {
           .from('rep_account_assignments')
           .select('account_id, rep_id')
 
-        // Fetch sales reps for name lookup
+        // Fetch sales reps for name lookup + manager check
         const { data: repsData } = await supabase
           .from('users')
-          .select('id, business_name, email')
+          .select('id, business_name, email, manager_id')
           .eq('role', 'sales_rep')
+          .eq('status', 'approved')
           .eq('status', 'approved')
 
         // Build rep lookup
         const repMap = new Map()
         ;(repsData || []).forEach((r: any) => repMap.set(r.id, r))
+
+        // Build repHasManager lookup
+        const managerCheckMap = new Map<string, boolean>()
+        ;(repsData || []).forEach((r: any) => managerCheckMap.set(r.id, !!r.manager_id))
+        setRepHasManager(managerCheckMap)
 
         // Build assignment lookup
         const assignMap = new Map()
@@ -260,10 +267,20 @@ export function ApprovalsPage() {
                           </Badge>
                         )}
                         {app.assigned_rep_name ? (
-                          <Badge className="bg-[#44f80c]/20 text-[#44f80c]">
-                            <Users className="w-3 h-3 mr-1" />
-                            Rep: {app.assigned_rep_name}
-                          </Badge>
+                          <>
+                            <Badge className="bg-[#44f80c]/20 text-[#44f80c]">
+                              <Users className="w-3 h-3 mr-1" />
+                              Rep: {app.assigned_rep_name}
+                            </Badge>
+                            {(() => {
+                              const hasMgr = app.assigned_rep_id ? repHasManager.get(app.assigned_rep_id) : true
+                              return hasMgr === false ? (
+                                <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">
+                                  ⚠️ Unmanaged
+                                </Badge>
+                              ) : null
+                            })()}
+                          </>
                         ) : (
                           <Badge className="bg-gray-700 text-gray-400">Unassigned</Badge>
                         )}

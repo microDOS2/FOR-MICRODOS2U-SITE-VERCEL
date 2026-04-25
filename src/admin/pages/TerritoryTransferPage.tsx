@@ -40,6 +40,7 @@ interface Account {
   city: string | null
   state: string | null
   referral_code: string
+  manager_id: string | null
   assigned_rep_id: string | null
   assigned_rep_name: string | null
   stores: { id: string; name: string; city: string; state: string }[]
@@ -110,6 +111,7 @@ export function TerritoryTransferPage() {
         city: u.city,
         state: u.state,
         referral_code: u.referral_code || '',
+        manager_id: u.manager_id || null,
         assigned_rep_id: repId || null,
         assigned_rep_name: rep ? (rep.business_name || rep.email) : null,
         stores: storesByUser.get(u.id) || [],
@@ -130,10 +132,7 @@ export function TerritoryTransferPage() {
     setTargetManagerId('')
   }, [sourceManagerId])
 
-  const sourceAccounts = accounts.filter(a => {
-    const mgr = managers.find(m => m.id === sourceManagerId)
-    return mgr && (a.state ? mgr.states.includes(a.state) : false)
-  })
+  const sourceAccounts = accounts.filter(a => a.manager_id === sourceManagerId)
 
   const toggleAccount = (acctId: string) => {
     setSelectedAccounts(prev => {

@@ -35,18 +35,19 @@ import type { DBUser } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 // ─── Audit Log Helper ───
-async function logAudit(action: string, entity_type: string, entity_id: string, details: string) {
+async function logAudit(action: string, table_name: string, record_id: string, old_data: string | null, new_data: string | null) {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     await supabase.from('audit_log').insert({
       action,
-      entity_type,
-      entity_id,
+      table_name,
+      record_id,
+      old_data,
+      new_data,
       user_id: session?.user?.id || null,
-      details,
     });
-  } catch {
-    // Silent fail
+  } catch (e) {
+    console.error('Audit log failed:', e);
   }
 }
 
@@ -234,7 +235,7 @@ export function SalesManagerDashboard() {
     if (error) { toast.error('Failed: ' + error.message); } else {
       const rep = salesReps.find(r => r.id === repId);
       const oldRep = oldRepId ? salesReps.find(r => r.id === oldRepId) : null;
-      await logAudit('store_rep_assigned', 'store', storeId, `Store: ${store?.name || storeId} | Assigned: ${rep?.business_name || rep?.email || repId}${oldRep ? ` (was: ${oldRep.business_name || oldRep.email})` : ''}`);
+      await logAudit('store_rep_assigned', 'wholesaler_store_locations', storeId, oldRep?.business_name || oldRep?.email || null, rep?.business_name || rep?.email || repId);
       toast.success('Assigned!'); window.location.reload();
     }
     setSavingStore(null);
@@ -247,7 +248,7 @@ export function SalesManagerDashboard() {
     const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: null }).eq('id', storeId);
     if (error) { toast.error('Error'); } else {
       const oldRep = oldRepId ? salesReps.find(r => r.id === oldRepId) : null;
-      await logAudit('store_rep_unassigned', 'store', storeId, `Store: ${store?.name || storeId} | Removed: ${oldRep?.business_name || oldRep?.email || oldRepId || 'unknown'}`);
+      await logAudit('store_rep_unassigned', 'wholesaler_store_locations', storeId, oldRep?.business_name || oldRep?.email || oldRepId || null, null);
       toast.success('Unassigned'); window.location.reload();
     }
   };

@@ -408,7 +408,6 @@ export function SalesManagerAccounts() {
                                       {(() => {
                                         const rep = allReps.find(r => r.id === store.assigned_rep_id);
                                         if (rep && rep.manager_id && rep.manager_id !== currentUserId) {
-                                          const repMgr = allReps.find(r => r.id === rep.manager_id);
                                           return (
                                             <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">
                                               ⚠️ Cross-Territory

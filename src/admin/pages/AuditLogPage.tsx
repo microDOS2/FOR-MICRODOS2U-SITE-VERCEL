@@ -7,19 +7,19 @@ import { cn } from '@/lib/utils'
 interface AuditEntry {
   id: string
   action: string
-  entity_type: string
-  entity_id: string
+  table_name: string
+  record_id: string
   user_id: string | null
-  details: string | null
+  old_data: string | null
+  new_data: string | null
   created_at: string
 }
 
 const actionIcons: Record<string, any> = {
-  user: User,
-  order: ShoppingCart,
-  product: Settings,
-  invoice: FileText,
-  agreement: FileText,
+  users: User,
+  manager_state_assignments: Settings,
+  rep_account_assignments: Activity,
+  wholesaler_store_locations: ShoppingCart,
   default: Activity
 }
 

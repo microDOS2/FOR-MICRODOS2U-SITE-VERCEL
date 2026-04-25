@@ -121,13 +121,8 @@ export function SalesManagerAccounts() {
         setAccounts(accountsData || []);
       }
 
-      // Fetch all approved reps for assignment dropdown
-      const { data: repsData } = await supabase
-        .from('users')
-        .select('id, business_name, email, manager_id')
-        .eq('role', 'sales_rep')
-        .eq('status', 'approved')
-        .order('business_name', { ascending: true });
+      // Fetch all approved reps via RPC (bypasses RLS)
+      const { data: repsData } = await supabase.rpc('get_all_reps');
       setAllReps((repsData || []) as DBUser[]);
 
       // Fetch account-level rep assignments for territory accounts
@@ -393,7 +388,11 @@ export function SalesManagerAccounts() {
                       disabled={savingAccountRep === account.id}
                     >
                       <option value="">— Select Rep —</option>
-                      {allReps.map(r => <option key={r.id} value={r.id}>{r.business_name || r.email}</option>)}
+                      {allReps.map(r => (
+                        <option key={r.id} value={r.id}>
+                          {r.business_name || r.email}{r.city && r.state ? ` (${r.city}, ${r.state})` : ''}
+                        </option>
+                      ))}
                     </select>
                     <Button
                       size="sm"
@@ -468,7 +467,10 @@ export function SalesManagerAccounts() {
                                   </SelectTrigger>
                                   <SelectContent className="bg-[#150f24] border-white/10">
                                     {allReps.map((r) => (
-                                      <SelectItem key={r.id} value={r.id}>{r.business_name || r.email}</SelectItem>
+                                      <SelectItem key={r.id} value={r.id}>
+                                        <span className="block text-white">{r.business_name || r.email}</span>
+                                        <span className="block text-gray-400 text-[10px]">{r.city && r.state ? `${r.city}, ${r.state}` : ''} {r.phone ? `| ${r.phone}` : ''}</span>
+                                      </SelectItem>
                                     ))}
                                   </SelectContent>
                                 </Select>

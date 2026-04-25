@@ -504,25 +504,6 @@ export function UsersPage() {
     setActionLoading(null)
   }
 
-  // ──── ASSIGN MANAGER TO ACCOUNT ────
-  const handleAssignManager = async (accountId: string, managerId: string) => {
-    try {
-      const { error } = await supabase.rpc('assign_manager', {
-        target_user_id: accountId,
-        new_manager_id: managerId || null
-      })
-      if (error) throw error
-      // Optimistic UI update
-      setAllAccounts(prev => prev.map(a =>
-        a.id === accountId ? { ...a, raw: { ...a.raw, manager_id: managerId || null } } : a
-      ))
-      toast.success(managerId ? 'Manager assigned successfully' : 'Manager removed')
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to update manager')
-      await fetchAll()
-    }
-  }
-
   // ──── TERRITORY STATE MANAGEMENT ────
   const handleAddState = async (managerId: string, state: string) => {
     setSavingStates(managerId)

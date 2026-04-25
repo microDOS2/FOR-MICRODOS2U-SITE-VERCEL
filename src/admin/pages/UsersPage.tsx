@@ -185,7 +185,6 @@ export function UsersPage() {
   const businessRoles = ['wholesaler', 'distributor', 'influencer']
 
   // Inline manager assignment
-  const [selectedManager, setSelectedManager] = useState<Record<string, string>>({})
   const [savingManager, setSavingManager] = useState<string | null>(null)
 
   // ─── Fetch approved users only ───
@@ -831,7 +830,7 @@ export function UsersPage() {
                                 </div>
                                 <select
                                   className="text-xs bg-[#0a0514] border border-white/10 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-[#44f80c]/50 w-full max-w-[140px]"
-                                  value={selectedManager[account.id] || account.raw?.manager_id || ''}
+                                  value={account.raw?.manager_id || ''}
                                   onChange={(e) => handleAssignManager(account.id, e.target.value)}
                                   disabled={savingManager === account.id}
                                 >
@@ -844,7 +843,7 @@ export function UsersPage() {
                             ) : account.role === 'sales_rep' ? (
                               <select
                                 className="text-xs bg-[#0a0514] border border-white/10 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-[#44f80c]/50 w-full max-w-[160px]"
-                                value={selectedManager[account.id] || account.raw?.manager_id || ''}
+                                value={account.raw?.manager_id || ''}
                                 onChange={(e) => handleAssignManager(account.id, e.target.value)}
                                 disabled={savingManager === account.id}
                               >

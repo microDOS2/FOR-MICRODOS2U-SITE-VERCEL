@@ -152,7 +152,6 @@ export function AccountsPage() {
     setSaving(accountId); await supabase.from('rep_account_assignments').delete().eq('account_id', accountId)
     const { error } = await supabase.from('rep_account_assignments').insert([{ account_id: accountId, rep_id: repId }])
     if (error) { toast.error('Failed: ' + error.message) } else {
-      const acct = accounts.find(a => a.id === accountId)
       const rep = reps.find(r => r.id === repId)
       await logAudit('account_rep_assigned', 'rep_account_assignments', accountId, null, rep?.business_name || rep?.email || repId)
       toast.success('Assigned!')
@@ -162,10 +161,9 @@ export function AccountsPage() {
   }
   const handleUnassignAccount = async (accountId: string) => { 
     if (!confirm('Remove?')) return
-    const acct = accounts.find(a => a.id === accountId)
     const { error } = await supabase.from('rep_account_assignments').delete().eq('account_id', accountId)
     if (error) { toast.error('Error') } else {
-      await logAudit('account_rep_unassigned', 'rep_account_assignments', accountId, acct?.business_name || accountId, null)
+      await logAudit('account_rep_unassigned', 'rep_account_assignments', accountId, null, null)
       toast.success('Unassigned')
       fetchAll()
     }

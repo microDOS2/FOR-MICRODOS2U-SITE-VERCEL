@@ -189,12 +189,12 @@ export function TerritoryTransferPage() {
     setTransferring(true)
 
     const acctIds: string[] = []
-    const repIdsToMove: (string | null)[] = []
+    const repIdsToMove: string[] = []
 
     Array.from(selectedAccounts).forEach(id => {
       const acct = accounts.find(a => a.id === id)
       acctIds.push(id)
-      repIdsToMove.push(acct?.assigned_rep_id && moveRepFlags[id] ? acct.assigned_rep_id : null)
+      repIdsToMove.push(acct?.assigned_rep_id && moveRepFlags[id] ? acct.assigned_rep_id : '')
     })
 
     const { data, error } = await supabase.rpc('transfer_accounts_batch_with_reps', {

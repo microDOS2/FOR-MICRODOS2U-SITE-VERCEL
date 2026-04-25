@@ -13,6 +13,9 @@ import {
   Building2,
   MapPin,
   ClipboardCheck,
+  ArrowRight,
+  UserCheck,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -23,13 +26,6 @@ interface Manager {
   business_name: string | null
   email: string
   states: string[]
-}
-
-interface Rep {
-  id: string
-  business_name: string | null
-  email: string
-  manager_id: string | null
 }
 
 interface Account {
@@ -57,7 +53,7 @@ export function TerritoryTransferPage() {
   const [targetManagerId, setTargetManagerId] = useState<string>('')
   const [selectedAccounts, setSelectedAccounts] = useState<Set<string>>(new Set())
   const [moveRepFlags, setMoveRepFlags] = useState<Record<string, boolean>>({})
-  const [showCrossTerritoryWarning, setShowCrossTerritoryWarning] = useState(false)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
 
   // Fetch data
   const fetchData = useCallback(async () => {
@@ -70,7 +66,6 @@ export function TerritoryTransferPage() {
       supabase.from('rep_account_assignments').select('account_id, rep_id'),
     ])
 
-    // Fetch manager states
     const { data: statesData } = await supabase.from('manager_state_assignments').select('manager_id, state_code')
     const statesByMgr = new Map<string, string[]>()
     ;(statesData || []).forEach((s: any) => {
@@ -86,7 +81,7 @@ export function TerritoryTransferPage() {
       states: statesByMgr.get(m.id) || [],
     }))
 
-    const repMap = new Map<string, Rep>()
+    const repMap = new Map<string, { id: string; business_name: string | null; email: string; manager_id: string | null }>()
     ;(repData || []).forEach((r: any) => repMap.set(r.id, r))
 
     const assignmentMap = new Map<string, string>()
@@ -146,9 +141,10 @@ export function TerritoryTransferPage() {
         })
       } else {
         next.add(acctId)
+        // DEFAULT: rep STAYS (moveRep = false)
         const acct = accounts.find(a => a.id === acctId)
         if (acct?.assigned_rep_id) {
-          setMoveRepFlags(flags => ({ ...flags, [acctId]: true }))
+          setMoveRepFlags(flags => ({ ...flags, [acctId]: false }))
         }
       }
       return next
@@ -161,31 +157,18 @@ export function TerritoryTransferPage() {
 
   const selectedCount = selectedAccounts.size
   const moveRepCount = Array.from(selectedAccounts).filter(id => moveRepFlags[id]).length
-  const crossTerritoryCount = selectedCount - moveRepCount
+  const stayRepCount = selectedCount - moveRepCount
 
-  const preview = {
-    movedAccounts: selectedCount,
-    movedReps: moveRepCount,
-    transferQueueCount: moveRepCount,
-    crossTerritoryCount: crossTerritoryCount,
-  }
-
-  const handleTransfer = async () => {
+  const handleTransfer = () => {
     if (!sourceManagerId || !targetManagerId || selectedCount === 0) {
       toast.error('Select source manager, target manager, and at least one account')
       return
     }
-
-    if (crossTerritoryCount > 0) {
-      setShowCrossTerritoryWarning(true)
-      return
-    }
-
-    executeTransfer()
+    setShowConfirmModal(true)
   }
 
   const executeTransfer = async () => {
-    setShowCrossTerritoryWarning(false)
+    setShowConfirmModal(false)
     setTransferring(true)
 
     const transfers = Array.from(selectedAccounts).map(id => {
@@ -203,11 +186,12 @@ export function TerritoryTransferPage() {
     })
 
     if (error) {
-      console.error('transfer_accounts_batch_with_reps error:', error)
+      console.error('transfer_accounts_batch_json error:', error)
       toast.error('Transfer failed: ' + error.message)
     } else {
       toast.success(
-        `Transfer complete! ${data?.moved_accounts || selectedCount} accounts, ${data?.moved_reps || moveRepCount} reps, ${data?.transfer_count || moveRepCount} transfer entries.`
+        `Transfer complete! ${data?.moved_accounts || selectedCount} accounts moved, ${data?.moved_reps || moveRepCount} reps moved, ${data?.transfer_count || moveRepCount} new transfer queue entries.`,
+        { duration: 6000 }
       )
       setSelectedAccounts(new Set())
       setMoveRepFlags({})
@@ -223,6 +207,9 @@ export function TerritoryTransferPage() {
     distributor: 'bg-[#ff66c4]/20 text-[#ff66c4]',
   }
 
+  const sourceManager = managers.find(m => m.id === sourceManagerId)
+  const targetManager = managers.find(m => m.id === targetManagerId)
+
   return (
     <div className="space-y-6">
       <div>
@@ -230,7 +217,7 @@ export function TerritoryTransferPage() {
           <ArrowRightLeft className="w-6 h-6 text-[#9a02d0]" />
           Territory Transfer
         </h2>
-        <p className="text-gray-400">Move accounts (and optionally their reps) from one sales manager to another</p>
+        <p className="text-gray-400">Move business accounts from one sales manager to another. By default, reps stay with the account under their current manager.</p>
       </div>
 
       {/* Step 1: Source Manager */}
@@ -264,7 +251,7 @@ export function TerritoryTransferPage() {
             <CardTitle className="text-white text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
               <Building2 className="w-4 h-4 text-[#44f80c]" />
               Step 2: Select Accounts to Transfer
-              <Badge className="bg-[#9a02d0]/20 text-[#9a02d0] text-xs ml-2">{sourceAccounts.length} accounts in territory</Badge>
+              <Badge className="bg-[#9a02d0]/20 text-[#9a02d0] text-xs ml-2">{sourceAccounts.length} accounts</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -273,7 +260,7 @@ export function TerritoryTransferPage() {
             ) : sourceAccounts.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Store className="w-10 h-10 mx-auto mb-2 text-gray-600" />
-                <p className="text-gray-400">No accounts found for this manager's territory</p>
+                <p className="text-gray-400">No accounts found for this manager</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -291,7 +278,7 @@ export function TerritoryTransferPage() {
                         setSelectedAccounts(new Set(allIds))
                         const flags: Record<string, boolean> = {}
                         sourceAccounts.forEach(a => {
-                          if (a.assigned_rep_id) flags[a.id] = true
+                          if (a.assigned_rep_id) flags[a.id] = false // default: rep STAYS
                         })
                         setMoveRepFlags(flags)
                       }
@@ -352,18 +339,24 @@ export function TerritoryTransferPage() {
                           className="flex items-center gap-2 flex-shrink-0 ml-8 sm:ml-0"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer select-none">
+                          <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer select-none bg-[#0a0514] px-2.5 py-1.5 rounded-lg border border-white/10">
                             <input
                               type="checkbox"
                               checked={moveRep}
                               onChange={() => toggleMoveRep(acct.id)}
-                              className="w-4 h-4 rounded border-gray-500 accent-[#44f80c]"
+                              className="w-4 h-4 rounded border-gray-500 accent-[#ff66c4]"
                             />
-                            Move rep with account
+                            <span className={moveRep ? 'text-[#ff66c4] font-medium' : 'text-gray-400'}>
+                              Move rep to new manager
+                            </span>
                           </label>
-                          {!moveRep && (
+                          {!moveRep ? (
+                            <Badge className="bg-[#44f80c]/10 text-[#44f80c] text-[10px] border-[#44f80c]/20">
+                              <UserCheck className="w-3 h-3 mr-1" /> Rep stays
+                            </Badge>
+                          ) : (
                             <Badge className="bg-yellow-500/10 text-yellow-400 text-[10px] border-yellow-400/20">
-                              <AlertTriangle className="w-3 h-3 mr-1" /> Cross-territory
+                              <AlertTriangle className="w-3 h-3 mr-1" /> Rep moves
                             </Badge>
                           )}
                         </div>
@@ -408,91 +401,177 @@ export function TerritoryTransferPage() {
         </Card>
       )}
 
-      {/* Preview */}
+      {/* Step 4: Review & Confirm */}
       {targetManagerId && selectedCount > 0 && (
-        <Card className={cn(
-          'border',
-          crossTerritoryCount > 0 ? 'bg-yellow-500/5 border-yellow-500/30' : 'bg-[#150f24] border-white/10'
-        )}>
+        <Card className="bg-[#150f24] border-white/10">
           <CardHeader>
             <CardTitle className="text-white text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
               <ClipboardCheck className="w-4 h-4 text-[#44f80c]" />
-              Preview
+              Step 4: Review & Confirm
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-              <div className="bg-[#0a0514] rounded-lg p-3 border border-white/10">
-                <p className="text-2xl font-bold text-white">{preview.movedAccounts}</p>
-                <p className="text-xs text-gray-400">Accounts moved</p>
+          <CardContent className="space-y-4">
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-[#0a0514] rounded-lg p-3 border border-white/10 text-center">
+                <p className="text-2xl font-bold text-white">{selectedCount}</p>
+                <p className="text-xs text-gray-400">Accounts moving</p>
               </div>
-              <div className="bg-[#0a0514] rounded-lg p-3 border border-white/10">
-                <p className="text-2xl font-bold text-[#44f80c]">{preview.movedReps}</p>
-                <p className="text-xs text-gray-400">Reps moved</p>
+              <div className="bg-[#0a0514] rounded-lg p-3 border border-[#44f80c]/20 text-center">
+                <p className="text-2xl font-bold text-[#44f80c]">{stayRepCount}</p>
+                <p className="text-xs text-gray-400">Reps staying</p>
               </div>
-              <div className="bg-[#0a0514] rounded-lg p-3 border border-white/10">
-                <p className="text-2xl font-bold text-[#9a02d0]">{preview.transferQueueCount}</p>
+              <div className="bg-[#0a0514] rounded-lg p-3 border border-yellow-400/20 text-center">
+                <p className="text-2xl font-bold text-yellow-400">{moveRepCount}</p>
+                <p className="text-xs text-gray-400">Reps moving</p>
+              </div>
+              <div className="bg-[#0a0514] rounded-lg p-3 border border-white/10 text-center">
+                <p className="text-2xl font-bold text-[#ff66c4]">{moveRepCount}</p>
                 <p className="text-xs text-gray-400">Transfer queue entries</p>
-              </div>
-              <div className={cn(
-                'rounded-lg p-3 border',
-                preview.crossTerritoryCount > 0
-                  ? 'bg-yellow-500/10 border-yellow-500/20'
-                  : 'bg-[#0a0514] border-white/10'
-              )}>
-                <p className={cn('text-2xl font-bold', preview.crossTerritoryCount > 0 ? 'text-yellow-400' : 'text-white')}>
-                  {preview.crossTerritoryCount}
-                </p>
-                <p className="text-xs text-gray-400">Cross-territory</p>
               </div>
             </div>
 
-            {crossTerritoryCount > 0 && (
-              <div className="bg-yellow-500/10 border border-yellow-400/20 rounded-lg p-3 mb-4">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-yellow-400">
-                    <strong>Warning:</strong> {crossTerritoryCount} account{crossTerritoryCount !== 1 ? 's' : ''} will be moved <strong>without</strong> their reps.
-                    The reps will continue serving these accounts from their current manager's team (cross-territory).
-                  </p>
-                </div>
-              </div>
-            )}
-
             <Button
               onClick={handleTransfer}
-              disabled={transferring}
               className="w-full bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white font-semibold py-3 h-auto"
             >
-              {transferring ? (
-                <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Processing...</>
-              ) : (
-                <><ArrowRightLeft className="w-4 h-4 mr-2" /> Confirm Transfer</>
-              )}
+              <ArrowRight className="w-4 h-4 mr-2" />
+              Review Transfer Details
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* Cross-territory Warning Modal */}
-      {showCrossTerritoryWarning && (
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-[#150f24] border border-yellow-500/30 rounded-xl max-w-md w-full p-6 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-lg bg-yellow-400/10">
-                <AlertTriangle className="w-6 h-6 text-yellow-400" />
+          <div className="bg-[#150f24] border border-white/10 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-[#9a02d0]/20">
+                  <ClipboardCheck className="w-6 h-6 text-[#9a02d0]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Confirm Territory Transfer</h3>
+                  <p className="text-xs text-gray-400">
+                    {sourceManager?.business_name || sourceManager?.email} → {targetManager?.business_name || targetManager?.email}
+                  </p>
+                </div>
               </div>
-              <h3 className="text-lg font-bold text-white">Cross-Territory Warning</h3>
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <p className="text-sm text-gray-300 mb-4">
-              You are moving <strong>{crossTerritoryCount}</strong> account{crossTerritoryCount !== 1 ? 's' : ''} <strong>without</strong> their assigned reps.
-            </p>
-            <p className="text-sm text-gray-300 mb-6">
-              The reps will stay under the current manager and continue serving these accounts from a different territory. This creates <strong>cross-territory assignments</strong>.
-            </p>
-            <div className="flex gap-3">
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* Manager flow */}
+              <div className="flex items-center gap-3 bg-[#0a0514] rounded-lg p-4 border border-white/10">
+                <div className="flex-1 text-center">
+                  <p className="text-sm font-medium text-white">{sourceManager?.business_name || 'Source'}</p>
+                  <p className="text-xs text-gray-500">Current Manager</p>
+                </div>
+                <ArrowRight className="w-5 h-5 text-[#9a02d0]" />
+                <div className="flex-1 text-center">
+                  <p className="text-sm font-medium text-white">{targetManager?.business_name || 'Target'}</p>
+                  <p className="text-xs text-gray-500">New Manager</p>
+                </div>
+              </div>
+
+              {/* Account list */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">
+                  Accounts to Transfer ({selectedCount})
+                </h4>
+                {Array.from(selectedAccounts).map(id => {
+                  const acct = accounts.find(a => a.id === id)
+                  if (!acct) return null
+                  const repMoves = !!moveRepFlags[id]
+                  return (
+                    <div key={id} className="bg-[#0a0514] rounded-lg p-4 border border-white/10">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-mono bg-[#9a02d0]/20 text-[#9a02d0] px-2 py-0.5 rounded">#{acct.referral_code}</span>
+                            <span className="text-white font-medium text-sm">{acct.business_name}</span>
+                            <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full uppercase', roleBadge[acct.role] || 'bg-gray-500/20')}>
+                              {acct.role}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            {acct.city || '—'}, {acct.state || '—'} • {acct.stores.length} store{acct.stores.length !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Rep decision */}
+                      {acct.assigned_rep_id && (
+                        <div className="mt-3 pt-3 border-t border-white/10">
+                          <div className="flex items-center gap-3">
+                            <Users className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm text-gray-300">
+                              Rep: <span className="text-white font-medium">{acct.assigned_rep_name}</span>
+                            </span>
+                            {repMoves ? (
+                              <div className="flex items-center gap-1.5 ml-auto">
+                                <ArrowRight className="w-3 h-3 text-yellow-400" />
+                                <Badge className="bg-yellow-500/10 text-yellow-400 text-[10px] border-yellow-400/20">
+                                  <AlertTriangle className="w-3 h-3 mr-1" /> Moves to new manager
+                                </Badge>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 ml-auto">
+                                <UserCheck className="w-3 h-3 text-[#44f80c]" />
+                                <Badge className="bg-[#44f80c]/10 text-[#44f80c] text-[10px] border-[#44f80c]/20">
+                                  Stays with account
+                                </Badge>
+                              </div>
+                            )}
+                          </div>
+                          {repMoves && (
+                            <p className="text-xs text-yellow-400/70 mt-1 ml-7">
+                              A transfer queue entry will be created for the new manager to accept.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {!acct.assigned_rep_id && (
+                        <div className="mt-3 pt-3 border-t border-white/10">
+                          <Badge className="bg-gray-700/50 text-gray-400 text-[10px]">No rep assigned</Badge>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Summary footer */}
+              <div className="bg-[#0a0514] rounded-lg p-4 border border-white/10">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-lg font-bold text-white">{selectedCount}</p>
+                    <p className="text-xs text-gray-400">Accounts</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-[#44f80c]">{stayRepCount}</p>
+                    <p className="text-xs text-gray-400">Reps Stay</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-yellow-400">{moveRepCount}</p>
+                    <p className="text-xs text-gray-400">Reps Move</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center gap-3 p-6 border-t border-white/10">
               <Button
-                onClick={() => setShowCrossTerritoryWarning(false)}
+                onClick={() => setShowConfirmModal(false)}
                 variant="outline"
                 className="flex-1 border-white/10 text-gray-300 hover:text-white hover:bg-white/5"
               >
@@ -501,12 +580,12 @@ export function TerritoryTransferPage() {
               <Button
                 onClick={executeTransfer}
                 disabled={transferring}
-                className="flex-1 bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white"
+                className="flex-1 bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white font-semibold"
               >
                 {transferring ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Processing...</>
                 ) : (
-                  'Proceed Anyway'
+                  <><Check className="w-4 h-4 mr-2" /> Confirm Transfer</>
                 )}
               </Button>
             </div>

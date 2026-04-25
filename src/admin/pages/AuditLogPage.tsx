@@ -10,8 +10,8 @@ interface AuditEntry {
   table_name: string
   record_id: string
   user_id: string | null
-  old_data: string | null
-  new_data: string | null
+  old_data: any | null
+  new_data: any | null
   created_at: string
 }
 
@@ -61,7 +61,7 @@ export function AuditLogPage() {
 
   const exportCSV = () => {
     downloadCSV('audit-log', ['ID', 'Action', 'Table', 'Record ID', 'Old Data', 'New Data', 'Created'],
-      entries.map(e => [e.id, e.action, e.table_name, e.record_id, e.old_data || '', e.new_data || '', e.created_at]))
+      entries.map(e => [e.id, e.action, e.table_name, e.record_id, e.old_data ? JSON.stringify(e.old_data) : '', e.new_data ? JSON.stringify(e.new_data) : '', e.created_at]))
   }
 
   const totalPages = Math.ceil(totalCount / pageSize)
@@ -127,8 +127,8 @@ export function AuditLogPage() {
                         {entry.table_name}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-400 max-w-[200px] truncate">{entry.old_data || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-400 max-w-[200px] truncate">{entry.new_data || '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-400 max-w-[200px] truncate">{entry.old_data ? JSON.stringify(entry.old_data).slice(0, 60) : '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-400 max-w-[200px] truncate">{entry.new_data ? JSON.stringify(entry.new_data).slice(0, 60) : '—'}</td>
                     <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{formatDate(entry.created_at)}</td>
                   </tr>
                 )

@@ -21,6 +21,22 @@ import { supabase } from '@/lib/supabase';
 import type { DBUser } from '@/lib/supabase';
 import { toast } from 'sonner';
 
+// ─── Audit Log Helper ───
+async function logAudit(action: string, entity_type: string, entity_id: string, details: string) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    await supabase.from('audit_log').insert({
+      action,
+      entity_type,
+      entity_id,
+      user_id: session?.user?.id || null,
+      details,
+    });
+  } catch {
+    // Silent fail — don't break user flow if audit fails
+  }
+}
+
 interface StoreItem {
   id: string;
   name: string;
@@ -188,6 +204,7 @@ export function SalesManagerAccounts() {
     if (!repId) { toast.error('Select a Sales Rep'); return; }
     setSavingAccountRep(accountId);
     try {
+      const oldRep = accountRepMap.get(accountId);
       const { error: delError } = await supabase.from('rep_account_assignments').delete().eq('account_id', accountId);
       if (delError) throw delError;
       const { error: insError } = await supabase.from('rep_account_assignments').insert([{ account_id: accountId, rep_id: repId }]);
@@ -199,6 +216,8 @@ export function SalesManagerAccounts() {
         return next;
       });
       setSelectedAccountRep(prev => { const next = { ...prev }; delete next[accountId]; return next; });
+      const rep = allReps.find(r => r.id === repId);
+      await logAudit('account_rep_assigned', 'account', accountId, `Assigned rep: ${rep?.business_name || rep?.email || repId}${oldRep ? ` (was: ${oldRep.business_name || oldRep.email})` : ''}`);
       toast.success('Account Rep assigned!');
     } catch (err: any) {
       toast.error(err?.message || 'Failed to assign rep');
@@ -210,9 +229,11 @@ export function SalesManagerAccounts() {
     if (!confirm('Remove account rep assignment?')) return;
     setSavingAccountRep(accountId);
     try {
+      const oldRep = accountRepMap.get(accountId);
       const { error } = await supabase.from('rep_account_assignments').delete().eq('account_id', accountId);
       if (error) throw error;
       setAccountRepMap(prev => { const next = new Map(prev); next.delete(accountId); return next; });
+      await logAudit('account_rep_unassigned', 'account', accountId, `Removed rep: ${oldRep?.business_name || oldRep?.email || 'unknown'}`);
       toast.success('Account Rep removed');
     } catch (err: any) {
       toast.error(err?.message || 'Failed to remove rep');
@@ -224,15 +245,28 @@ export function SalesManagerAccounts() {
     const repId = selectedStoreRep[storeId];
     if (!repId) { toast.error('Select a Sales Rep'); return; }
     setSavingStore(storeId);
+    const store = stores.find(s => s.id === storeId);
+    const oldRepId = store?.assigned_rep_id;
     const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: `rep:${repId}` }).eq('id', storeId);
-    if (error) { toast.error('Failed: ' + error.message); } else { toast.success('Assigned!'); window.location.reload(); }
+    if (error) { toast.error('Failed: ' + error.message); } else {
+      const rep = allReps.find(r => r.id === repId);
+      const oldRep = oldRepId ? allReps.find(r => r.id === oldRepId) : null;
+      await logAudit('store_rep_assigned', 'store', storeId, `Store: ${store?.name || storeId} | Assigned: ${rep?.business_name || rep?.email || repId}${oldRep ? ` (was: ${oldRep.business_name || oldRep.email})` : ''}`);
+      toast.success('Assigned!'); window.location.reload();
+    }
     setSavingStore(null);
   };
 
   const handleUnassignStore = async (storeId: string) => {
     if (!confirm('Remove store rep assignment?')) return;
+    const store = stores.find(s => s.id === storeId);
+    const oldRepId = store?.assigned_rep_id;
     const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: null }).eq('id', storeId);
-    if (error) { toast.error('Error'); } else { toast.success('Unassigned'); window.location.reload(); }
+    if (error) { toast.error('Error'); } else {
+      const oldRep = oldRepId ? allReps.find(r => r.id === oldRepId) : null;
+      await logAudit('store_rep_unassigned', 'store', storeId, `Store: ${store?.name || storeId} | Removed: ${oldRep?.business_name || oldRep?.email || oldRepId || 'unknown'}`);
+      toast.success('Unassigned'); window.location.reload();
+    }
   };
 
   const toggle = (id: string) => setExpanded((p) => ({ ...p, [id]: !p[id] }));

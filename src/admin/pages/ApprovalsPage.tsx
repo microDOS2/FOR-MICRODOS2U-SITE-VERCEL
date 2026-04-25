@@ -83,7 +83,6 @@ export function ApprovalsPage() {
           .select('id, business_name, email, manager_id')
           .eq('role', 'sales_rep')
           .eq('status', 'approved')
-          .eq('status', 'approved')
 
         // Build rep lookup
         const repMap = new Map()

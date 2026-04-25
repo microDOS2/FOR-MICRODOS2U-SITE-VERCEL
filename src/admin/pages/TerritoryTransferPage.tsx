@@ -188,20 +188,18 @@ export function TerritoryTransferPage() {
     setShowCrossTerritoryWarning(false)
     setTransferring(true)
 
-    const acctIds: string[] = []
-    const repIdsToMove: string[] = []
-
-    Array.from(selectedAccounts).forEach(id => {
+    const transfers = Array.from(selectedAccounts).map(id => {
       const acct = accounts.find(a => a.id === id)
-      acctIds.push(id)
-      repIdsToMove.push(acct?.assigned_rep_id && moveRepFlags[id] ? acct.assigned_rep_id : '')
+      return {
+        account_id: id,
+        rep_id: acct?.assigned_rep_id && moveRepFlags[id] ? acct.assigned_rep_id : null,
+      }
     })
 
-    const { data, error } = await supabase.rpc('transfer_accounts_batch_with_reps', {
+    const { data, error } = await supabase.rpc('transfer_accounts_batch_json', {
       p_source_manager_id: sourceManagerId,
       p_target_manager_id: targetManagerId,
-      p_account_ids: acctIds,
-      p_rep_ids_to_move: repIdsToMove,
+      p_transfers: transfers,
     })
 
     if (error) {

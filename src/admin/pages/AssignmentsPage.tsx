@@ -35,6 +35,7 @@ interface StoreItem {
   assigned_rep_id: string | null
   assigned_rep_name: string | null
   manager_name: string | null
+  manager_id: string | null
   license_number: string | null
 }
 
@@ -50,6 +51,7 @@ interface AccountItem {
   assigned_rep_id: string | null
   assigned_rep_name: string | null
   manager_name: string | null
+  manager_id: string | null
   stores: StoreItem[]
 }
 
@@ -76,7 +78,7 @@ export function AccountsPage() {
   const [savingManager, setSavingManager] = useState<string | null>(null)
   const [savingStore, setSavingStore] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  const [repHasManager, setRepHasManager] = useState<Map<string, boolean>>(new Map())
+  const [repManagerMap, setRepManagerMap] = useState<Map<string, string | null>>(new Map())
 
   const parseStoreNumber = (name: string): { number: string; cleanName: string } => {
     const m = name.match(/^(\d+[a-z])\s*-\s*(.+)$/)
@@ -96,8 +98,8 @@ export function AccountsPage() {
     const { data: managersData } = await supabase.from('users').select('id, business_name, email').eq('role', 'sales_manager').eq('status', 'approved')
 
     const repMap = new Map(); (repsData || []).forEach((r: any) => repMap.set(r.id, r))
-    const managerCheckMap = new Map<string, boolean>(); (repsData || []).forEach((r: any) => managerCheckMap.set(r.id, !!r.manager_id))
-    setRepHasManager(managerCheckMap)
+    const repMgrMap = new Map<string, string | null>(); (repsData || []).forEach((r: any) => repMgrMap.set(r.id, r.manager_id || null))
+    setRepManagerMap(repMgrMap)
     const managerMap = new Map(); (managersData || []).forEach((m: any) => managerMap.set(m.id, m))
     const acctAssignMap = new Map(); (acctAssignData || []).forEach((a: any) => acctAssignMap.set(a.account_id, a.rep_id))
 
@@ -125,6 +127,7 @@ export function AccountsPage() {
           store_number: sn, assigned_rep_id: storeRepId,
           assigned_rep_name: storeRep ? (storeRep.business_name || storeRep.email) : null,
           manager_name: u.manager_id ? (managerMap.get(u.manager_id)?.business_name || managerMap.get(u.manager_id)?.email || null) : null,
+          manager_id: u.manager_id || null,
           license_number: s.license_number || null,
         }
       })
@@ -135,6 +138,7 @@ export function AccountsPage() {
         assigned_rep_id: acctRepId || null,
         assigned_rep_name: acctRep ? (acctRep.business_name || acctRep.email) : null,
         manager_name: u.manager_id ? (managerMap.get(u.manager_id)?.business_name || managerMap.get(u.manager_id)?.email || null) : null,
+        manager_id: u.manager_id || null,
         stores: storeItems,
       }
     })
@@ -253,9 +257,14 @@ export function AccountsPage() {
                             <Badge className="bg-[#9a02d0]/20 text-[#9a02d0]"><Shield className="w-3 h-3 mr-1" /> Manager: {acct.manager_name}</Badge>
                           )}
                           {(() => {
-                            const hasMgr = acct.assigned_rep_id ? repHasManager.get(acct.assigned_rep_id) : true
-                            if (acct.assigned_rep_name && hasMgr === false) {
+                            const repMgrId = acct.assigned_rep_id ? repManagerMap.get(acct.assigned_rep_id) : null
+                            const hasMgr = repMgrId !== null && repMgrId !== undefined
+                            const isCrossTerritory = hasMgr && acct.manager_id && repMgrId !== acct.manager_id
+                            if (acct.assigned_rep_name && !hasMgr) {
                               return <Badge className="bg-yellow-500/20 text-yellow-400">⚠️ Unmanaged</Badge>
+                            }
+                            if (acct.assigned_rep_name && isCrossTerritory) {
+                              return <><Badge className="bg-yellow-500/20 text-yellow-400"><Users className="w-3 h-3 mr-1" /> ⚠️ Cross-territory: {acct.assigned_rep_name}</Badge><button onClick={() => handleUnassignAccount(acct.id)} className="text-xs text-red-400 hover:text-red-300 underline flex items-center gap-0.5"><UserMinus className="w-3 h-3" /> Remove</button></>
                             }
                             if (acct.assigned_rep_name) {
                               return <><Badge className="bg-[#44f80c]/20 text-[#44f80c]"><Users className="w-3 h-3 mr-1" /> Account Rep: {acct.assigned_rep_name}</Badge><button onClick={() => handleUnassignAccount(acct.id)} className="text-xs text-red-400 hover:text-red-300 underline flex items-center gap-0.5"><UserMinus className="w-3 h-3" /> Remove</button></>
@@ -303,9 +312,14 @@ export function AccountsPage() {
                                   <Badge className="bg-[#9a02d0]/20 text-[#9a02d0] text-xs"><Shield className="w-3 h-3 mr-1" /> Manager: {store.manager_name}</Badge>
                                 )}
                                 {(() => {
-                                  const hasMgr = store.assigned_rep_id ? repHasManager.get(store.assigned_rep_id) : true
-                                  if (store.assigned_rep_name && hasMgr === false) {
+                                  const repMgrId = store.assigned_rep_id ? repManagerMap.get(store.assigned_rep_id) : null
+                                  const hasMgr = repMgrId !== null && repMgrId !== undefined
+                                  const isCrossTerritory = hasMgr && store.manager_id && repMgrId !== store.manager_id
+                                  if (store.assigned_rep_name && !hasMgr) {
                                     return <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">⚠️ Unmanaged</Badge>
+                                  }
+                                  if (store.assigned_rep_name && isCrossTerritory) {
+                                    return <><Badge className="bg-yellow-500/20 text-yellow-400 text-xs"><Users className="w-3 h-3 mr-1" /> ⚠️ Cross-territory: {store.assigned_rep_name}</Badge><button onClick={() => handleUnassignStore(store.id)} className="text-xs text-red-400 hover:text-red-300 underline">Remove</button></>
                                   }
                                   if (store.assigned_rep_name) {
                                     return <><Badge className="bg-[#44f80c]/20 text-[#44f80c] text-xs"><Users className="w-3 h-3 mr-1" /> Store Rep: {store.assigned_rep_name}</Badge><button onClick={() => handleUnassignStore(store.id)} className="text-xs text-red-400 hover:text-red-300 underline">Remove</button></>

@@ -8,6 +8,22 @@ import { Users, Loader2, Check, UserPlus, ChevronDown, ChevronRight, Store, MapP
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
+// ─── Audit Log Helper ───
+async function logAudit(action: string, entity_type: string, entity_id: string, details: string) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    await supabase.from('audit_log').insert({
+      action,
+      entity_type,
+      entity_id,
+      user_id: session?.user?.id || null,
+      details,
+    })
+  } catch {
+    // Silent fail
+  }
+}
+
 interface StoreItem {
   id: string
   name: string
@@ -132,21 +148,45 @@ export function AccountsPage() {
     const repId = selectedRep[accountId]; if (!repId) { toast.error('Select a Sales Rep'); return }
     setSaving(accountId); await supabase.from('rep_account_assignments').delete().eq('account_id', accountId)
     const { error } = await supabase.from('rep_account_assignments').insert([{ account_id: accountId, rep_id: repId }])
-    error ? toast.error('Failed: ' + error.message) : (toast.success('Assigned!'), fetchAll())
+    if (error) { toast.error('Failed: ' + error.message) } else {
+      const acct = accounts.find(a => a.id === accountId)
+      const rep = reps.find(r => r.id === repId)
+      await logAudit('account_rep_assigned', 'account', accountId, `Account: ${acct?.business_name || accountId} | Rep: ${rep?.business_name || rep?.email || repId}`)
+      toast.success('Assigned!')
+      fetchAll()
+    }
     setSaving(null)
   }
-  const handleUnassignAccount = async (accountId: string) => { if (!confirm('Remove?')) return; const { error } = await supabase.from('rep_account_assignments').delete().eq('account_id', accountId); error ? toast.error('Error') : (toast.success('Unassigned'), fetchAll()) }
+  const handleUnassignAccount = async (accountId: string) => { 
+    if (!confirm('Remove?')) return
+    const acct = accounts.find(a => a.id === accountId)
+    const { error } = await supabase.from('rep_account_assignments').delete().eq('account_id', accountId)
+    if (error) { toast.error('Error') } else {
+      await logAudit('account_rep_unassigned', 'account', accountId, `Account: ${acct?.business_name || accountId} | Rep removed`)
+      toast.success('Unassigned')
+      fetchAll()
+    }
+  }
 
   const handleAssignManager = async (accountId: string) => {
     const managerId = selectedManager[accountId]
     setSavingManager(accountId)
     try {
+      const acct = accounts.find(a => a.id === accountId)
+      const oldManager = acct?.manager_name
       const { error } = await supabase.rpc('assign_manager', {
         target_user_id: accountId,
         new_manager_id: managerId || null
       })
       if (error) throw error
       setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, manager_name: managerId ? (managers.find(m => m.id === managerId)?.business_name || managers.find(m => m.id === managerId)?.email || 'Unknown') : null } : a))
+      const newMgr = managers.find(m => m.id === managerId)
+      await logAudit(
+        managerId ? 'manager_assigned' : 'manager_unassigned',
+        'user',
+        accountId,
+        `${acct?.business_name || accountId} | ${managerId ? `New manager: ${newMgr?.business_name || newMgr?.email || managerId}` : `Removed manager (was: ${oldManager || 'none'})`}`
+      )
       toast.success(managerId ? 'Manager assigned!' : 'Manager removed')
     } catch (err: any) {
       toast.error(err?.message || 'Failed to update manager')
@@ -158,11 +198,30 @@ export function AccountsPage() {
   const handleAssignStore = async (storeId: string) => {
     const repId = selectedStoreRep[storeId]; if (!repId) { toast.error('Select a Sales Rep'); return }
     setSavingStore(storeId)
+    const store = accounts.flatMap(a => a.stores).find(s => s.id === storeId)
+    const oldRepId = store ? extractRepFromLicense(store.license_number) : null
     const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: `rep:${repId}` }).eq('id', storeId)
-    error ? toast.error('Failed: ' + error.message) : (toast.success('Assigned!'), fetchAll())
+    if (error) { toast.error('Failed: ' + error.message) } else {
+      const rep = reps.find(r => r.id === repId)
+      const oldRep = oldRepId ? reps.find(r => r.id === oldRepId) : null
+      await logAudit('store_rep_assigned', 'store', storeId, `Store: ${store?.name || storeId} | Assigned: ${rep?.business_name || rep?.email || repId}${oldRep ? ` (was: ${oldRep.business_name || oldRep.email})` : ''}`)
+      toast.success('Assigned!')
+      fetchAll()
+    }
     setSavingStore(null)
   }
-  const handleUnassignStore = async (storeId: string) => { if (!confirm('Remove?')) return; const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: null }).eq('id', storeId); error ? toast.error('Error') : (toast.success('Unassigned'), fetchAll()) }
+  const handleUnassignStore = async (storeId: string) => {
+    if (!confirm('Remove?')) return
+    const store = accounts.flatMap(a => a.stores).find(s => s.id === storeId)
+    const oldRepId = store ? extractRepFromLicense(store.license_number) : null
+    const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: null }).eq('id', storeId)
+    if (error) { toast.error('Error') } else {
+      const oldRep = oldRepId ? reps.find(r => r.id === oldRepId) : null
+      await logAudit('store_rep_unassigned', 'store', storeId, `Store: ${store?.name || storeId} | Removed: ${oldRep?.business_name || oldRep?.email || oldRepId || 'unknown'}`)
+      toast.success('Unassigned')
+      fetchAll()
+    }
+  }
 
   const toggle = (id: string) => setExpanded(p => ({ ...p, [id]: !p[id] }))
   const assignedCount = accounts.filter(a => a.assigned_rep_id).length

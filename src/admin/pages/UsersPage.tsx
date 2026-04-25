@@ -1049,6 +1049,3 @@ export function UsersPage() {
     </div>
   )
 }
-/div>
-  )
-}

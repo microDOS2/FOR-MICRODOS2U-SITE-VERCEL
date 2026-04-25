@@ -171,7 +171,6 @@ export function UsersPage() {
   // Details column data
   const [storeCountMap, setStoreCountMap] = useState<Map<string, number>>(new Map())
   const [accountRepMap, setAccountRepMap] = useState<Map<string, DBUser>>(new Map())
-  const [managerLookup, setManagerLookup] = useState<Map<string, DBUser>>(new Map())
 
   // Sort state
   type SortColumn = 'name' | 'email' | 'role' | 'location'
@@ -224,11 +223,6 @@ export function UsersPage() {
       })
 
       setAllAccounts(combined)
-
-      // Build manager lookup from users
-      const mgrMap = new Map<string, DBUser>()
-      ;(usersData || []).forEach((u: DBUser) => mgrMap.set(u.id, u))
-      setManagerLookup(mgrMap)
 
       // 2. Fetch store counts per user
       const { data: storesData } = await supabase

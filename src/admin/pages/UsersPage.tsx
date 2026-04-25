@@ -185,6 +185,10 @@ export function UsersPage() {
   const employeeRoles = ['admin', 'sales_manager', 'sales_rep']
   const businessRoles = ['wholesaler', 'distributor', 'influencer']
 
+  // Inline manager assignment
+  const [selectedManager, setSelectedManager] = useState<Record<string, string>>({})
+  const [savingManager, setSavingManager] = useState<string | null>(null)
+
   // ─── Fetch approved users only ───
   const fetchAll = async () => {
     setLoading(true)
@@ -505,6 +509,36 @@ export function UsersPage() {
     setSavingEdit(false)
   }
 
+  // ──── ASSIGN MANAGER ────
+  const handleAssignManager = async (accountId: string, managerId: string) => {
+    setSavingManager(accountId)
+    try {
+      const { error } = await supabase.rpc('assign_manager', {
+        target_user_id: accountId,
+        new_manager_id: managerId || null
+      })
+      if (error) throw error
+      setAllAccounts(prev => prev.map(a =>
+        a.id === accountId ? { ...a, raw: { ...a.raw, manager_id: managerId || null } } : a
+      ))
+      const acct = allAccounts.find(a => a.id === accountId)
+      const newMgr = allAccounts.find(u => u.id === managerId)
+      const oldMgrId = acct?.raw?.manager_id
+      const oldMgr = oldMgrId ? allAccounts.find(u => u.id === oldMgrId) : null
+      await logAudit(
+        managerId ? 'manager_assigned' : 'manager_unassigned',
+        'user',
+        accountId,
+        `${acct?.business_name || accountId} | ${managerId ? `New manager: ${newMgr?.business_name || newMgr?.email || managerId}` : `Removed manager (was: ${oldMgr?.business_name || oldMgr?.email || oldMgrId || 'none'})`}`
+      )
+      toast.success(managerId ? 'Manager assigned!' : 'Manager removed')
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update manager')
+      await fetchAll()
+    }
+    setSavingManager(null)
+  }
+
   // ──── DELETE ────
   const handleDelete = async (user: UnifiedUser) => {
     if (!confirm(`Delete ${user.business_name}?`)) return
@@ -782,40 +816,49 @@ export function UsersPage() {
                                 )
                               })()
                             ) : (account.role === 'wholesaler' || account.role === 'distributor') ? (
-                              <>
-                                <Badge className="bg-[#44f80c]/20 text-[#44f80c] text-xs">
-                                  {storeCountMap.get(account.id) || 0} store{storeCountMap.get(account.id) === 1 ? '' : 's'}
-                                </Badge>
-                                {(() => {
-                                  const rep = accountRepMap.get(account.id)
-                                  if (rep) {
+                              <div className="space-y-1.5">
+                                <div className="flex flex-wrap gap-1.5">
+                                  <Badge className="bg-[#44f80c]/20 text-[#44f80c] text-xs">
+                                    {storeCountMap.get(account.id) || 0} store{storeCountMap.get(account.id) === 1 ? '' : 's'}
+                                  </Badge>
+                                  {(() => {
+                                    const rep = accountRepMap.get(account.id)
+                                    if (rep) {
+                                      return (
+                                        <Badge className="bg-[#44f80c]/20 text-[#44f80c] text-xs">
+                                          <Users className="w-3 h-3 mr-1" /> Rep: {rep.business_name || rep.email}
+                                        </Badge>
+                                      )
+                                    }
                                     return (
-                                      <Badge className="bg-[#44f80c]/20 text-[#44f80c] text-xs">
-                                        <Users className="w-3 h-3 mr-1" /> Rep: {rep.business_name || rep.email}
-                                      </Badge>
+                                      <Badge className="bg-gray-700 text-gray-400 text-xs">No Rep Assigned</Badge>
                                     )
-                                  }
-                                  return (
-                                    <Badge className="bg-gray-700 text-gray-400 text-xs">No Rep Assigned</Badge>
-                                  )
-                                })()}
-                              </>
+                                  })()}
+                                </div>
+                                <select
+                                  className="text-xs bg-[#0a0514] border border-white/10 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-[#44f80c]/50 w-full max-w-[140px]"
+                                  value={selectedManager[account.id] || account.raw?.manager_id || ''}
+                                  onChange={(e) => handleAssignManager(account.id, e.target.value)}
+                                  disabled={savingManager === account.id}
+                                >
+                                  <option value="">— No Manager —</option>
+                                  {allAccounts.filter(u => u.role === 'sales_manager').map(m => (
+                                    <option key={m.id} value={m.id}>{m.business_name || m.email}</option>
+                                  ))}
+                                </select>
+                              </div>
                             ) : account.role === 'sales_rep' ? (
-                              <>
-                                {(() => {
-                                  const mgr = managerLookup.get(account.raw?.manager_id || '')
-                                  if (mgr) {
-                                    return (
-                                      <Badge className="bg-[#9a02d0]/20 text-[#9a02d0] text-xs">
-                                        Manager: {mgr.business_name || mgr.email}
-                                      </Badge>
-                                    )
-                                  }
-                                  return (
-                                    <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">⚠️ Unmanaged</Badge>
-                                  )
-                                })()}
-                              </>
+                              <select
+                                className="text-xs bg-[#0a0514] border border-white/10 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-[#44f80c]/50 w-full max-w-[160px]"
+                                value={selectedManager[account.id] || account.raw?.manager_id || ''}
+                                onChange={(e) => handleAssignManager(account.id, e.target.value)}
+                                disabled={savingManager === account.id}
+                              >
+                                <option value="">— No Manager —</option>
+                                {allAccounts.filter(u => u.role === 'sales_manager').map(m => (
+                                  <option key={m.id} value={m.id}>{m.business_name || m.email}</option>
+                                ))}
+                              </select>
                             ) : (
                               <span className="text-xs text-gray-500">—</span>
                             )}

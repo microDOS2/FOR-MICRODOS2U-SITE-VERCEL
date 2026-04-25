@@ -18,6 +18,7 @@ import {
   Settings,
   ScrollText,
   ArrowRightLeft,
+  Building2,
   Menu,
   X,
   ChevronRight,
@@ -41,6 +42,7 @@ const navItems = [
   { name: 'Config', path: '/admin/config', icon: Settings },
   { name: 'Audit Log', path: '/admin/audit-log', icon: ScrollText },
   { name: 'Transfer History', path: '/admin/transfers', icon: ArrowRightLeft },
+  { name: 'Territory Transfer', path: '/admin/territory-transfer', icon: Building2 },
 ]
 
 export function AdminLayout() {

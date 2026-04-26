@@ -4,10 +4,12 @@ import { formatCurrency } from '@/lib/utils'
 import {
   Search, Download, CheckCircle, Truck, FileText, ShoppingCart,
   Loader2, Building2,
-  Phone, Mail, MapPin, User
+  Phone, Mail, MapPin, User, Plus, X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+
+// ─── Types ──────────────────────────────────────────────────────
 
 interface FulfillmentOrder {
   id: string
@@ -25,7 +27,6 @@ interface FulfillmentOrder {
   payment_reference: string | null
   forwarded_to_fulfillment_at: string | null
   fulfilled_at: string | null
-  // joined fields
   profiles?: { business_name: string; email: string; phone: string }
   invoices?: { id: string; invoice_number: string; amount: number; status: string; due_date: string }[]
 }
@@ -42,10 +43,42 @@ interface FulfillmentInvoice {
   paid_date: string | null
   paid_method: string | null
   paid_reference: string | null
-  // joined
   profiles?: { business_name: string; email: string; phone: string }
   orders?: { po_number: string; shipping_address: string; contact_person: string; contact_phone: string }
 }
+
+interface Product {
+  id: string
+  name: string
+  sku: string
+  description: string
+}
+
+interface ProductVariant {
+  id: string
+  product_id: string
+  name: string
+  tier: string
+  sku: string
+  quantity: number
+  wholesaler_price: number
+  distributor_price: number
+  in_stock: boolean
+}
+
+interface BusinessUser {
+  id: string
+  email: string
+  business_name: string | null
+  role: string
+  phone: string | null
+  address: string | null
+  city: string | null
+  state: string | null
+  zip: string | null
+}
+
+// ─── Main Page ────────────────────────────────────────────────────
 
 export function OrdersInvoicesPage() {
   const [view, setView] = useState<'orders' | 'invoices'>('orders')
@@ -55,7 +88,29 @@ export function OrdersInvoicesPage() {
   const [search, setSearch] = useState('')
   const [processingId, setProcessingId] = useState<string | null>(null)
 
+  // Create Order modal state
+  const [showCreateOrder, setShowCreateOrder] = useState(false)
+  const [products, setProducts] = useState<Product[]>([])
+  const [variants, setVariants] = useState<ProductVariant[]>([])
+  const [businessUsers, setBusinessUsers] = useState<BusinessUser[]>([])
+  const [orderForm, setOrderForm] = useState({
+    userId: '',
+    productId: '',
+    variantId: '',
+    quantity: 1,
+    shippingAddress: '',
+    contactPerson: '',
+    contactPhone: '',
+    notes: '',
+  })
+  const [orderSubmitting, setOrderSubmitting] = useState(false)
+
   useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    if (showCreateOrder) {
+      fetchProductsAndUsers()
+    }
+  }, [showCreateOrder])
 
   const fetchData = async () => {
     setLoading(true)
@@ -77,11 +132,60 @@ export function OrdersInvoicesPage() {
         .order('created_at', { ascending: false })
         .limit(100),
     ])
-    if (oErr) console.error('[Fulfillment] orders error:', oErr)
-    if (iErr) console.error('[Fulfillment] invoices error:', iErr)
+    if (oErr) console.error('[OrdersInvoices] orders error:', oErr)
+    if (iErr) console.error('[OrdersInvoices] invoices error:', iErr)
     setOrders((o as any) || [])
     setInvoices((i as any) || [])
     setLoading(false)
+  }
+
+  const fetchProductsAndUsers = async () => {
+    const [{ data: p }, { data: v }, { data: u }] = await Promise.all([
+      supabase.from('products').select('id,name,sku,description').eq('is_active', true),
+      supabase.from('product_variants').select('*').eq('in_stock', true),
+      supabase.from('users').select('id,email,business_name,role,phone,address,city,state,zip').or('role.eq.wholesaler,role.eq.distributor'),
+    ])
+    setProducts((p as any) || [])
+    setVariants((v as any) || [])
+    setBusinessUsers((u as any) || [])
+  }
+
+  const selectedUser = businessUsers.find(u => u.id === orderForm.userId)
+  const selectedVariant = variants.find(v => v.id === orderForm.variantId)
+  const unitPrice = selectedUser && selectedVariant
+    ? (selectedUser.role === 'distributor' ? selectedVariant.distributor_price : selectedVariant.wholesaler_price)
+    : 0
+  const lineTotal = unitPrice * orderForm.quantity
+
+  const handleCreateOrder = async () => {
+    if (!orderForm.userId || !orderForm.variantId) {
+      toast.error('Please select a user and product variant')
+      return
+    }
+    if (!selectedUser || !selectedVariant) return
+
+    setOrderSubmitting(true)
+    const { data, error } = await supabase.from('orders').insert({
+      user_id: orderForm.userId,
+      items: orderForm.quantity,
+      total: lineTotal,
+      status: 'pending',
+      notes: orderForm.notes || `${selectedVariant.name} x${orderForm.quantity} (SKU: ${selectedVariant.sku})`,
+      shipping_address: orderForm.shippingAddress || [selectedUser.address, selectedUser.city, selectedUser.state, selectedUser.zip].filter(Boolean).join(', ') || null,
+      contact_person: orderForm.contactPerson || selectedUser.business_name || null,
+      contact_phone: orderForm.contactPhone || selectedUser.phone || null,
+    }).select().single()
+
+    setOrderSubmitting(false)
+    if (error) {
+      toast.error('Failed to create order: ' + error.message)
+      return
+    }
+
+    toast.success(`Order ${data.po_number} created! Invoice auto-generated.`)
+    setShowCreateOrder(false)
+    setOrderForm({ userId: '', productId: '', variantId: '', quantity: 1, shippingAddress: '', contactPerson: '', contactPhone: '', notes: '' })
+    fetchData()
   }
 
   const markPaid = async (invoiceId: string, orderId: string, method: 'check' | 'cash' | 'wire') => {
@@ -152,8 +256,8 @@ export function OrdersInvoicesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header + Toggle */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+      {/* Header + Toggle + Create Button */}
+      <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
         <div className="flex bg-[#150f24] rounded-lg p-1 border border-white/10">
           <button
             onClick={() => setView('orders')}
@@ -187,17 +291,23 @@ export function OrdersInvoicesPage() {
           </button>
         </div>
 
-        <div className="flex gap-2 w-full sm:w-auto">
-          <div className="relative flex-grow sm:flex-grow-0">
+        <div className="flex gap-2 w-full lg:w-auto">
+          <div className="relative flex-grow lg:flex-grow-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
               type="text"
               placeholder={view === 'orders' ? 'Search PO or business...' : 'Search invoice or business...'}
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full sm:w-64 pl-10 pr-4 py-2.5 bg-[#150f24] border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+              className="w-full lg:w-64 pl-10 pr-4 py-2.5 bg-[#150f24] border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
             />
           </div>
+          <button
+            onClick={() => setShowCreateOrder(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#44f80c]/10 hover:bg-[#44f80c]/20 text-[#44f80c] border border-[#44f80c]/20 rounded-lg text-sm font-medium transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Create Order
+          </button>
           <button className="flex items-center gap-2 px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 transition-colors">
             <Download className="w-4 h-4" /> Export
           </button>
@@ -250,6 +360,192 @@ export function OrdersInvoicesPage() {
               />
             ))
           )}
+        </div>
+      )}
+
+      {/* ─── Create Order Modal ─────────────────────────────── */}
+      {showCreateOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#150f24] border border-white/10 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="sticky top-0 bg-[#150f24] border-b border-white/10 p-4 flex items-center justify-between z-10">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <Plus className="w-5 h-5 text-[#44f80c]" />
+                Create New Order
+              </h2>
+              <button
+                onClick={() => setShowCreateOrder(false)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* User Selection */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1.5">Business Customer *</label>
+                <select
+                  value={orderForm.userId}
+                  onChange={e => {
+                    const user = businessUsers.find(u => u.id === e.target.value)
+                    setOrderForm({
+                      ...orderForm,
+                      userId: e.target.value,
+                      shippingAddress: [user?.address, user?.city, user?.state, user?.zip].filter(Boolean).join(', ') || '',
+                      contactPerson: user?.business_name || '',
+                      contactPhone: user?.phone || '',
+                    })
+                  }}
+                  className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                >
+                  <option value="">Select a wholesaler or distributor...</option>
+                  {businessUsers.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.business_name || u.email} ({u.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Product + Variant */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1.5">Product *</label>
+                  <select
+                    value={orderForm.productId}
+                    onChange={e => setOrderForm({ ...orderForm, productId: e.target.value, variantId: '' })}
+                    className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                  >
+                    <option value="">Select product...</option>
+                    {products.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1.5">Package *</label>
+                  <select
+                    value={orderForm.variantId}
+                    onChange={e => setOrderForm({ ...orderForm, variantId: e.target.value })}
+                    disabled={!orderForm.productId}
+                    className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50 disabled:opacity-40"
+                  >
+                    <option value="">Select package...</option>
+                    {variants
+                      .filter(v => v.product_id === orderForm.productId)
+                      .map(v => (
+                        <option key={v.id} value={v.id}>
+                          {v.name} ({v.quantity} units)
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Price Display */}
+              {selectedUser && selectedVariant && (
+                <div className="bg-[#0a0514] rounded-lg p-4 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-400">Pricing Tier</p>
+                      <p className="text-white font-medium">{selectedUser.role === 'distributor' ? 'Distributor Price' : 'Wholesaler Price'}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-400">Unit Price</p>
+                      <p className="text-xl font-bold text-[#44f80c]">{formatCurrency(unitPrice)}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Quantity + Line Total */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1.5">Quantity *</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={orderForm.quantity}
+                    onChange={e => setOrderForm({ ...orderForm, quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                    className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <div className="w-full bg-[#9a02d0]/10 rounded-lg p-3 border border-[#9a02d0]/20">
+                    <p className="text-sm text-gray-400">Line Total</p>
+                    <p className="text-2xl font-bold text-white">{formatCurrency(lineTotal)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Shipping Details */}
+              <div className="border-t border-white/10 pt-4 space-y-4">
+                <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                  <Truck className="w-4 h-4" /> Shipping Details
+                </h3>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1.5">Shipping Address</label>
+                  <input
+                    type="text"
+                    value={orderForm.shippingAddress}
+                    onChange={e => setOrderForm({ ...orderForm, shippingAddress: e.target.value })}
+                    placeholder="123 Main St, City, State ZIP"
+                    className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1.5">Contact Person</label>
+                    <input
+                      type="text"
+                      value={orderForm.contactPerson}
+                      onChange={e => setOrderForm({ ...orderForm, contactPerson: e.target.value })}
+                      className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1.5">Contact Phone</label>
+                    <input
+                      type="text"
+                      value={orderForm.contactPhone}
+                      onChange={e => setOrderForm({ ...orderForm, contactPhone: e.target.value })}
+                      className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1.5">Order Notes</label>
+                <textarea
+                  value={orderForm.notes}
+                  onChange={e => setOrderForm({ ...orderForm, notes: e.target.value })}
+                  rows={3}
+                  placeholder="Special instructions, delivery notes, etc."
+                  className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                />
+              </div>
+
+              {/* Submit */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={handleCreateOrder}
+                  disabled={orderSubmitting || !orderForm.userId || !orderForm.variantId}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#44f80c] to-[#9a02d0] text-white rounded-lg text-sm font-bold transition-opacity hover:opacity-90 disabled:opacity-40"
+                >
+                  {orderSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  {orderSubmitting ? 'Creating...' : 'Create Order'}
+                </button>
+                <button
+                  onClick={() => setShowCreateOrder(false)}
+                  className="px-6 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

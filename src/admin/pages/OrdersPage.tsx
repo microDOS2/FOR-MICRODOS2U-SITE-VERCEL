@@ -17,6 +17,14 @@ interface Order {
   products?: { name: string; sku: string }
 }
 
+interface OrderableItem {
+  product_id: string
+  variant_id: string | null   // null for products without variants (like the kit)
+  name: string                // "Box — Case (12 boxes)" or "Wholesaler Starter Kit"
+  sku: string
+  price: number               // distributor price for admin order calc
+}
+
 export function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
@@ -25,23 +33,57 @@ export function OrdersPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [showModal, setShowModal] = useState(false)
   const [users, setUsers] = useState<any[]>([])
-  const [products, setProductsList] = useState<any[]>([])
+  const [items, setItems] = useState<OrderableItem[]>([])
   const [formData, setFormData] = useState({
-    user_id: '', product_id: '', quantity: 1, shipping_address: '', status: 'pending'
+    user_id: '', product_id: '', variant_id: '' as string | null, quantity: 1, shipping_address: '', status: 'pending'
   })
   const pageSize = 10
 
   useEffect(() => { fetchOrders(); fetchReferences() }, [page, search])
 
   const fetchReferences = async () => {
-    const [{ data: u, error: uErr }, { data: p, error: pErr }] = await Promise.all([
+    const [{ data: u, error: uErr }, { data: products, error: pErr }, { data: variants, error: vErr }] = await Promise.all([
       supabase.from('profiles').select('id, full_name, email'),
-      supabase.from('products').select('id, name, sku, price').eq('is_active', true)
+      supabase.from('products').select('id, name, sku, price').eq('is_active', true),
+      supabase.from('product_variants').select('id, product_id, name, sku, distributor_price, in_stock').order('sku')
     ])
     if (uErr) console.error('[OrdersPage] profiles error:', uErr)
     if (pErr) console.error('[OrdersPage] products error:', pErr)
+    if (vErr) console.error('[OrdersPage] variants error:', vErr)
+
     setUsers(u || [])
-    setProductsList(p || [])
+
+    // Build flattened list of every orderable item (product + variant combos)
+    const orderable: OrderableItem[] = []
+
+    for (const p of (products || [])) {
+      const pVariants = (variants || []).filter(v => v.product_id === p.id && v.in_stock !== false)
+
+      if (pVariants.length > 0) {
+        // Product has variants — list each variant as its own orderable item
+        for (const v of pVariants) {
+          orderable.push({
+            product_id: p.id,
+            variant_id: v.id,
+            name: `${p.name} — ${v.name}`,
+            sku: v.sku,
+            price: v.distributor_price ?? p.price ?? 0,
+          })
+        }
+      } else {
+        // Product has no variants (e.g., the kit) — list the product itself
+        orderable.push({
+          product_id: p.id,
+          variant_id: null,
+          name: p.name,
+          sku: p.sku || '',
+          price: p.price ?? 0,
+        })
+      }
+    }
+
+    setItems(orderable)
+    console.log('[OrdersPage] Loaded', orderable.length, 'orderable items:', orderable.map(i => i.name))
   }
 
   const fetchOrders = async () => {
@@ -63,13 +105,20 @@ export function OrdersPage() {
   }
 
   const handleCreate = async () => {
-    const product = products.find(p => p.id === formData.product_id)
-    if (!product) { alert('Please select a product'); return }
+    const selected = items.find(i => i.product_id === formData.product_id && i.variant_id === formData.variant_id)
+    if (!selected) { alert('Please select a product'); return }
 
-    const total = product.price * formData.quantity
+    const total = selected.price * formData.quantity
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
-      .insert([{ ...formData, quantity: Number(formData.quantity), total_amount: total }])
+      .insert([{
+        user_id: formData.user_id,
+        product_id: formData.product_id,
+        quantity: Number(formData.quantity),
+        total_amount: total,
+        shipping_address: formData.shipping_address,
+        status: formData.status,
+      }])
       .select()
       .single()
 
@@ -93,11 +142,11 @@ export function OrdersPage() {
       table_name: 'orders',
       record_id: orderData.id,
       old_data: null,
-      new_data: JSON.stringify({ total_amount: total, status: 'pending', auto_invoice: true })
+      new_data: JSON.stringify({ total_amount: total, status: 'pending', auto_invoice: true, sku: selected.sku })
     }])
 
     setShowModal(false)
-    setFormData({ user_id: '', product_id: '', quantity: 1, shipping_address: '', status: 'pending' })
+    setFormData({ user_id: '', product_id: '', variant_id: null, quantity: 1, shipping_address: '', status: 'pending' })
     fetchOrders()
   }
 
@@ -130,6 +179,10 @@ export function OrdersPage() {
 
   const totalPages = Math.ceil(totalCount / pageSize)
 
+  // Compute order preview total
+  const selectedItem = items.find(i => i.product_id === formData.product_id && i.variant_id === formData.variant_id)
+  const previewTotal = selectedItem ? selectedItem.price * formData.quantity : 0
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3 justify-between">
@@ -142,7 +195,7 @@ export function OrdersPage() {
           <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 transition-colors">
             <Download className="w-4 h-4" /> Export CSV
           </button>
-          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#9a02d0] rounded-lg text-sm text-white transition-colors">
+          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white transition-colors">
             <Plus className="w-4 h-4" /> New Order
           </button>
         </div>
@@ -224,15 +277,43 @@ export function OrdersPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1.5">Product</label>
-                <select value={formData.product_id} onChange={e => setFormData({...formData, product_id: e.target.value})} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50">
+                <select
+                  value={formData.variant_id ? `${formData.product_id}::${formData.variant_id}` : formData.product_id}
+                  onChange={e => {
+                    const val = e.target.value
+                    if (val.includes('::')) {
+                      const [pid, vid] = val.split('::')
+                      setFormData({...formData, product_id: pid, variant_id: vid})
+                    } else {
+                      setFormData({...formData, product_id: val, variant_id: null})
+                    }
+                  }}
+                  className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                >
                   <option value="">Select product...</option>
-                  {products.map(p => <option key={p.id} value={p.id}>{p.name} - {formatCurrency(p.price)}</option>)}
+                  {items.map(item => (
+                    <option key={item.variant_id ? `${item.product_id}::${item.variant_id}` : item.product_id} value={item.variant_id ? `${item.product_id}::${item.variant_id}` : item.product_id}>
+                      {item.name} — {formatCurrency(item.price)}
+                    </option>
+                  ))}
                 </select>
+                {items.length === 0 && (
+                  <p className="text-xs text-amber-400 mt-1">No products loaded. Check console for errors.</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1.5">Quantity</label>
                 <input type="number" min={1} value={formData.quantity} onChange={e => setFormData({...formData, quantity: Number(e.target.value)})} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
               </div>
+              {selectedItem && (
+                <div className="flex items-center justify-between text-sm bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2">
+                  <span className="text-gray-400">Unit price:</span>
+                  <span className="text-[#44f80c] font-medium">{formatCurrency(selectedItem.price)}</span>
+                  <span className="text-gray-600">|</span>
+                  <span className="text-gray-400">Line total:</span>
+                  <span className="text-white font-medium">{formatCurrency(previewTotal)}</span>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1.5">Shipping Address</label>
                 <textarea value={formData.shipping_address} onChange={e => setFormData({...formData, shipping_address: e.target.value})} rows={2} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
@@ -240,7 +321,7 @@ export function OrdersPage() {
             </div>
             <div className="flex justify-end gap-3 p-5 border-t border-white/10">
               <button onClick={() => setShowModal(false)} className="px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 rounded-lg text-sm text-gray-300">Cancel</button>
-              <button onClick={handleCreate} className="px-4 py-2.5 bg-[#9a02d0] hover:bg-[#9a02d0] rounded-lg text-sm text-white">Create Order & Invoice</button>
+              <button onClick={handleCreate} className="px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white">Create Order & Invoice</button>
             </div>
           </div>
         </div>

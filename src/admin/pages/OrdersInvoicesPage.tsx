@@ -165,7 +165,7 @@ export function OrdersInvoicesPage() {
     if (!selectedUser || !selectedVariant) return
 
     setOrderSubmitting(true)
-    const { data, error } = await supabase.from('orders').insert({
+    const { error } = await supabase.from('orders').insert({
       user_id: orderForm.userId,
       items: orderForm.quantity,
       total: lineTotal,
@@ -174,7 +174,7 @@ export function OrdersInvoicesPage() {
       shipping_address: orderForm.shippingAddress || [selectedUser.address, selectedUser.city, selectedUser.state, selectedUser.zip].filter(Boolean).join(', ') || null,
       contact_person: orderForm.contactPerson || selectedUser.business_name || null,
       contact_phone: orderForm.contactPhone || selectedUser.phone || null,
-    }).select().single()
+    })
 
     setOrderSubmitting(false)
     if (error) {
@@ -182,7 +182,7 @@ export function OrdersInvoicesPage() {
       return
     }
 
-    toast.success(`Order ${data.po_number} created! Invoice auto-generated.`)
+    toast.success('Order created successfully! Invoice auto-generated.')
     setShowCreateOrder(false)
     setOrderForm({ userId: '', productId: '', variantId: '', quantity: 1, shippingAddress: '', contactPerson: '', contactPhone: '', notes: '' })
     fetchData()

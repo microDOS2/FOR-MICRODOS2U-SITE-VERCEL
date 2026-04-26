@@ -134,7 +134,11 @@ export function Products() {
           .eq('is_active', true)
           .order('name');
 
-        if (productsError) throw new Error(`Products error: ${productsError.message}`);
+        if (productsError) {
+          console.error('[Products] products query error:', productsError);
+          throw new Error(`Products error: ${productsError.message}`);
+        }
+        console.log('[Products] Loaded', dbProducts?.length || 0, 'products');
 
         // Fetch variants from product_variants table
         const { data: dbVariants, error: variantsError } = await supabase
@@ -142,7 +146,11 @@ export function Products() {
           .select('*')
           .order('sku');
 
-        if (variantsError) throw new Error(`Variants error: ${variantsError.message}`);
+        if (variantsError) {
+          console.error('[Products] variants query error:', variantsError);
+          throw new Error(`Variants error: ${variantsError.message}`);
+        }
+        console.log('[Products] Loaded', dbVariants?.length || 0, 'variants');
 
         if (cancelled) return;
 
@@ -194,9 +202,18 @@ export function Products() {
       }
     }
 
+    // 10-second safety timeout so loading spinner doesn't hang forever
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) {
+        console.error('[Products] Fetch timed out after 10 seconds');
+        setError('Connection timed out. Please check your internet and try again.');
+        setLoading(false);
+      }
+    }, 10000);
+
     fetchData();
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(timeoutId); };
   }, []);
 
   // Filter products based on search

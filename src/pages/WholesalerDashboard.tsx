@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -163,7 +163,16 @@ const mockAgreements: Agreement[] = [
 ];
 
 export function WholesalerDashboard() {
-  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const { user, loading: authLoading, signOut } = useAuth();
+
+  // Auth guard: redirect to portal if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/wholesaler-portal');
+    }
+  }, [authLoading, user, navigate]);
+
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'agreements' | 'store-locations'>('overview');
   const [orderSearch, setOrderSearch] = useState('');
   const [orderFilter, setOrderFilter] = useState('all');

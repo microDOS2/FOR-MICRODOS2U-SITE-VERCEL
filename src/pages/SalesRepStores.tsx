@@ -71,8 +71,10 @@ export function SalesRepStores() {
     const { data: managerJson } = await supabase
       .rpc('get_managers_for_accounts', { p_account_ids: accountIds })
 
-    const managerMap = new Map<string, {
-      manager_id: string | null
+    const accountInfoMap = new Map<string, {
+      account_name: string | null
+      account_email: string | null
+      account_phone: string | null
       manager_name: string | null
       manager_email: string | null
       manager_phone: string | null
@@ -80,18 +82,20 @@ export function SalesRepStores() {
       manager_state: string | null
     }>()
     ;(managerJson || []).forEach((m: any) => {
-      managerMap.set(m.id, {
-        manager_id: m.manager_id,
+      accountInfoMap.set(m.id, {
+        account_name: m.business_name || 'Unknown',
+        account_email: m.email || null,
+        account_phone: m.phone || null,
         manager_name: m.manager_name || 'Unassigned',
-        manager_email: m.manager_email,
-        manager_phone: m.manager_phone,
-        manager_city: m.manager_city,
-        manager_state: m.manager_state,
+        manager_email: m.manager_email || null,
+        manager_phone: m.manager_phone || null,
+        manager_city: m.manager_city || null,
+        manager_state: m.manager_state || null,
       })
     })
 
     const storesWithAccounts: StoreData[] = storeList.map((s: any) => {
-      const mgr = managerMap.get(s.user_id)
+      const info = accountInfoMap.get(s.user_id)
       return {
         id: s.id,
         name: s.name,
@@ -99,14 +103,14 @@ export function SalesRepStores() {
         city: s.city || '',
         state: s.state || '',
         license_number: s.license_number,
-        account_name: mgr?.manager_name || 'Unknown',
-        account_email: mgr?.manager_email || null,
-        account_phone: mgr?.manager_phone || null,
-        manager_name: mgr?.manager_name || 'Unassigned',
-        manager_email: mgr?.manager_email || null,
-        manager_phone: mgr?.manager_phone || null,
-        manager_city: mgr?.manager_city || null,
-        manager_state: mgr?.manager_state || null,
+        account_name: info?.account_name || 'Unknown',
+        account_email: info?.account_email || null,
+        account_phone: info?.account_phone || null,
+        manager_name: info?.manager_name || 'Unassigned',
+        manager_email: info?.manager_email || null,
+        manager_phone: info?.manager_phone || null,
+        manager_city: info?.manager_city || null,
+        manager_state: info?.manager_state || null,
       }
     })
 

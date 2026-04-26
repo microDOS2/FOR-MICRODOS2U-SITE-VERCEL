@@ -127,30 +127,18 @@ export function Products() {
       setError(null);
 
       try {
-        // Fetch products
-        const { data: dbProducts, error: productsError } = await supabase
-          .from('products')
-          .select('*')
-          .eq('is_active', true)
-          .order('name');
+        // Use RPC to bypass RLS and fetch products + variants in one call
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc('get_products_with_variants');
 
-        if (productsError) {
-          console.error('[Products] products query error:', productsError);
-          throw new Error(`Products error: ${productsError.message}`);
+        if (rpcError) {
+          console.error('[Products] RPC error:', rpcError);
+          throw new Error(`Failed to load products: ${rpcError.message}`);
         }
-        console.log('[Products] Loaded', dbProducts?.length || 0, 'products');
 
-        // Fetch variants from product_variants table
-        const { data: dbVariants, error: variantsError } = await supabase
-          .from('product_variants')
-          .select('*')
-          .order('sku');
-
-        if (variantsError) {
-          console.error('[Products] variants query error:', variantsError);
-          throw new Error(`Variants error: ${variantsError.message}`);
-        }
-        console.log('[Products] Loaded', dbVariants?.length || 0, 'variants');
+        const dbProducts = rpcData?.products || [];
+        const dbVariants = rpcData?.variants || [];
+        console.log('[Products] RPC loaded', dbProducts.length, 'products,', dbVariants.length, 'variants');
 
         if (cancelled) return;
 

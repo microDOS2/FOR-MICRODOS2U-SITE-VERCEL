@@ -53,6 +53,7 @@ interface OrderRow {
   total: number;
   status: OrderStatus;
   created_at: string;
+  notes?: string | null;
   order_items?: {
     id: string;
     product_name: string;
@@ -72,18 +73,8 @@ interface InvoiceRow {
   status: InvoiceStatus;
   date: string;
   due_date: string;
-  orders?: {
-    po_number: string;
-    order_items?: {
-      id: string;
-      product_name: string;
-      variant_name: string;
-      sku: string;
-      quantity: number;
-      unit_price: number;
-      line_total: number;
-    }[];
-  };
+  orders?: any;
+}
 }
 
 interface AgreementRow {

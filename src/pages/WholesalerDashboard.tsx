@@ -723,7 +723,6 @@ export function WholesalerDashboard() {
   const renderInvoices = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-white">Invoices</h2>
         <Button className="btn-primary-gradient">
           <Download className="w-4 h-4 mr-2" />
           Export All
@@ -786,8 +785,7 @@ export function WholesalerDashboard() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Store Locations</h2>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="text-gray-400 text-sm">
             Manage your retail store locations
           </p>
         </div>

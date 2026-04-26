@@ -112,6 +112,18 @@ interface InvoiceRow {
   status: InvoiceStatus;
   date: string;
   due_date: string;
+  orders?: {
+    po_number: string;
+    order_items?: {
+      id: string;
+      product_name: string;
+      variant_name: string;
+      sku: string;
+      quantity: number;
+      unit_price: number;
+      line_total: number;
+    }[];
+  };
 }
 
 interface AgreementRow {
@@ -158,7 +170,7 @@ export function WholesalerDashboard() {
           .order('created_at', { ascending: false }),
         supabase
           .from('invoices')
-          .select('id, invoice_number, order_id, amount, status, date, due_date')
+          .select('id, invoice_number, order_id, amount, status, date, due_date, orders:order_id(po_number, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total))')
           .eq('user_id', user.id)
           .order('date', { ascending: false }),
         supabase
@@ -183,6 +195,7 @@ export function WholesalerDashboard() {
 
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'agreements' | 'store-locations' | 'settings'>('overview');
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
   const [orderSearch, setOrderSearch] = useState('');
   const [orderFilter, setOrderFilter] = useState('all');
 
@@ -208,6 +221,15 @@ export function WholesalerDashboard() {
       const next = new Set(prev);
       if (next.has(orderId)) next.delete(orderId);
       else next.add(orderId);
+      return next;
+    });
+  };
+
+  const toggleInvoiceExpand = (invoiceId: string) => {
+    setExpandedInvoices(prev => {
+      const next = new Set(prev);
+      if (next.has(invoiceId)) next.delete(invoiceId);
+      else next.add(invoiceId);
       return next;
     });
   };
@@ -734,28 +756,37 @@ export function WholesalerDashboard() {
                           </div>
                         </TableCell>
                       </TableRow>
-                      {isExpanded && order.order_items && order.order_items.length > 0 && (
+                      {isExpanded && (
                         <TableRow key={`${order.id}-details`} className="border-brand-700 bg-brand-900/30">
                           <TableCell colSpan={6} className="py-3">
-                            <div className="space-y-2">
-                              <p className="text-xs font-medium text-gray-400 mb-2">Order Details:</p>
-                              <div className="grid grid-cols-5 gap-2 text-xs text-gray-400 mb-1">
-                                <span>Product</span>
-                                <span>Package</span>
-                                <span>SKU</span>
-                                <span className="text-center">Qty</span>
-                                <span className="text-right">Line Total</span>
-                              </div>
-                              {order.order_items.map((item) => (
-                                <div key={item.id} className="grid grid-cols-5 gap-2 text-sm">
-                                  <span className="text-white">{item.product_name}</span>
-                                  <span className="text-gray-300">{item.variant_name}</span>
-                                  <span className="text-gray-400 font-mono">{item.sku}</span>
-                                  <span className="text-center text-gray-300">{item.quantity}</span>
-                                  <span className="text-right text-white">${item.line_total.toLocaleString()}</span>
+                            {order.order_items && order.order_items.length > 0 ? (
+                              <div className="space-y-2">
+                                <p className="text-xs font-medium text-gray-400 mb-2">Order Details:</p>
+                                <div className="grid grid-cols-5 gap-2 text-xs text-gray-400 mb-1">
+                                  <span>Product</span>
+                                  <span>Package</span>
+                                  <span>SKU</span>
+                                  <span className="text-center">Qty</span>
+                                  <span className="text-right">Line Total</span>
                                 </div>
-                              ))}
-                            </div>
+                                {order.order_items.map((item) => (
+                                  <div key={item.id} className="grid grid-cols-5 gap-2 text-sm">
+                                    <span className="text-white">{item.product_name}</span>
+                                    <span className="text-gray-300">{item.variant_name}</span>
+                                    <span className="text-gray-400 font-mono">{item.sku}</span>
+                                    <span className="text-center text-gray-300">{item.quantity}</span>
+                                    <span className="text-right text-white">${item.line_total.toLocaleString()}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : order.notes ? (
+                              <div className="space-y-2">
+                                <p className="text-xs font-medium text-gray-400 mb-2">Order Details (from notes):</p>
+                                <p className="text-sm text-white">{order.notes}</p>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500">No detailed order information available.</p>
+                            )}
                           </TableCell>
                         </TableRow>
                       )}
@@ -799,30 +830,64 @@ export function WholesalerDashboard() {
               ) : invoices.length === 0 ? (
                 <TableRow><TableCell colSpan={7} className="text-center text-gray-500 py-8">No invoices found</TableCell></TableRow>
               ) : (
-                invoices.map((invoice) => (
-                  <TableRow key={invoice.id} className="border-brand-700">
-                    <TableCell className="font-medium text-white">{invoice.invoice_number}</TableCell>
-                    <TableCell className="text-gray-300">{invoice.order_id ? invoice.order_id.slice(0, 8) : '—'}</TableCell>
-                    <TableCell className="text-gray-300">{invoice.date?.slice(0, 10) || '—'}</TableCell>
-                    <TableCell className="text-gray-300">{invoice.due_date?.slice(0, 10) || '—'}</TableCell>
-                    <TableCell className="text-gray-300">${invoice.amount.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={getInvoiceStatusBadge(invoice.status)}>
-                        {invoice.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                          <Download className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                invoices.map((invoice) => {
+                  const isInvExpanded = expandedInvoices.has(invoice.id);
+                  return (
+                    <>
+                      <TableRow key={invoice.id} className="border-brand-700">
+                        <TableCell className="font-medium text-white">{invoice.invoice_number}</TableCell>
+                        <TableCell className="text-gray-300">{invoice.orders?.po_number || (invoice.order_id ? invoice.order_id.slice(0, 8) : '—')}</TableCell>
+                        <TableCell className="text-gray-300">{invoice.date?.slice(0, 10) || '—'}</TableCell>
+                        <TableCell className="text-gray-300">{invoice.due_date?.slice(0, 10) || '—'}</TableCell>
+                        <TableCell className="text-gray-300">${invoice.amount.toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={getInvoiceStatusBadge(invoice.status)}>
+                            {invoice.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" onClick={() => toggleInvoiceExpand(invoice.id)}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {isInvExpanded && (
+                        <TableRow key={`${invoice.id}-details`} className="border-brand-700 bg-brand-900/30">
+                          <TableCell colSpan={7} className="py-3">
+                            {invoice.orders?.order_items && invoice.orders.order_items.length > 0 ? (
+                              <div className="space-y-2">
+                                <p className="text-xs font-medium text-gray-400 mb-2">Invoice Details (from Order {invoice.orders.po_number}):</p>
+                                <div className="grid grid-cols-5 gap-2 text-xs text-gray-400 mb-1">
+                                  <span>Product</span>
+                                  <span>Package</span>
+                                  <span>SKU</span>
+                                  <span className="text-center">Qty</span>
+                                  <span className="text-right">Line Total</span>
+                                </div>
+                                {invoice.orders.order_items.map((item) => (
+                                  <div key={item.id} className="grid grid-cols-5 gap-2 text-sm">
+                                    <span className="text-white">{item.product_name}</span>
+                                    <span className="text-gray-300">{item.variant_name}</span>
+                                    <span className="text-gray-400 font-mono">{item.sku}</span>
+                                    <span className="text-center text-gray-300">{item.quantity}</span>
+                                    <span className="text-right text-white">${item.line_total.toLocaleString()}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500">No detailed invoice items available.</p>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
+                  );
+                })
               )}
             </TableBody>
           </Table>

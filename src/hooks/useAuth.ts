@@ -7,38 +7,42 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let resolved = false;
+    let cancelled = false;
 
     async function getSession() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
+          // Try to fetch full user record from users table
           const { data, error } = await supabase
             .from('users')
             .select('*')
             .eq('id', session.user.id)
-            .single();
-          if (error) {
-            console.error('[useAuth] users query error:', error);
-          }
-          if (data) {
-            setUser(data as DBUser);
+            .maybeSingle();
+
+          if (!cancelled) {
+            if (error) {
+              console.error('[useAuth] users query error:', error);
+            }
+            if (data) {
+              setUser(data as DBUser);
+            } else {
+              // Fallback: build minimal user from session if users table query fails
+              setUser({
+                id: session.user.id,
+                email: session.user.email || '',
+                role: (session.user.user_metadata?.role || '') as UserRole,
+                status: 'approved',
+                created_at: session.user.created_at || '',
+              } as DBUser);
+            }
           }
         }
       } catch (err) {
         console.error('[useAuth] getSession failed:', err);
       }
-      resolved = true;
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     }
-
-    // Safety timeout: always resolve loading within 5 seconds
-    const timeoutId = setTimeout(() => {
-      if (!resolved) {
-        console.warn('[useAuth] Timeout: forcing loading=false');
-        setLoading(false);
-      }
-    }, 5000);
 
     getSession();
 
@@ -48,18 +52,29 @@ export function useAuth() {
           .from('users')
           .select('*')
           .eq('id', session.user.id)
-          .single();
-        if (error) console.error('[useAuth] onAuthStateChange users error:', error);
-        if (data) setUser(data as DBUser);
+          .maybeSingle();
+        if (!cancelled) {
+          if (error) console.error('[useAuth] onAuthStateChange users error:', error);
+          if (data) {
+            setUser(data as DBUser);
+          } else {
+            setUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              role: (session.user.user_metadata?.role || '') as UserRole,
+              status: 'approved',
+              created_at: session.user.created_at || '',
+            } as DBUser);
+          }
+        }
       } else {
-        setUser(null);
+        if (!cancelled) setUser(null);
       }
-      resolved = true;
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     });
 
     return () => {
-      clearTimeout(timeoutId);
+      cancelled = true;
       subscription.unsubscribe();
     };
   }, []);

@@ -209,6 +209,35 @@ export function WholesalerDashboard() {
     }
   }, [user]);
 
+  // Re-fetch fresh profile data from Supabase whenever Settings tab opens
+  useEffect(() => {
+    if (activeTab !== 'settings' || !user?.id) return;
+    async function refreshProfile() {
+      const { data, error } = await supabase
+        .from('users')
+        .select('business_name, phone, address, city, state, zip, website, license_number')
+        .eq('id', user!.id)
+        .maybeSingle();
+      if (error) {
+        console.error('[Settings] refreshProfile error:', error);
+        return;
+      }
+      if (data) {
+        setSettingsForm({
+          business_name: data.business_name || '',
+          phone: data.phone || '',
+          address: data.address || '',
+          city: data.city || '',
+          state: data.state || '',
+          zip: data.zip || '',
+          website: data.website || '',
+          license_number: data.license_number || '',
+        });
+      }
+    }
+    refreshProfile();
+  }, [activeTab, user?.id]);
+
   const [stores, setStores] = useState<StoreLocation[]>([]);
   const [storesLoading, setStoresLoading] = useState(false);
   const [storeDialogOpen, setStoreDialogOpen] = useState(false);
@@ -1090,7 +1119,6 @@ export function WholesalerDashboard() {
                   className="bg-brand-900 border-brand-700 text-white mt-1" placeholder="Your business name" />
               </div>
               <div>
-                <Label className="text-gray-400">Phone</Label>
                 <Label className="text-gray-400">Phone</Label>
                 <Input value={settingsForm.phone} onChange={e => setSettingsForm({...settingsForm, phone: e.target.value})}
                   className="bg-brand-900 border-brand-700 text-white mt-1" placeholder="(555) 000-0000" />

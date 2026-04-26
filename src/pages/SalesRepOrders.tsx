@@ -115,18 +115,7 @@ export function SalesRepOrders() {
       nameMap.set(a.id, a.business_name)
     })
 
-    // 6. Get product names
-    const { data: productData } = await supabase
-      .from('products')
-      .select('id, name, sku')
-    const productMap = new Map<string, { name: string; sku: string }>()
-    ;(productData || []).forEach((p: any) => {
-      productMap.set(p.id, { name: p.name, sku: p.sku })
-    })
-
-    // 7. Join product info from order items (if we had an order_items table)
-    // For now, orders table has product_id but no join in this query
-    // We'll use the order's own data
+    // 6. Enrich orders with invoice data and account names
     const enriched: OrderItem[] = orderList.map((o: any) => {
       const inv = invoiceMap.get(o.id)
       return {

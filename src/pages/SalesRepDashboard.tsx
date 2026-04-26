@@ -33,6 +33,17 @@ interface ActivityItem {
   details: string
 }
 
+const formatAuditAction = (action: string, table: string, recordId: string) => {
+  if (action === 'account_transferred') return `Account transferred (ID: ${recordId?.slice(0, 8)})`
+  if (action === 'rep_transferred') return `Rep reassigned (ID: ${recordId?.slice(0, 8)})`
+  if (action === 'transfer_created') return `Transfer request created`
+  if (action === 'transfer_accepted') return `Transfer accepted`
+  if (action === 'transfer_rejected') return `Transfer rejected`
+  if (action === 'account_rep_assigned') return `Account rep assigned`
+  if (action === 'store_rep_assigned') return `Store rep assigned`
+  return `${action} on ${table}`
+}
+
 export function SalesRepDashboard() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
@@ -86,13 +97,15 @@ export function SalesRepDashboard() {
     const storeIds = (storeData || []).map((s: any) => s.id)
     setStoreCount(storeIds.length)
 
-    // 3. Orders from assigned accounts
+    // 3. Orders from assigned accounts AND stores
+    // Combine account IDs from account-rep AND store-rep assignments
+    const allStoreAccountIds = [...new Set([...accountIds, ...storeIds.map((s: any) => s.user_id)])]
     let ordersData: any[] = []
-    if (accountIds.length > 0) {
+    if (allStoreAccountIds.length > 0) {
       const { data } = await supabase
         .from('orders')
         .select('id, total_amount, status, user_id, created_at')
-        .in('user_id', accountIds)
+        .in('user_id', allStoreAccountIds)
         .order('created_at', { ascending: false })
       ordersData = data || []
     }
@@ -159,17 +172,6 @@ export function SalesRepDashboard() {
   }, [navigate])
 
   useEffect(() => { fetchData() }, [fetchData])
-
-  const formatAuditAction = (action: string, table: string, recordId: string) => {
-    if (action === 'account_transferred') return `Account transferred (ID: ${recordId?.slice(0, 8)})`
-    if (action === 'rep_transferred') return `Rep reassigned (ID: ${recordId?.slice(0, 8)})`
-    if (action === 'transfer_created') return `Transfer request created`
-    if (action === 'transfer_accepted') return `Transfer accepted`
-    if (action === 'transfer_rejected') return `Transfer rejected`
-    if (action === 'account_rep_assigned') return `Account rep assigned`
-    if (action === 'store_rep_assigned') return `Store rep assigned`
-    return `${action} on ${table}`
-  }
 
   if (loading) {
     return (

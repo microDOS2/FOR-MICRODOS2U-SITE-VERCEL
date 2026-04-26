@@ -138,6 +138,7 @@ function AppContent() {
             <Route path="invoices" element={<InvoicesPage />} />
             <Route path="agreements" element={<AgreementsPage />} />
             <Route path="orders-invoices" element={<OrdersInvoicesPage />} />
+            <Route path="fulfillment" element={<Navigate to="/admin/orders-invoices" replace />} />
             <Route path="stores" element={<StoresPage />} />
             <Route path="approvals" element={<ApprovalsPage />} />
             <Route path="config" element={<ConfigPage />} />

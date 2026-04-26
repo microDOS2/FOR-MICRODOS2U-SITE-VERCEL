@@ -92,7 +92,7 @@ export function StoreLocator() {
     <div className="min-h-screen bg-[#0a0514] pt-16">
       <div className="bg-[#150f24] border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Find a <span className="text-[#9a02d0]">Wholesaler</span></h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Find a <span className="text-[#9a02d0]">Retailer</span></h1>
           <p className="text-gray-400">Locate authorized dispensaries and wellness centers carrying microDOS(2) products.</p>
         </div>
       </div>

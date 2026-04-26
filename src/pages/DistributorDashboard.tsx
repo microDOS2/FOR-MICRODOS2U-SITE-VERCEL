@@ -53,6 +53,15 @@ interface OrderRow {
   total: number;
   status: OrderStatus;
   created_at: string;
+  order_items?: {
+    id: string;
+    product_name: string;
+    variant_name: string;
+    sku: string;
+    quantity: number;
+    unit_price: number;
+    line_total: number;
+  }[];
 }
 
 interface InvoiceRow {
@@ -95,6 +104,16 @@ export function DistributorDashboard() {
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'agreements' | 'settings'>('overview');
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+
+  const toggleOrderExpand = (orderId: string) => {
+    setExpandedOrders(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
+      return next;
+    });
+  };
 
   // Data state
   const [orders, setOrders] = useState<OrderRow[]>([]);
@@ -125,7 +144,7 @@ export function DistributorDashboard() {
     const fetchData = async () => {
       setDataLoading(true);
       const [{ data: o, error: oErr }, { data: i, error: iErr }, { data: a, error: aErr }] = await Promise.all([
-        supabase.from('orders').select('id, po_number, items, total, status, created_at').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('orders').select('id, po_number, items, total, status, created_at, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total)').eq('user_id', user.id).order('created_at', { ascending: false }),
         supabase.from('invoices').select('id, invoice_number, order_id, amount, status, date, due_date').eq('user_id', user.id).order('date', { ascending: false }),
         supabase.from('agreements').select('id, title, type, version, sent_date, signed_date, expires_date, status, signed_by, document_url').eq('user_id', user.id).order('sent_date', { ascending: false }),
       ]);
@@ -504,24 +523,52 @@ export function DistributorDashboard() {
               <TableBody>
                 {filteredOrders.map((order) => {
                   const StatusIcon = getStatusIcon(order.status);
+                  const isExpanded = expandedOrders.has(order.id);
                   return (
-                    <TableRow key={order.id} className="border-brand-700 hover:bg-brand-700/50">
-                      <TableCell className="text-white font-medium">{order.po_number}</TableCell>
-                      <TableCell className="text-gray-400">{order.items}</TableCell>
-                      <TableCell className="text-white">${(order.total || 0).toLocaleString()}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={getStatusBadge(order.status)}>
-                          <StatusIcon className="w-3 h-3 mr-1" />
-                          {order.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-gray-400">{new Date(order.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+                    <>
+                      <TableRow key={order.id} className="border-brand-700 hover:bg-brand-700/50">
+                        <TableCell className="text-white font-medium">{order.po_number}</TableCell>
+                        <TableCell className="text-gray-400">{order.items}</TableCell>
+                        <TableCell className="text-white">${(order.total || 0).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={getStatusBadge(order.status)}>
+                            <StatusIcon className="w-3 h-3 mr-1" />
+                            {order.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-gray-400">{new Date(order.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" onClick={() => toggleOrderExpand(order.id)}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && order.order_items && order.order_items.length > 0 && (
+                        <TableRow key={`${order.id}-details`} className="border-brand-700 bg-brand-900/30">
+                          <TableCell colSpan={6} className="py-3">
+                            <div className="space-y-2">
+                              <p className="text-xs font-medium text-gray-400 mb-2">Order Details:</p>
+                              <div className="grid grid-cols-5 gap-2 text-xs text-gray-400 mb-1">
+                                <span>Product</span>
+                                <span>Package</span>
+                                <span>SKU</span>
+                                <span className="text-center">Qty</span>
+                                <span className="text-right">Line Total</span>
+                              </div>
+                              {order.order_items.map((item) => (
+                                <div key={item.id} className="grid grid-cols-5 gap-2 text-sm">
+                                  <span className="text-white">{item.product_name}</span>
+                                  <span className="text-gray-300">{item.variant_name}</span>
+                                  <span className="text-gray-400 font-mono">{item.sku}</span>
+                                  <span className="text-center text-gray-300">{item.quantity}</span>
+                                  <span className="text-right text-white">${item.line_total.toLocaleString()}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
                   );
                 })}
               </TableBody>

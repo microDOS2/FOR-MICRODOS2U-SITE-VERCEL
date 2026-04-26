@@ -47,7 +47,7 @@ import { ConfigPage } from './admin/pages/ConfigPage';
 import { AuditLogPage } from './admin/pages/AuditLogPage';
 import { TransferHistoryPage } from './admin/pages/TransferHistoryPage';
 import { TerritoryTransferPage } from './admin/pages/TerritoryTransferPage';
-import { FulfillmentPage } from './admin/pages/FulfillmentPage';
+import { OrdersInvoicesPage } from './admin/pages/OrdersInvoicesPage';
 
 function AppContent() {
   const location = useLocation();
@@ -137,7 +137,7 @@ function AppContent() {
             <Route path="orders" element={<OrdersPage />} />
             <Route path="invoices" element={<InvoicesPage />} />
             <Route path="agreements" element={<AgreementsPage />} />
-            <Route path="fulfillment" element={<FulfillmentPage />} />
+            <Route path="orders-invoices" element={<OrdersInvoicesPage />} />
             <Route path="stores" element={<StoresPage />} />
             <Route path="approvals" element={<ApprovalsPage />} />
             <Route path="config" element={<ConfigPage />} />

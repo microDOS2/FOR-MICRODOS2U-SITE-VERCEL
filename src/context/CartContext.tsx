@@ -114,7 +114,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         status: 'pending',
         notes: cartDetails,
         shipping_address: [user.address, user.city, user.state, user.zip].filter(Boolean).join(', ') || null,
-        contact_person: user.business_name || user.full_name || null,
+        contact_person: user.business_name || null,
         contact_phone: user.phone || null,
       })
       .select()

@@ -61,7 +61,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { UserInfoBar } from '@/components/UserInfoBar';
+
 
 interface StoreLocation {
   id: string;
@@ -1161,11 +1161,10 @@ export function WholesalerDashboard() {
   };
 
   return (
-    <main className="pt-16 min-h-screen bg-brand-900">
-      <UserInfoBar />
+    <main className="min-h-screen bg-brand-900">
       <div className="flex">
         {/* Sidebar */}
-        <aside className="w-64 bg-brand-800 border-r border-brand-700 min-h-screen fixed left-0 top-16 hidden lg:block">
+        <aside className="w-64 bg-brand-800 border-r border-brand-700 min-h-screen fixed left-0 top-0 hidden lg:block">
           <div className="p-6">
             <div className="flex items-center gap-3 mb-8">
               <div className="w-10 h-10 rounded-full bg-psy-neonPurple/20 flex items-center justify-center">

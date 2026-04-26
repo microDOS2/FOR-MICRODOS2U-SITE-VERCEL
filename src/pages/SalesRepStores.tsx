@@ -67,32 +67,31 @@ export function SalesRepStores() {
       return
     }
 
-    // Get account details with manager info
-    const { data: accountData } = await supabase
-      .from('users')
-      .select('id, business_name, email, phone, manager_id')
-      .in('id', accountIds)
+    // Get account details + manager info via RPC (bypasses RLS)
+    const { data: managerJson } = await supabase
+      .rpc('get_managers_for_accounts', { p_account_ids: accountIds })
 
-    const accountMap = new Map<string, { name: string; email: string | null; phone: string | null; manager_id: string | null }>()
-    ;(accountData || []).forEach((a: any) => {
-      accountMap.set(a.id, { name: a.business_name, email: a.email, phone: a.phone, manager_id: a.manager_id })
-    })
-
-    // Get managers for these accounts
-    const mgrIds = [...new Set((accountData || []).map((a: any) => a.manager_id).filter(Boolean))]
-    const { data: mgrData } = await supabase
-      .from('users')
-      .select('id, business_name, email, phone, city, state')
-      .in('id', mgrIds)
-
-    const mgrMap = new Map<string, { name: string; email: string | null; phone: string | null; city: string | null; state: string | null }>()
-    ;(mgrData || []).forEach((m: any) => {
-      mgrMap.set(m.id, { name: m.business_name || m.email || 'Unknown', email: m.email, phone: m.phone, city: m.city, state: m.state })
+    const managerMap = new Map<string, {
+      manager_id: string | null
+      manager_name: string | null
+      manager_email: string | null
+      manager_phone: string | null
+      manager_city: string | null
+      manager_state: string | null
+    }>()
+    ;(managerJson || []).forEach((m: any) => {
+      managerMap.set(m.id, {
+        manager_id: m.manager_id,
+        manager_name: m.manager_name || 'Unassigned',
+        manager_email: m.manager_email,
+        manager_phone: m.manager_phone,
+        manager_city: m.manager_city,
+        manager_state: m.manager_state,
+      })
     })
 
     const storesWithAccounts: StoreData[] = storeList.map((s: any) => {
-      const acct = accountMap.get(s.user_id) || { name: 'Unknown', email: null, phone: null, manager_id: null }
-      const mgr = acct.manager_id ? mgrMap.get(acct.manager_id) : null
+      const mgr = managerMap.get(s.user_id)
       return {
         id: s.id,
         name: s.name,
@@ -100,14 +99,14 @@ export function SalesRepStores() {
         city: s.city || '',
         state: s.state || '',
         license_number: s.license_number,
-        account_name: acct.name,
-        account_email: acct.email,
-        account_phone: acct.phone,
-        manager_name: mgr?.name || 'Unassigned',
-        manager_email: mgr?.email || null,
-        manager_phone: mgr?.phone || null,
-        manager_city: mgr?.city || null,
-        manager_state: mgr?.state || null,
+        account_name: mgr?.manager_name || 'Unknown',
+        account_email: mgr?.manager_email || null,
+        account_phone: mgr?.manager_phone || null,
+        manager_name: mgr?.manager_name || 'Unassigned',
+        manager_email: mgr?.manager_email || null,
+        manager_phone: mgr?.manager_phone || null,
+        manager_city: mgr?.manager_city || null,
+        manager_state: mgr?.manager_state || null,
       }
     })
 

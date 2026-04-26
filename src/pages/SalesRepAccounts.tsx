@@ -91,24 +91,30 @@ export function SalesRepAccounts() {
       storesByUser.set(s.user_id, list)
     })
 
-    const { data: managersData } = await supabase
-      .from('users')
-      .select('id, business_name, email, city, state, phone')
-      .eq('role', 'sales_manager')
+    // Get manager info via RPC (bypasses RLS)
+    const accountIdsForMgr = (accountData || []).map((u: any) => u.id)
+    const { data: managerJson } = await supabase
+      .rpc('get_managers_for_accounts', { p_account_ids: accountIdsForMgr })
 
-    const managerMap = new Map<string, { name: string; city: string | null; state: string | null; email: string | null; phone: string | null }>()
-    ;(managersData || []).forEach((m: any) => {
+    const managerMap = new Map<string, {
+      manager_name: string | null
+      manager_email: string | null
+      manager_phone: string | null
+      manager_city: string | null
+      manager_state: string | null
+    }>()
+    ;(managerJson || []).forEach((m: any) => {
       managerMap.set(m.id, {
-        name: m.business_name || m.email || 'Unknown',
-        city: m.city,
-        state: m.state,
-        email: m.email,
-        phone: m.phone,
+        manager_name: m.manager_name || 'Unassigned',
+        manager_email: m.manager_email,
+        manager_phone: m.manager_phone,
+        manager_city: m.manager_city,
+        manager_state: m.manager_state,
       })
     })
 
     const accts: AccountData[] = (accountData || []).map((u: any) => {
-      const mgr = u.manager_id ? managerMap.get(u.manager_id) : null
+      const mgr = managerMap.get(u.id)
       return {
         id: u.id,
         business_name: u.business_name,
@@ -120,11 +126,11 @@ export function SalesRepAccounts() {
         address: u.address,
         referral_code: u.referral_code || '',
         manager_id: u.manager_id || null,
-        manager_name: mgr?.name || 'Unassigned',
-        manager_city: mgr?.city || null,
-        manager_state: mgr?.state || null,
-        manager_email: mgr?.email || null,
-        manager_phone: mgr?.phone || null,
+        manager_name: mgr?.manager_name || 'Unassigned',
+        manager_city: mgr?.manager_city || null,
+        manager_state: mgr?.manager_state || null,
+        manager_email: mgr?.manager_email || null,
+        manager_phone: mgr?.manager_phone || null,
         stores: storesByUser.get(u.id) || [],
       }
     })

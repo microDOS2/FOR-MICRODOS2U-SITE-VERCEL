@@ -7,40 +7,61 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let resolved = false;
+
     async function getSession() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { data } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        if (data) {
-          setUser(data as DBUser);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          if (error) {
+            console.error('[useAuth] users query error:', error);
+          }
+          if (data) {
+            setUser(data as DBUser);
+          }
         }
+      } catch (err) {
+        console.error('[useAuth] getSession failed:', err);
       }
+      resolved = true;
       setLoading(false);
     }
+
+    // Safety timeout: always resolve loading within 5 seconds
+    const timeoutId = setTimeout(() => {
+      if (!resolved) {
+        console.warn('[useAuth] Timeout: forcing loading=false');
+        setLoading(false);
+      }
+    }, 5000);
 
     getSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('users')
           .select('*')
           .eq('id', session.user.id)
           .single();
-        if (data) {
-          setUser(data as DBUser);
-        }
+        if (error) console.error('[useAuth] onAuthStateChange users error:', error);
+        if (data) setUser(data as DBUser);
       } else {
         setUser(null);
       }
+      resolved = true;
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {

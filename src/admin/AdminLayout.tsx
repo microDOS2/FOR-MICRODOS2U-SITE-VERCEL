@@ -39,7 +39,7 @@ const navItems = [
   { name: 'Orders', path: '/admin/orders', icon: ShoppingCart },
   { name: 'Invoices', path: '/admin/invoices', icon: FileText },
   { name: 'Agreements', path: '/admin/agreements', icon: FileSignature },
-  { name: 'Fulfillment', path: '/admin/fulfillment', icon: Truck },
+  { name: 'Orders & Invoices', path: '/admin/orders-invoices', icon: Truck },
   { name: 'Stores', path: '/admin/stores', icon: Store },
   { name: 'Approvals', path: '/admin/approvals', icon: ClipboardCheck },
   { name: 'Config', path: '/admin/config', icon: Settings },

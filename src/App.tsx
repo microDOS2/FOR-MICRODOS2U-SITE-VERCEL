@@ -20,6 +20,11 @@ import { SalesManagerSettings } from './pages/SalesManagerSettings';
 import { SalesManagerStores } from './pages/SalesManagerStores';
 import { SalesRepPortal } from './pages/SalesRepPortal';
 import { SalesRepDashboard } from './pages/SalesRepDashboard';
+import { SalesRepAccounts } from './pages/SalesRepAccounts';
+import { SalesRepStores } from './pages/SalesRepStores';
+import { SalesRepOrders } from './pages/SalesRepOrders';
+import { SalesRepNotifications } from './pages/SalesRepNotifications';
+import { SalesRepSettings } from './pages/SalesRepSettings';
 import { AdminPortal } from './pages/AdminPortal';
 import { Products } from './pages/Products';
 import { InfluencerPortal } from './pages/InfluencerPortal';
@@ -112,6 +117,11 @@ function AppContent() {
           <Route path="/sales-manager-settings" element={<SalesManagerSettings />} />
           <Route path="/sales-rep-portal" element={<SalesRepPortal />} />
           <Route path="/sales-rep-dashboard" element={<SalesRepDashboard />} />
+          <Route path="/sales-rep-accounts" element={<SalesRepAccounts />} />
+          <Route path="/sales-rep-stores" element={<SalesRepStores />} />
+          <Route path="/sales-rep-orders" element={<SalesRepOrders />} />
+          <Route path="/sales-rep-notifications" element={<SalesRepNotifications />} />
+          <Route path="/sales-rep-settings" element={<SalesRepSettings />} />
           <Route path="/admin-portal" element={<AdminPortal />} />
           <Route path="/products" element={<Products />} />
           <Route path="/influencer-portal" element={<InfluencerPortal />} />

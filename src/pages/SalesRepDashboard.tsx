@@ -1,277 +1,341 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '@/lib/supabase'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { SalesRepSidebar } from '@/components/sales-rep/SalesRepSidebar'
+import { UserInfoBar } from '@/components/UserInfoBar'
+import { toast } from 'sonner'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Users,
   Store,
-  TrendingUp,
-  Search,
-  DollarSign,
   ShoppingCart,
-  MapPin,
-} from 'lucide-react';
-import { salesReps, wholesalers, distributors } from '@/data/sales-hierarchy';
-import { UserInfoBar } from '@/components/UserInfoBar';
+  DollarSign,
+  TrendingUp,
+  Building2,
+  Package,
+  Bell,
+  ArrowUpRight,
+  ArrowDownRight,
+} from 'lucide-react'
 
-// Mock current sales rep (in production from auth)
-const currentRep = salesReps[0];
-const assignedWholesalers = wholesalers.filter(w => currentRep.assignedWholesalerIds.includes(w.id));
-const assignedDistributors = distributors.filter(d => currentRep.assignedDistributorIds.includes(d.id));
+interface OrderSummary {
+  total_orders: number
+  total_amount: number
+  paid_amount: number
+  pending_amount: number
+}
 
-// Mock activity data
-const recentActivity = [
-  { id: 1, account: 'Psychedelic Wellness Center', type: 'order', amount: '$1,250', date: '2 days ago' },
-  { id: 2, account: 'West Coast Distribution', type: 'order', amount: '$3,500', date: '3 days ago' },
-  { id: 3, account: 'Mindful Journeys', type: 'new_account', date: '1 week ago' },
-];
+interface ActivityItem {
+  id: string
+  action: string
+  table_name: string
+  created_at: string
+  details: string
+}
 
 export function SalesRepDashboard() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate()
+  const [loading, setLoading] = useState(true)
+  const [accountCount, setAccountCount] = useState(0)
+  const [storeCount, setStoreCount] = useState(0)
+  const [orderSummary, setOrderSummary] = useState<OrderSummary>({
+    total_orders: 0,
+    total_amount: 0,
+    paid_amount: 0,
+    pending_amount: 0,
+  })
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([])
+  const [notifications, setNotifications] = useState(0)
 
-  const allAccounts = [...assignedWholesalers, ...assignedDistributors];
-  const filteredAccounts = allAccounts.filter(
-    a => 
-      a.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.city.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const fetchData = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      toast.error('Please log in first')
+      navigate('/sales-rep-portal')
+      return
+    }
+    const repId = session.user.id
+
+    // Verify role
+    const { data: me } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', repId)
+      .single()
+    if (me?.role !== 'sales_rep') {
+      toast.error('Access denied')
+      navigate('/')
+      return
+    }
+
+    // 1. Account assignments (account rep)
+    const { data: acctAssignments } = await supabase
+      .from('rep_account_assignments')
+      .select('account_id')
+      .eq('rep_id', repId)
+
+    const accountIds = (acctAssignments || []).map((a: any) => a.account_id)
+    setAccountCount(accountIds.length)
+
+    // 2. Store assignments (store rep)
+    const { data: storeData } = await supabase
+      .from('wholesaler_store_locations')
+      .select('id')
+      .ilike('license_number', `rep:${repId}%`)
+
+    const storeIds = (storeData || []).map((s: any) => s.id)
+    setStoreCount(storeIds.length)
+
+    // 3. Orders from assigned accounts
+    let ordersData: any[] = []
+    if (accountIds.length > 0) {
+      const { data } = await supabase
+        .from('orders')
+        .select('id, total_amount, status, user_id, created_at')
+        .in('user_id', accountIds)
+        .order('created_at', { ascending: false })
+      ordersData = data || []
+    }
+
+    // 4. Invoices for those orders
+    const orderIds = ordersData.map((o: any) => o.id)
+    let invoiceMap = new Map<string, string>()
+    if (orderIds.length > 0) {
+      const { data: invoiceData } = await supabase
+        .from('invoices')
+        .select('order_id, status, amount')
+        .in('order_id', orderIds)
+      ;(invoiceData || []).forEach((inv: any) => {
+        invoiceMap.set(inv.order_id, inv.status)
+      })
+    }
+
+    // Calculate order summary
+    let total = 0
+    let paid = 0
+    let pending = 0
+    ordersData.forEach((o: any) => {
+      total += o.total_amount || 0
+      const invStatus = invoiceMap.get(o.id)
+      if (invStatus === 'paid') {
+        paid += o.total_amount || 0
+      } else {
+        pending += o.total_amount || 0
+      }
+    })
+
+    setOrderSummary({
+      total_orders: ordersData.length,
+      total_amount: total,
+      paid_amount: paid,
+      pending_amount: pending,
+    })
+
+    // 5. Recent activity from audit log
+    const { data: auditData } = await supabase
+      .from('audit_log')
+      .select('id, action, table_name, record_id, created_at')
+      .order('created_at', { ascending: false })
+      .limit(10)
+
+    const activity: ActivityItem[] = (auditData || []).map((a: any) => ({
+      id: a.id,
+      action: a.action,
+      table_name: a.table_name,
+      created_at: a.created_at,
+      details: formatAuditAction(a.action, a.table_name, a.record_id),
+    }))
+    setRecentActivity(activity)
+
+    // 6. Pending notifications count
+    const { count: transferCount } = await supabase
+      .from('assignment_transfers')
+      .select('*', { count: 'exact', head: true })
+      .eq('rep_id', repId)
+      .eq('status', 'pending')
+
+    setNotifications(transferCount || 0)
+    setLoading(false)
+  }, [navigate])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  const formatAuditAction = (action: string, table: string, recordId: string) => {
+    if (action === 'account_transferred') return `Account transferred (ID: ${recordId?.slice(0, 8)})`
+    if (action === 'rep_transferred') return `Rep reassigned (ID: ${recordId?.slice(0, 8)})`
+    if (action === 'transfer_created') return `Transfer request created`
+    if (action === 'transfer_accepted') return `Transfer accepted`
+    if (action === 'transfer_rejected') return `Transfer rejected`
+    if (action === 'account_rep_assigned') return `Account rep assigned`
+    if (action === 'store_rep_assigned') return `Store rep assigned`
+    return `${action} on ${table}`
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0514] flex">
+        <SalesRepSidebar />
+        <main className="flex-1 p-6 lg:p-8 flex items-center justify-center">
+          <div className="animate-pulse text-[#9a02d0] text-lg">Loading dashboard...</div>
+        </main>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-[#0a0514]">
-      {/* Mobile Header */}
-      <header className="lg:hidden bg-[#150f24] border-b border-white/10 p-4">
-        <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-1">
-            <span className="text-[#44f80c] font-bold">micro</span>
-            <span className="text-[#9a02d0] font-bold">DOS</span>
-            <span className="text-[#ff66c4] font-bold">(2)</span>
-          </Link>
-          <span className="text-gray-400 text-sm">Sales Rep</span>
-        </div>
-      </header>
-
-      <div className="flex">
-        {/* Sidebar - Desktop */}
-        <aside className="hidden lg:block w-64 bg-[#150f24] border-r border-white/10 min-h-screen">
-          <div className="p-6 border-b border-white/10">
-            <Link to="/" className="flex items-center gap-1">
-              <span className="text-[#44f80c] font-bold text-xl">micro</span>
-              <span className="text-[#9a02d0] font-bold text-xl">DOS</span>
-              <span className="text-[#ff66c4] font-bold text-xl">(2)</span>
-            </Link>
-            <p className="text-gray-400 text-sm mt-1">Sales Rep Portal</p>
-          </div>
-          <nav className="p-4">
-            <Link
-              to="/sales-rep-dashboard"
-              className="flex items-center gap-3 px-4 py-3 rounded-lg bg-gradient-to-r from-[#9a02d0]/20 to-[#44f80c]/20 text-white border border-white/10"
-            >
-              <TrendingUp className="w-5 h-5 text-[#44f80c]" />
-              <span>Dashboard</span>
-            </Link>
-          </nav>
-          <div className="p-4 border-t border-white/10 mt-auto">
-            <Link
-              to="/"
-              className="flex items-center gap-3 px-4 py-3 w-full text-gray-400 hover:text-white hover:bg-white/5 rounded-lg"
-            >
-              <span>Logout</span>
-            </Link>
-          </div>
-        </aside>
-
-        <main className="flex-1 p-4 lg:p-8">
+    <div className="min-h-screen bg-[#0a0514] flex">
+      <SalesRepSidebar />
+      <main className="flex-1 p-6 lg:p-8 overflow-auto">
         <UserInfoBar />
-          <div className="max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-              <div>
-                <h1 className="text-2xl lg:text-3xl font-bold text-white mb-1">Sales Rep Dashboard</h1>
-                <div className="flex items-center gap-2 text-gray-400">
-                  <MapPin className="w-4 h-4" />
-                  <span>West Coast Region</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="text-right hidden sm:block">
-                  <p className="text-white font-medium">{currentRep.name}</p>
-                  <p className="text-gray-400 text-sm">{currentRep.email}</p>
-                </div>
-                <div className="w-10 h-10 bg-gradient-to-br from-[#9a02d0] to-[#44f80c] rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">
-                    {currentRep.name.split(' ').map(n => n[0]).join('')}
-                  </span>
-                </div>
-              </div>
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Sales Rep Dashboard</h1>
+              <p className="text-gray-400 text-sm">Overview of your accounts, stores, and orders</p>
             </div>
+            {notifications > 0 && (
+              <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-400/30 px-3 py-1">
+                <Bell className="w-3.5 h-3.5 mr-1.5" />
+                {notifications} pending notification{notifications !== 1 ? 's' : ''}
+              </Badge>
+            )}
+          </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <Card className="bg-[#150f24] border-white/10">
-                <CardContent className="p-4 lg:p-6">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">Wholesalers</p>
-                      <p className="text-2xl font-bold text-white">{assignedWholesalers.length}</p>
-                    </div>
-                    <Store className="w-6 h-6 text-[#9a02d0]" />
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="bg-[#150f24] border-white/10">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-400 text-xs">Accounts</p>
+                    <p className="text-2xl font-bold text-white">{accountCount}</p>
                   </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-[#150f24] border-white/10">
-                <CardContent className="p-4 lg:p-6">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">Distributors</p>
-                      <p className="text-2xl font-bold text-white">{assignedDistributors.length}</p>
-                    </div>
-                    <Store className="w-6 h-6 text-[#44f80c]" />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-[#150f24] border-white/10">
-                <CardContent className="p-4 lg:p-6">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">Total Accounts</p>
-                      <p className="text-2xl font-bold text-white">{allAccounts.length}</p>
-                    </div>
-                    <Users className="w-6 h-6 text-[#ff66c4]" />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-[#150f24] border-white/10">
-                <CardContent className="p-4 lg:p-6">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">Monthly Volume</p>
-                      <p className="text-2xl font-bold text-white">$12.5k</p>
-                    </div>
-                    <DollarSign className="w-6 h-6 text-[#9a02d0]" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Search */}
-            <div className="relative mb-6">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-              <Input
-                type="text"
-                placeholder="Search your accounts..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-[#150f24] border-white/10 text-white"
-              />
-            </div>
-
-            {/* Accounts Table */}
-            <Card className="bg-[#150f24] border-white/10 mb-6">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Store className="w-5 h-5 text-[#9a02d0]" />
-                  Your Assigned Accounts
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-white/10">
-                        <TableHead className="text-gray-400">Business</TableHead>
-                        <TableHead className="text-gray-400">Type</TableHead>
-                        <TableHead className="text-gray-400">Location</TableHead>
-                        <TableHead className="text-gray-400">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredAccounts.map((account) => (
-                        <TableRow key={account.id} className="border-white/10 hover:bg-white/5">
-                          <TableCell>
-                            <div>
-                              <p className="text-white font-medium">{account.businessName}</p>
-                              <p className="text-gray-500 text-sm">{account.contactName}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={
-                              'distributor' in account
-                                ? 'bg-[#9a02d0]/20 text-[#9a02d0] border-[#9a02d0]/30'
-                                : 'bg-[#44f80c]/20 text-[#44f80c] border-[#44f80c]/30'
-                            }>
-                              {'distributor' in account ? 'Distributor' : 'Wholesaler'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            {account.city}, {account.state}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={
-                              account.status === 'approved'
-                                ? 'bg-green-500/20 text-green-500'
-                                : 'bg-yellow-500/20 text-yellow-500'
-                            }>
-                              {account.status}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <Building2 className="w-5 h-5 text-[#44f80c]" />
                 </div>
-                {filteredAccounts.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    No accounts found matching your search
-                  </div>
-                )}
               </CardContent>
             </Card>
-
-            {/* Recent Activity */}
             <Card className="bg-[#150f24] border-white/10">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-400 text-xs">Stores</p>
+                    <p className="text-2xl font-bold text-white">{storeCount}</p>
+                  </div>
+                  <Store className="w-5 h-5 text-[#9a02d0]" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-[#150f24] border-white/10">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-400 text-xs">Total Orders</p>
+                    <p className="text-2xl font-bold text-white">{orderSummary.total_orders}</p>
+                  </div>
+                  <ShoppingCart className="w-5 h-5 text-[#ff66c4]" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-[#150f24] border-white/10">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-400 text-xs">Total Volume</p>
+                    <p className="text-2xl font-bold text-white">
+                      ${orderSummary.total_amount.toLocaleString()}
+                    </p>
+                  </div>
+                  <DollarSign className="w-5 h-5 text-[#44f80c]" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Order Summary */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Card className="bg-[#150f24] border-white/10">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-400 text-xs">Paid / Cleared</p>
+                    <p className="text-xl font-bold text-[#44f80c]">
+                      ${orderSummary.paid_amount.toLocaleString()}
+                    </p>
+                  </div>
+                  <ArrowUpRight className="w-5 h-5 text-[#44f80c]" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-[#150f24] border-white/10">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-400 text-xs">Pending Payment</p>
+                    <p className="text-xl font-bold text-yellow-400">
+                      ${orderSummary.pending_amount.toLocaleString()}
+                    </p>
+                  </div>
+                  <ArrowDownRight className="w-5 h-5 text-yellow-400" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-[#150f24] border-white/10">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-400 text-xs">Collection Rate</p>
+                    <p className="text-xl font-bold text-white">
+                      {orderSummary.total_amount > 0
+                        ? Math.round((orderSummary.paid_amount / orderSummary.total_amount) * 100)
+                        : 0}%
+                    </p>
+                  </div>
                   <TrendingUp className="w-5 h-5 text-[#9a02d0]" />
-                  Recent Activity from Your Accounts
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {recentActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-start gap-3 p-3 bg-[#0a0514] rounded-lg">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        activity.type === 'order' ? 'bg-[#44f80c]/20' : 'bg-[#9a02d0]/20'
-                      }`}>
-                        {activity.type === 'order' ? (
-                          <ShoppingCart className="w-4 h-4 text-[#44f80c]" />
-                        ) : (
-                          <Store className="w-4 h-4 text-[#9a02d0]" />
-                        )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Recent Activity */}
+          <Card className="bg-[#150f24] border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
+                <Package className="w-4 h-4 text-[#9a02d0]" />
+                Recent Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {recentActivity.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Package className="w-10 h-10 mx-auto mb-2 text-gray-600" />
+                  <p className="text-gray-400">No recent activity</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentActivity.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-start gap-3 p-3 bg-[#0a0514] rounded-lg border border-white/5"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-[#9a02d0]/20 flex items-center justify-center flex-shrink-0">
+                        <TrendingUp className="w-4 h-4 text-[#9a02d0]" />
                       </div>
-                      <div className="flex-1">
-                        <p className="text-white text-sm">{activity.account}</p>
-                        {activity.amount && (
-                          <p className="text-[#44f80c] text-sm">{activity.amount}</p>
-                        )}
-                        <p className="text-gray-500 text-xs">{activity.date}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm">{item.details}</p>
+                        <p className="text-gray-500 text-xs">
+                          {new Date(item.created_at).toLocaleDateString()} at{' '}
+                          {new Date(item.created_at).toLocaleTimeString()}
+                        </p>
                       </div>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </main>
-      </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </main>
     </div>
-  );
+  )
 }

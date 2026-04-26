@@ -1,71 +1,137 @@
-import { Link } from 'react-router-dom';
-import { DistributorSidebar } from '@/components/distributor/DistributorSidebar';
+import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, FileText, Download, Eye } from 'lucide-react';
+import { DistributorSidebar } from '@/components/distributor/DistributorSidebar';
 import { UserInfoBar } from '@/components/UserInfoBar';
-
-const invoices = [
-  { id: 'INV-2026-001', invoiceNumber: 'INV-001', amount: 1250.0, dueDate: '2026-05-15', status: 'open' },
-  { id: 'INV-2026-002', invoiceNumber: 'INV-002', amount: 2100.5, dueDate: '2026-05-10', status: 'open' },
-  { id: 'INV-2026-003', invoiceNumber: 'INV-003', amount: 850.0, dueDate: '2026-04-30', status: 'paid' },
-];
-
-const getStatusBadge = (status: string) => {
-  const styles: Record<string, string> = {
-    open: 'bg-orange-500/20 text-orange-500',
-    paid: 'bg-green-500/20 text-green-500',
-    overdue: 'bg-red-500/20 text-red-500',
-  };
-  return styles[status] || 'bg-gray-500/20 text-gray-500';
-};
+import { toast } from 'sonner';
+import { formatDate } from '@/lib/utils';
+import {
+  Receipt,
+  Loader2,
+  Download,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+} from 'lucide-react';
 
 export function DistributorInvoices() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [invoices, setInvoices] = useState<any[]>([]);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error('Please log in first');
+      navigate('/distributor-portal');
+      return;
+    }
+
+    const { data: userData } = await supabase
+      .from('users')
+      .select('id, role')
+      .eq('id', session.user.id)
+      .single();
+
+    if (!userData || userData.role !== 'distributor') {
+      toast.error('Access denied');
+      navigate('/');
+      return;
+    }
+
+    const { data: invoicesData } = await supabase
+      .from('invoices')
+      .select('id, order_id, amount, status, due_date, paid_at, created_at')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false });
+
+    setInvoices(invoicesData || []);
+    setLoading(false);
+  }, [navigate]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0514] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#9a02d0]" />
+      </div>
+    );
+  }
+
+  const statusConfig: Record<string, { icon: any; color: string; label: string }> = {
+    open: { icon: Clock, color: 'text-yellow-400 bg-yellow-400/10', label: 'Open' },
+    paid: { icon: CheckCircle, color: 'text-[#44f80c] bg-[#44f80c]/10', label: 'Paid' },
+    overdue: { icon: AlertCircle, color: 'text-red-400 bg-red-400/10', label: 'Overdue' },
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0514] flex">
       <DistributorSidebar />
       <main className="flex-1 p-6 lg:p-8 overflow-auto">
         <UserInfoBar />
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-4 mb-8">
-            <Link to="/distributor-dashboard">
-              <Button variant="outline" size="sm" className="border-white/10 text-gray-400">
-                <ArrowLeft className="w-4 h-4 mr-1" />
-                Back
-              </Button>
-            </Link>
-            <h1 className="text-3xl font-bold text-white">My Invoices</h1>
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-white mb-1">Invoices</h1>
+            <p className="text-gray-400 text-sm">
+              {invoices.length} invoice{invoices.length !== 1 ? 's' : ''} total
+            </p>
           </div>
 
           <Card className="bg-[#150f24] border-white/10">
             <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <FileText className="w-5 h-5 text-[#9a02d0]" />
+              <CardTitle className="text-white text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
+                <Receipt className="w-4 h-4 text-[#9a02d0]" />
                 Invoice History
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {invoices.map((invoice) => (
-                  <div key={invoice.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-[#0a0514] rounded-lg border border-white/10">
-                    <div>
-                      <p className="text-white font-medium">{invoice.invoiceNumber}</p>
-                      <p className="text-gray-400 text-sm">Due: {invoice.dueDate}</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <p className="text-white font-bold">${invoice.amount.toFixed(2)}</p>
-                      <Badge className={getStatusBadge(invoice.status)}>{invoice.status}</Badge>
-                      <Button variant="ghost" size="sm" className="text-[#44f80c]">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-gray-400">
-                        <Download className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {invoices.length === 0 ? (
+                <div className="text-center py-12">
+                  <Receipt className="w-12 h-12 mx-auto mb-3 text-gray-600" />
+                  <p className="text-gray-400">No invoices found</p>
+                  <p className="text-gray-500 text-sm mt-1">Invoices will appear when orders are processed.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {invoices.map((invoice) => {
+                    return (
+                      <div key={invoice.id} className="flex items-center justify-between p-4 bg-[#0a0514] rounded-lg border border-white/5">
+                        <div className="flex items-center gap-4">
+                          <div className={`p-2 rounded-lg ${statusConfig[invoice.status]?.color || 'bg-gray-700'}`}>
+                            <Receipt className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-white font-medium">Invoice #{invoice.id.slice(0, 8)}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${statusConfig[invoice.status]?.color || 'bg-gray-700'}`}>
+                                {statusConfig[invoice.status]?.label || invoice.status}
+                              </span>
+                            </div>
+                            <p className="text-gray-500 text-xs mt-0.5">
+                              Order #{invoice.order_id?.slice(0, 8)} • Due: {formatDate(invoice.due_date)}
+                            </p>
+                            {invoice.paid_at && (
+                              <p className="text-[#44f80c] text-xs mt-0.5">Paid on {formatDate(invoice.paid_at)}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <p className="text-white font-bold">${invoice.amount?.toLocaleString()}</p>
+                          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

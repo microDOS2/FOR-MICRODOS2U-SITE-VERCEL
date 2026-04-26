@@ -88,9 +88,10 @@ export function OrdersPage() {
     // Log audit
     await supabase.from('audit_log').insert([{
       action: 'order_created',
-      entity_type: 'order',
-      entity_id: orderData.id,
-      details: `Order created with auto-invoice for ${formatCurrency(total)}`
+      table_name: 'orders',
+      record_id: orderData.id,
+      old_data: null,
+      new_data: JSON.stringify({ total_amount: total, status: 'pending', auto_invoice: true })
     }])
 
     setShowModal(false)

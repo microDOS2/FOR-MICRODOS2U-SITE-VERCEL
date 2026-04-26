@@ -1,64 +1,99 @@
-import { ShoppingCart, FileText, FileSignature, TrendingUp } from 'lucide-react';
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { ShoppingCart, Receipt, FileText, AlertCircle } from 'lucide-react'
 
-interface StatCardProps {
-  title: string;
-  value: string;
-  subtitle: string;
-  icon: React.ElementType;
-  trend?: string;
+interface Stats {
+  totalOrders: number
+  pendingOrders: number
+  openInvoices: number
+  pendingAgreements: number
 }
 
-function StatCard({ title, value, subtitle, icon: Icon, trend }: StatCardProps) {
+interface DistributorStatsProps {
+  userId: string
+}
+
+export function DistributorStats({ userId }: DistributorStatsProps) {
+  const [stats, setStats] = useState<Stats>({
+    totalOrders: 0,
+    pendingOrders: 0,
+    openInvoices: 0,
+    pendingAgreements: 0,
+  })
+
+  useEffect(() => {
+    async function fetchStats() {
+      // Total orders
+      const { count: totalOrders } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+
+      // Pending orders
+      const { count: pendingOrders } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('status', 'pending')
+
+      // Open invoices
+      const { data: openInvoicesData } = await supabase
+        .from('invoices')
+        .select('amount')
+        .eq('user_id', userId)
+        .eq('status', 'open')
+
+      // Pending agreements
+      const { count: pendingAgreements } = await supabase
+        .from('agreements')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('status', 'pending')
+
+      setStats({
+        totalOrders: totalOrders || 0,
+        pendingOrders: pendingOrders || 0,
+        openInvoices: (openInvoicesData || []).reduce((sum, inv) => sum + (inv.amount || 0), 0),
+        pendingAgreements: pendingAgreements || 0,
+      })
+    }
+
+    fetchStats()
+  }, [userId])
+
   return (
-    <div className="bg-[#150f24] rounded-xl border border-white/10 p-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-gray-400 text-sm mb-1">{title}</p>
-          <p className="text-2xl font-bold text-white mb-1">{value}</p>
-          <p className="text-gray-500 text-sm">{subtitle}</p>
-          {trend && (
-            <div className="flex items-center gap-1 mt-2 text-[#44f80c] text-sm">
-              <TrendingUp className="w-4 h-4" />
-              <span>{trend}</span>
-            </div>
-          )}
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="bg-[#150f24] border border-white/10 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-2">
+          <ShoppingCart className="w-5 h-5 text-[#44f80c]" />
+          <span className="text-2xl font-bold text-white">{stats.totalOrders}</span>
         </div>
-        <div className="w-12 h-12 bg-[#0a0514] rounded-lg flex items-center justify-center">
-          <Icon className="w-6 h-6 text-[#9a02d0]" />
+        <p className="text-gray-400 text-sm">Total Orders</p>
+      </div>
+
+      <div className="bg-[#150f24] border border-white/10 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-2">
+          <AlertCircle className="w-5 h-5 text-yellow-400" />
+          <span className="text-2xl font-bold text-white">{stats.pendingOrders}</span>
         </div>
+        <p className="text-gray-400 text-sm">Pending Orders</p>
+      </div>
+
+      <div className="bg-[#150f24] border border-white/10 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-2">
+          <Receipt className="w-5 h-5 text-[#9a02d0]" />
+          <span className="text-2xl font-bold text-white">${stats.openInvoices.toLocaleString()}</span>
+        </div>
+        <p className="text-gray-400 text-sm">Open Invoices</p>
+      </div>
+
+      <div className="bg-[#150f24] border border-white/10 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-2">
+          <FileText className="w-5 h-5 text-[#ff66c4]" />
+          <span className="text-2xl font-bold text-white">{stats.pendingAgreements}</span>
+        </div>
+        <p className="text-gray-400 text-sm">Pending Agreements</p>
       </div>
     </div>
-  );
-}
-
-export function DistributorStats() {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <StatCard
-        title="Total Orders"
-        value="24"
-        subtitle="This month"
-        icon={ShoppingCart}
-        trend="+12% from last month"
-      />
-      <StatCard
-        title="Pending Orders"
-        value="3"
-        subtitle="Awaiting fulfillment"
-        icon={ShoppingCart}
-      />
-      <StatCard
-        title="Open Invoices"
-        value="$4,250.00"
-        subtitle="Due within 30 days"
-        icon={FileText}
-      />
-      <StatCard
-        title="Pending Agreements"
-        value="1"
-        subtitle="Awaiting signature"
-        icon={FileSignature}
-      />
-    </div>
-  );
+  )
 }

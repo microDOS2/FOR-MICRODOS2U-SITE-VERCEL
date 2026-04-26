@@ -1,240 +1,244 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { DistributorSidebar } from '@/components/distributor/DistributorSidebar';
 import { DistributorStats } from '@/components/distributor/DistributorStats';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { UserInfoBar } from '@/components/UserInfoBar';
+import { toast } from 'sonner';
+import { formatDate } from '@/lib/utils';
 import {
   ShoppingCart,
   FileText,
-  FileSignature,
-  Package,
-  Eye,
-  Download,
-  PenTool,
+  Receipt,
   ArrowRight,
+  Loader2,
+  Package,
+  FileCheck,
 } from 'lucide-react';
-import { CartDrawer } from '@/components/cart/CartDrawer';
-import { CartButton } from '@/components/cart/CartButton';
-import { UserInfoBar } from '@/components/UserInfoBar';
-
-// Mock data for recent orders
-const recentOrders = [
-  { id: 'ORD-2026-001', date: '2026-04-15', items: 3, total: 1250.0, status: 'processing' },
-  { id: 'ORD-2026-002', date: '2026-04-10', items: 5, total: 2100.5, status: 'shipped' },
-  { id: 'ORD-2026-003', date: '2026-04-05', items: 2, total: 850.0, status: 'delivered' },
-  { id: 'ORD-2026-004', date: '2026-03-28', items: 4, total: 1800.0, status: 'delivered' },
-];
-
-// Mock data for pending agreements
-const pendingAgreements = [
-  { id: 'AGR-001', title: 'Distributor Agreement 2026', version: '2.1', sentDate: '2026-04-10', status: 'pending' },
-];
-
-// Mock data for open invoices
-const openInvoices = [
-  { id: 'INV-2026-001', invoiceNumber: 'INV-001', amount: 1250.0, dueDate: '2026-05-15', status: 'open' },
-  { id: 'INV-2026-002', invoiceNumber: 'INV-002', amount: 2100.5, dueDate: '2026-05-10', status: 'open' },
-];
-
-const getStatusBadge = (status: string) => {
-  const styles: Record<string, string> = {
-    pending: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30',
-    processing: 'bg-blue-500/20 text-blue-500 border-blue-500/30',
-    shipped: 'bg-purple-500/20 text-purple-500 border-purple-500/30',
-    delivered: 'bg-green-500/20 text-green-500 border-green-500/30',
-    open: 'bg-orange-500/20 text-orange-500 border-orange-500/30',
-    paid: 'bg-green-500/20 text-green-500 border-green-500/30',
-  };
-  return styles[status] || 'bg-gray-500/20 text-gray-500';
-};
 
 export function DistributorDashboard() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [openInvoices, setOpenInvoices] = useState<any[]>([]);
+  const [pendingAgreements, setPendingAgreements] = useState<any[]>([]);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error('Please log in first');
+      navigate('/distributor-portal');
+      return;
+    }
+
+    const { data: userData } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+
+    if (!userData || userData.role !== 'distributor') {
+      toast.error('Access denied');
+      navigate('/');
+      return;
+    }
+
+    setUser(userData);
+
+    // Recent orders
+    const { data: ordersData } = await supabase
+      .from('orders')
+      .select('id, total_amount, status, created_at')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    setRecentOrders(ordersData || []);
+
+    // Open invoices
+    const { data: invoicesData } = await supabase
+      .from('invoices')
+      .select('id, order_id, amount, status, due_date')
+      .eq('user_id', session.user.id)
+      .eq('status', 'open')
+      .order('due_date', { ascending: true })
+      .limit(5);
+    setOpenInvoices(invoicesData || []);
+
+    // Pending agreements
+    const { data: agreementsData } = await supabase
+      .from('agreements')
+      .select('id, title, version, status, sent_date')
+      .eq('user_id', session.user.id)
+      .eq('status', 'pending')
+      .order('sent_date', { ascending: false })
+      .limit(5);
+    setPendingAgreements(agreementsData || []);
+
+    setLoading(false);
+  }, [navigate]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0514] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#9a02d0]" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0514] flex">
       <DistributorSidebar />
-      
       <main className="flex-1 p-6 lg:p-8 overflow-auto">
         <UserInfoBar />
-        <CartDrawer />
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-1">
-                Distributor Dashboard
-              </h1>
-              <p className="text-gray-400">
-                Welcome back! Here's what's happening with your account.
-              </p>
+              <h1 className="text-2xl font-bold text-white mb-1">Distributor Dashboard</h1>
+              <p className="text-gray-400">Welcome back, {user?.business_name || user?.email}</p>
             </div>
-            <div className="flex items-center gap-3">
-              <Link to="/products">
-                <Button className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white hover:opacity-90">
-                  <Package className="w-4 h-4 mr-2" />
-                  Browse Products
-                </Button>
-              </Link>
-              <CartButton />
-            </div>
+            <Button
+              onClick={() => navigate('/distributor-orders')}
+              className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white"
+            >
+              <ShoppingCart className="w-4 h-4 mr-2" />
+              New Order
+            </Button>
           </div>
 
           {/* Stats */}
-          <div className="mb-8">
-            <DistributorStats />
-          </div>
+          <DistributorStats userId={user?.id} />
 
-          {/* Main Grid */}
+          {/* Recent Activity Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Recent Orders */}
             <Card className="bg-[#150f24] border-white/10">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-white flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5 text-[#9a02d0]" />
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-white text-lg flex items-center gap-2">
+                  <Package className="w-5 h-5 text-[#44f80c]" />
                   Recent Orders
                 </CardTitle>
-                <Link to="/distributor-orders">
-                  <Button variant="ghost" size="sm" className="text-[#9a02d0] hover:text-[#ff66c4]">
-                    View All
-                    <ArrowRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/distributor-orders')}
+                  className="text-[#9a02d0] hover:text-[#ff66c4]"
+                >
+                  View All <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-white/10 hover:bg-transparent">
-                      <TableHead className="text-gray-400">Order #</TableHead>
-                      <TableHead className="text-gray-400">Date</TableHead>
-                      <TableHead className="text-gray-400">Total</TableHead>
-                      <TableHead className="text-gray-400">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                {recentOrders.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Package className="w-10 h-10 mx-auto mb-2 text-gray-600" />
+                    <p>No orders yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
                     {recentOrders.map((order) => (
-                      <TableRow key={order.id} className="border-white/10 hover:bg-white/5">
-                        <TableCell className="text-white font-medium">{order.id}</TableCell>
-                        <TableCell className="text-gray-400">{order.date}</TableCell>
-                        <TableCell className="text-white">
-                          ${order.total.toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusBadge(order.status)}>
+                      <div key={order.id} className="flex items-center justify-between p-3 bg-[#0a0514] rounded-lg border border-white/5">
+                        <div>
+                          <p className="text-white text-sm font-medium">Order #{order.id.slice(0, 8)}</p>
+                          <p className="text-gray-500 text-xs">{formatDate(order.created_at)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-white font-medium">${order.total_amount?.toLocaleString()}</p>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            order.status === 'completed' ? 'bg-[#44f80c]/20 text-[#44f80c]' :
+                            order.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                            'bg-gray-700 text-gray-400'
+                          }`}>
                             {order.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
+                          </span>
+                        </div>
+                      </div>
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
             {/* Open Invoices */}
             <Card className="bg-[#150f24] border-white/10">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-white flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-[#9a02d0]" />
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-white text-lg flex items-center gap-2">
+                  <Receipt className="w-5 h-5 text-[#9a02d0]" />
                   Open Invoices
                 </CardTitle>
-                <Link to="/distributor-invoices">
-                  <Button variant="ghost" size="sm" className="text-[#9a02d0] hover:text-[#ff66c4]">
-                    View All
-                    <ArrowRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/distributor-invoices')}
+                  className="text-[#9a02d0] hover:text-[#ff66c4]"
+                >
+                  View All <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-white/10 hover:bg-transparent">
-                      <TableHead className="text-gray-400">Invoice #</TableHead>
-                      <TableHead className="text-gray-400">Amount</TableHead>
-                      <TableHead className="text-gray-400">Due Date</TableHead>
-                      <TableHead className="text-gray-400">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                {openInvoices.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Receipt className="w-10 h-10 mx-auto mb-2 text-gray-600" />
+                    <p>No open invoices</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
                     {openInvoices.map((invoice) => (
-                      <TableRow key={invoice.id} className="border-white/10 hover:bg-white/5">
-                        <TableCell className="text-white font-medium">
-                          {invoice.invoiceNumber}
-                        </TableCell>
-                        <TableCell className="text-white">
-                          ${invoice.amount.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-gray-400">{invoice.dueDate}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm" className="text-[#44f80c] hover:text-[#44f80c]/80">
-                            <Eye className="w-4 h-4 mr-1" />
-                            View
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+                      <div key={invoice.id} className="flex items-center justify-between p-3 bg-[#0a0514] rounded-lg border border-white/5">
+                        <div>
+                          <p className="text-white text-sm font-medium">Invoice #{invoice.id.slice(0, 8)}</p>
+                          <p className="text-gray-500 text-xs">Due: {formatDate(invoice.due_date)}</p>
+                        </div>
+                        <p className="text-white font-medium">${invoice.amount?.toLocaleString()}</p>
+                      </div>
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
             {/* Pending Agreements */}
-            <Card className="bg-[#150f24] border-white/10 lg:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-white flex items-center gap-2">
-                  <FileSignature className="w-5 h-5 text-[#9a02d0]" />
+            <Card className="bg-[#150f24] border-white/10">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-white text-lg flex items-center gap-2">
+                  <FileCheck className="w-5 h-5 text-[#ff66c4]" />
                   Pending Agreements
                 </CardTitle>
-                <Link to="/distributor-agreements">
-                  <Button variant="ghost" size="sm" className="text-[#9a02d0] hover:text-[#ff66c4]">
-                    View All
-                    <ArrowRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/distributor-agreements')}
+                  className="text-[#9a02d0] hover:text-[#ff66c4]"
+                >
+                  View All <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
               </CardHeader>
               <CardContent>
-                {pendingAgreements.length > 0 ? (
-                  <div className="space-y-4">
-                    {pendingAgreements.map((agreement) => (
-                      <div
-                        key={agreement.id}
-                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-[#0a0514] rounded-lg border border-white/10"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-[#9a02d0]/20 rounded-lg flex items-center justify-center">
-                            <FileSignature className="w-5 h-5 text-[#9a02d0]" />
-                          </div>
-                          <div>
-                            <h4 className="text-white font-medium">{agreement.title}</h4>
-                            <p className="text-gray-400 text-sm">
-                              Version {agreement.version} • Sent on {agreement.sentDate}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" className="border-white/10 text-gray-300 hover:bg-white/5">
-                            <Download className="w-4 h-4 mr-1" />
-                            Download
-                          </Button>
-                          <Button size="sm" className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white hover:opacity-90">
-                            <PenTool className="w-4 h-4 mr-1" />
-                            Review & Sign
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                {pendingAgreements.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <FileText className="w-10 h-10 mx-auto mb-2 text-gray-600" />
+                    <p>No pending agreements</p>
                   </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <FileSignature className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                    <p className="text-gray-400">No pending agreements</p>
+                  <div className="space-y-3">
+                    {pendingAgreements.map((agreement) => (
+                      <div key={agreement.id} className="flex items-center justify-between p-3 bg-[#0a0514] rounded-lg border border-white/5">
+                        <div>
+                          <p className="text-white text-sm font-medium">{agreement.title}</p>
+                          <p className="text-gray-500 text-xs">Version {agreement.version} • Sent: {formatDate(agreement.sent_date)}</p>
+                        </div>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400">
+                          Pending
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>

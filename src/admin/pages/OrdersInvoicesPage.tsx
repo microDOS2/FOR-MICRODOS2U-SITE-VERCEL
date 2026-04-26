@@ -182,6 +182,25 @@ export function OrdersInvoicesPage() {
       return
     }
 
+    // Insert order_items for the created order
+    if (data && selectedVariant) {
+      const product = products.find(p => p.id === selectedVariant.product_id)
+      const { error: itemsError } = await supabase.from('order_items').insert({
+        order_id: data.id,
+        product_id: selectedVariant.product_id,
+        variant_id: selectedVariant.id,
+        product_name: product?.name || '',
+        variant_name: selectedVariant.name,
+        sku: selectedVariant.sku,
+        quantity: orderForm.quantity,
+        unit_price: unitPrice,
+        line_total: lineTotal,
+      });
+      if (itemsError) {
+        console.error('[CreateOrder] order_items error:', itemsError);
+      }
+    }
+
     toast.success('Order created successfully! Invoice auto-generated.')
     setShowCreateOrder(false)
     setOrderForm({ userId: '', productId: '', variantId: '', quantity: 1, shippingAddress: '', contactPerson: '', contactPhone: '', notes: '' })

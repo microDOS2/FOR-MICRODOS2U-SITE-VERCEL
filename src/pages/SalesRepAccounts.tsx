@@ -59,26 +59,18 @@ export function SalesRepAccounts() {
       return
     }
 
-    // Get account assignments
-    const { data: assignments } = await supabase
-      .from('rep_account_assignments')
-      .select('account_id')
-      .eq('rep_id', repId)
+    // Get accounts + manager info via RPC (bypasses RLS)
+    const { data: acctJson } = await supabase
+      .rpc('get_my_accounts', { p_rep_id: repId })
 
-    const accountIds = (assignments || []).map((a: any) => a.account_id)
-    if (accountIds.length === 0) {
+    if (!acctJson || acctJson.length === 0) {
       setAccounts([])
       setLoading(false)
       return
     }
 
-    // Get account details with manager names
-    const { data: accountData } = await supabase
-      .from('users')
-      .select('id, business_name, email, phone, role, city, state, address, referral_code, manager_id')
-      .in('id', accountIds)
-      .order('business_name', { ascending: true })
-
+    // Get stores for these accounts
+    const accountIds = (acctJson || []).map((a: any) => a.id)
     const { data: storesData } = await supabase
       .from('wholesaler_store_locations')
       .select('id, name, city, state, user_id')
@@ -91,49 +83,24 @@ export function SalesRepAccounts() {
       storesByUser.set(s.user_id, list)
     })
 
-    // Get manager info via RPC (bypasses RLS)
-    const accountIdsForMgr = (accountData || []).map((u: any) => u.id)
-    const { data: managerJson } = await supabase
-      .rpc('get_managers_for_accounts', { p_account_ids: accountIdsForMgr })
-
-    const managerMap = new Map<string, {
-      manager_name: string | null
-      manager_email: string | null
-      manager_phone: string | null
-      manager_city: string | null
-      manager_state: string | null
-    }>()
-    ;(managerJson || []).forEach((m: any) => {
-      managerMap.set(m.id, {
-        manager_name: m.manager_name || 'Unassigned',
-        manager_email: m.manager_email,
-        manager_phone: m.manager_phone,
-        manager_city: m.manager_city,
-        manager_state: m.manager_state,
-      })
-    })
-
-    const accts: AccountData[] = (accountData || []).map((u: any) => {
-      const mgr = managerMap.get(u.id)
-      return {
-        id: u.id,
-        business_name: u.business_name,
-        email: u.email,
-        phone: u.phone,
-        role: u.role,
-        city: u.city,
-        state: u.state,
-        address: u.address,
-        referral_code: u.referral_code || '',
-        manager_id: u.manager_id || null,
-        manager_name: mgr?.manager_name || 'Unassigned',
-        manager_city: mgr?.manager_city || null,
-        manager_state: mgr?.manager_state || null,
-        manager_email: mgr?.manager_email || null,
-        manager_phone: mgr?.manager_phone || null,
-        stores: storesByUser.get(u.id) || [],
-      }
-    })
+    const accts: AccountData[] = (acctJson || []).map((u: any) => ({
+      id: u.id,
+      business_name: u.business_name,
+      email: u.email,
+      phone: u.phone,
+      role: u.role,
+      city: u.city,
+      state: u.state,
+      address: u.address,
+      referral_code: u.referral_code || '',
+      manager_id: u.manager_id || null,
+      manager_name: u.manager_name || 'Unassigned',
+      manager_city: u.manager_city || null,
+      manager_state: u.manager_state || null,
+      manager_email: u.manager_email || null,
+      manager_phone: u.manager_phone || null,
+      stores: storesByUser.get(u.id) || [],
+    }))
 
     setAccounts(accts)
     setLoading(false)

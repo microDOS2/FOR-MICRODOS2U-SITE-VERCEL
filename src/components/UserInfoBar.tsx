@@ -51,12 +51,9 @@ export function UserInfoBar() {
         states = (stateData || []).map((s: any) => s.state_code)
       }
       if (data.role === 'sales_rep' && data.manager_id) {
-        const { data: mgr } = await supabase
-          .from('users')
-          .select('business_name, email')
-          .eq('id', data.manager_id)
-          .single()
-        manager_name = mgr?.business_name || mgr?.email || 'Unknown'
+        const { data: mgrJson } = await supabase
+          .rpc('get_my_manager', { p_rep_id: session.user.id })
+        manager_name = mgrJson?.manager_name || mgrJson?.manager_email || 'Unknown'
       }
       setUser({ ...data, states, manager_name } as UserInfo)
       setLoading(false)

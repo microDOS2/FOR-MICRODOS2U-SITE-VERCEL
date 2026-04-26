@@ -120,12 +120,41 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       .select()
       .single();
 
-    if (orderError) {
+    if (orderError || !orderData) {
       console.error('[placeOrder] order insert error:', orderError);
-      throw new Error('Failed to create order: ' + orderError.message);
+      throw new Error('Failed to create order: ' + (orderError?.message || 'Unknown'));
     }
 
-    // The auto-invoice trigger creates the invoice automatically
+    // 2. Lookup variant IDs by SKU and insert order_items
+    const skuList = items.map(i => i.sku);
+    const { data: variantData } = await supabase
+      .from('product_variants')
+      .select('id,product_id,sku')
+      .in('sku', skuList);
+
+    const variantMap = new Map((variantData || []).map((v: any) => [v.sku, v]));
+
+    const orderItems = items.map(item => {
+      const v = variantMap.get(item.sku);
+      return {
+        order_id: orderData.id,
+        product_id: v?.product_id || null,
+        variant_id: v?.id || null,
+        product_name: item.productName,
+        variant_name: item.packagingName,
+        sku: item.sku,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+        line_total: item.totalPrice,
+      };
+    });
+
+    const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+    if (itemsError) {
+      console.error('[placeOrder] order_items insert error:', itemsError);
+    }
+
+    // 3. The auto-invoice trigger creates the invoice automatically
     // Fetch the created invoice for the result
     const { data: invoiceData } = await supabase
       .from('invoices')

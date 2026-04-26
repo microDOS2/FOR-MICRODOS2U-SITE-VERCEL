@@ -165,7 +165,7 @@ export function OrdersInvoicesPage() {
     if (!selectedUser || !selectedVariant) return
 
     setOrderSubmitting(true)
-    const { error } = await supabase.from('orders').insert({
+    const { data: orderData, error } = await supabase.from('orders').insert({
       user_id: orderForm.userId,
       items: orderForm.quantity,
       total: lineTotal,
@@ -174,19 +174,19 @@ export function OrdersInvoicesPage() {
       shipping_address: orderForm.shippingAddress || [selectedUser.address, selectedUser.city, selectedUser.state, selectedUser.zip].filter(Boolean).join(', ') || null,
       contact_person: orderForm.contactPerson || selectedUser.business_name || null,
       contact_phone: orderForm.contactPhone || selectedUser.phone || null,
-    })
+    }).select().single()
 
     setOrderSubmitting(false)
-    if (error) {
-      toast.error('Failed to create order: ' + error.message)
+    if (error || !orderData) {
+      toast.error('Failed to create order: ' + (error?.message || 'Unknown'))
       return
     }
 
     // Insert order_items for the created order
-    if (data && selectedVariant) {
+    if (selectedVariant) {
       const product = products.find(p => p.id === selectedVariant.product_id)
       const { error: itemsError } = await supabase.from('order_items').insert({
-        order_id: data.id,
+        order_id: orderData.id,
         product_id: selectedVariant.product_id,
         variant_id: selectedVariant.id,
         product_name: product?.name || '',

@@ -86,36 +86,6 @@ type InvoiceStatus = 'pending' | 'paid' | 'overdue' | 'cancelled';
 type AgreementStatus = 'pending' | 'sent' | 'signed' | 'active' | 'expired';
 type AgreementType = 'wholesale' | 'terms' | 'nda' | 'compliance';
 
-interface OrderRow {
-  id: string;
-  po_number: string;
-  items: number;
-  total: number;
-  status: OrderStatus;
-  created_at: string;
-  notes?: string | null;
-  order_items?: {
-    id: string;
-    product_name: string;
-    variant_name: string;
-    sku: string;
-    quantity: number;
-    unit_price: number;
-    line_total: number;
-  }[];
-}
-
-interface InvoiceRow {
-  id: string;
-  invoice_number: string;
-  order_id: string | null;
-  amount: number;
-  status: InvoiceStatus;
-  date: string;
-  due_date: string;
-  orders?: any;
-}
-
 interface AgreementRow {
   id: string;
   title: string;

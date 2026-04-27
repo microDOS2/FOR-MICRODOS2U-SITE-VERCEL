@@ -362,6 +362,7 @@ export function OrdersInvoicesPage() {
           <div className="relative flex-grow lg:flex-grow-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
+              id="admin-search-input"
               type="text"
               placeholder={view === 'orders' ? 'Search PO or business...' : 'Search invoice or business...'}
               value={search}
@@ -458,6 +459,7 @@ export function OrdersInvoicesPage() {
               <div>
                 <label className="block text-sm text-gray-400 mb-1.5">Business Customer *</label>
                 <select
+                  id="form-select-4241840"
                   value={orderForm.userId}
                   onChange={e => {
                     const user = businessUsers.find(u => u.id === e.target.value)
@@ -485,7 +487,8 @@ export function OrdersInvoicesPage() {
                 <div>
                   <label className="block text-sm text-gray-400 mb-1.5">Product *</label>
                   <select
-                    value={orderForm.productId}
+                  id="form-select-4241840"
+                  value={orderForm.productId}
                     onChange={e => setOrderForm({ ...orderForm, productId: e.target.value, variantId: '' })}
                     className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
                   >
@@ -498,7 +501,8 @@ export function OrdersInvoicesPage() {
                 <div>
                   <label className="block text-sm text-gray-400 mb-1.5">Package *</label>
                   <select
-                    value={orderForm.variantId}
+                  id="form-select-4241840"
+                  value={orderForm.variantId}
                     onChange={e => setOrderForm({ ...orderForm, variantId: e.target.value })}
                     disabled={!orderForm.productId}
                     className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50 disabled:opacity-40"
@@ -536,6 +540,7 @@ export function OrdersInvoicesPage() {
                 <div>
                   <label className="block text-sm text-gray-400 mb-1.5">Quantity *</label>
                   <input
+                    id="order-qty"
                     type="number"
                     min={1}
                     value={orderForm.quantity}
@@ -559,6 +564,7 @@ export function OrdersInvoicesPage() {
                 <div>
                   <label className="block text-sm text-gray-400 mb-1.5">Shipping Address</label>
                   <input
+                    id="order-shipping"
                     type="text"
                     value={orderForm.shippingAddress}
                     onChange={e => setOrderForm({ ...orderForm, shippingAddress: e.target.value })}
@@ -570,6 +576,7 @@ export function OrdersInvoicesPage() {
                   <div>
                     <label className="block text-sm text-gray-400 mb-1.5">Contact Person</label>
                     <input
+                      id="order-contact"
                       type="text"
                       value={orderForm.contactPerson}
                       onChange={e => setOrderForm({ ...orderForm, contactPerson: e.target.value })}
@@ -579,6 +586,7 @@ export function OrdersInvoicesPage() {
                   <div>
                     <label className="block text-sm text-gray-400 mb-1.5">Contact Phone</label>
                     <input
+                      id="order-phone"
                       type="text"
                       value={orderForm.contactPhone}
                       onChange={e => setOrderForm({ ...orderForm, contactPhone: e.target.value })}
@@ -592,6 +600,7 @@ export function OrdersInvoicesPage() {
               <div>
                 <label className="block text-sm text-gray-400 mb-1.5">Order Notes</label>
                 <textarea
+                  id="order-notes"
                   value={orderForm.notes}
                   onChange={e => setOrderForm({ ...orderForm, notes: e.target.value })}
                   rows={3}
@@ -643,6 +652,7 @@ export function OrdersInvoicesPage() {
               <div>
                 <label className="block text-sm text-gray-400 mb-1.5">Business Customer *</label>
                 <select
+                  id="form-select-4241840"
                   value={invoiceForm.userId}
                   onChange={e => setInvoiceForm({ ...invoiceForm, userId: e.target.value })}
                   className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
@@ -661,6 +671,7 @@ export function OrdersInvoicesPage() {
                 <div>
                   <label className="block text-sm text-gray-400 mb-1.5">Amount *</label>
                   <input
+                    id="invoice-amount"
                     type="number"
                     min={0.01}
                     step={0.01}
@@ -673,6 +684,7 @@ export function OrdersInvoicesPage() {
                 <div>
                   <label className="block text-sm text-gray-400 mb-1.5">Due Date</label>
                   <input
+                    id="invoice-due-date"
                     type="date"
                     value={invoiceForm.dueDate}
                     onChange={e => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })}
@@ -685,6 +697,7 @@ export function OrdersInvoicesPage() {
               <div>
                 <label className="block text-sm text-gray-400 mb-1.5">Link to Order (optional)</label>
                 <select
+                  id="form-select-4241840"
                   value={invoiceForm.orderId}
                   onChange={e => setInvoiceForm({ ...invoiceForm, orderId: e.target.value })}
                   className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
@@ -702,6 +715,7 @@ export function OrdersInvoicesPage() {
               <div>
                 <label className="block text-sm text-gray-400 mb-1.5">Description / Notes</label>
                 <textarea
+                  id="invoice-description"
                   value={invoiceForm.description}
                   onChange={e => setInvoiceForm({ ...invoiceForm, description: e.target.value })}
                   rows={3}

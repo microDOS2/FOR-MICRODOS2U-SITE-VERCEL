@@ -105,12 +105,23 @@ export function OrdersInvoicesPage() {
   })
   const [orderSubmitting, setOrderSubmitting] = useState(false)
 
+  // Create Invoice modal state
+  const [showCreateInvoice, setShowCreateInvoice] = useState(false)
+  const [invoiceForm, setInvoiceForm] = useState({
+    userId: '',
+    amount: '',
+    dueDate: '',
+    description: '',
+    orderId: '',
+  })
+  const [invoiceSubmitting, setInvoiceSubmitting] = useState(false)
+
   useEffect(() => { fetchData() }, [])
   useEffect(() => {
-    if (showCreateOrder) {
+    if (showCreateOrder || showCreateInvoice) {
       fetchProductsAndUsers()
     }
-  }, [showCreateOrder])
+  }, [showCreateOrder, showCreateInvoice])
 
   const fetchData = async () => {
     setLoading(true)
@@ -204,6 +215,43 @@ export function OrdersInvoicesPage() {
     toast.success('Order created successfully! Invoice auto-generated.')
     setShowCreateOrder(false)
     setOrderForm({ userId: '', productId: '', variantId: '', quantity: 1, shippingAddress: '', contactPerson: '', contactPhone: '', notes: '' })
+    fetchData()
+  }
+
+  const handleCreateInvoice = async () => {
+    if (!invoiceForm.userId || !invoiceForm.amount) {
+      toast.error('Please select a customer and enter an amount')
+      return
+    }
+    const amount = parseFloat(invoiceForm.amount)
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount')
+      return
+    }
+
+    setInvoiceSubmitting(true)
+    const today = new Date().toISOString().split('T')[0]
+    const dueDate = invoiceForm.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+    const { data: invoiceData, error } = await supabase.from('invoices').insert({
+      user_id: invoiceForm.userId,
+      amount: amount,
+      status: 'pending',
+      date: today,
+      due_date: dueDate,
+      order_id: invoiceForm.orderId || null,
+      paid_method: invoiceForm.description || null,
+    }).select().single()
+
+    setInvoiceSubmitting(false)
+    if (error || !invoiceData) {
+      toast.error('Failed to create invoice: ' + (error?.message || 'Unknown'))
+      return
+    }
+
+    toast.success(`Invoice ${invoiceData.invoice_number} created successfully!`)
+    setShowCreateInvoice(false)
+    setInvoiceForm({ userId: '', amount: '', dueDate: '', description: '', orderId: '' })
     fetchData()
   }
 
@@ -326,6 +374,12 @@ export function OrdersInvoicesPage() {
             className="flex items-center gap-2 px-4 py-2.5 bg-[#44f80c]/10 hover:bg-[#44f80c]/20 text-[#44f80c] border border-[#44f80c]/20 rounded-lg text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" /> Create Order
+          </button>
+          <button
+            onClick={() => setShowCreateInvoice(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0]/10 hover:bg-[#9a02d0]/20 text-[#9a02d0] border border-[#9a02d0]/20 rounded-lg text-sm font-medium transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Create Invoice
           </button>
           <button className="flex items-center gap-2 px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 transition-colors">
             <Download className="w-4 h-4" /> Export
@@ -567,6 +621,117 @@ export function OrdersInvoicesPage() {
           </div>
         </div>
       )}
+      {/* ─── Create Invoice Modal ─────────────────────────────── */}
+      {showCreateInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#150f24] border border-white/10 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="sticky top-0 bg-[#150f24] border-b border-white/10 p-4 flex items-center justify-between z-10">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <Plus className="w-5 h-5 text-[#9a02d0]" />
+                Create New Invoice
+              </h2>
+              <button
+                onClick={() => setShowCreateInvoice(false)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Customer */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1.5">Business Customer *</label>
+                <select
+                  value={invoiceForm.userId}
+                  onChange={e => setInvoiceForm({ ...invoiceForm, userId: e.target.value })}
+                  className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                >
+                  <option value="">Select a wholesaler or distributor...</option>
+                  {businessUsers.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.business_name || u.email} ({u.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Amount + Due Date */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1.5">Amount *</label>
+                  <input
+                    type="number"
+                    min={0.01}
+                    step={0.01}
+                    value={invoiceForm.amount}
+                    onChange={e => setInvoiceForm({ ...invoiceForm, amount: e.target.value })}
+                    placeholder="0.00"
+                    className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1.5">Due Date</label>
+                  <input
+                    type="date"
+                    value={invoiceForm.dueDate}
+                    onChange={e => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })}
+                    className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                  />
+                </div>
+              </div>
+
+              {/* Link to Order (optional) */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1.5">Link to Order (optional)</label>
+                <select
+                  value={invoiceForm.orderId}
+                  onChange={e => setInvoiceForm({ ...invoiceForm, orderId: e.target.value })}
+                  className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                >
+                  <option value="">None — standalone invoice</option>
+                  {orders.map(o => (
+                    <option key={o.id} value={o.id}>
+                      {o.po_number} — {o.profiles?.business_name || 'Unknown'} — ${o.total}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1.5">Description / Notes</label>
+                <textarea
+                  value={invoiceForm.description}
+                  onChange={e => setInvoiceForm({ ...invoiceForm, description: e.target.value })}
+                  rows={3}
+                  placeholder="e.g. Late fee, shipping adjustment, past-due balance..."
+                  className="w-full bg-[#0a0514] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                />
+              </div>
+
+              {/* Submit */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={handleCreateInvoice}
+                  disabled={invoiceSubmitting || !invoiceForm.userId || !invoiceForm.amount}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#9a02d0] to-[#ff66c4] text-white rounded-lg text-sm font-bold transition-opacity hover:opacity-90 disabled:opacity-40"
+                >
+                  {invoiceSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  {invoiceSubmitting ? 'Creating...' : 'Create Invoice'}
+                </button>
+                <button
+                  onClick={() => setShowCreateInvoice(false)}
+                  className="px-6 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

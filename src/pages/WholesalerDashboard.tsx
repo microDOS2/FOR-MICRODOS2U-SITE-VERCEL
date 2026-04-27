@@ -174,8 +174,8 @@ export function WholesalerDashboard() {
       if (iErr) console.error('[WholesalerDashboard] invoices error:', iErr);
       if (aErr) console.error('[WholesalerDashboard] agreements error:', aErr);
 
-      setOrders((o as OrderRow[]) || []);
-      setInvoices((i as InvoiceRow[]) || []);
+      setOrders((o as any[]) || []);
+      setInvoices((i as any[]) || []);
       setAgreements((a as AgreementRow[]) || []);
       setDataLoading(false);
     };
@@ -190,8 +190,8 @@ export function WholesalerDashboard() {
   const [orderFilter, setOrderFilter] = useState('all');
 
   // Real data from Supabase
-  const [orders, setOrders] = useState<OrderRow[]>([]);
-  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [agreements, setAgreements] = useState<AgreementRow[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
 
@@ -759,7 +759,7 @@ export function WholesalerDashboard() {
                                   <span className="text-center">Qty</span>
                                   <span className="text-right">Line Total</span>
                                 </div>
-                                {order.order_items.map((item) => (
+                                {order.order_items.map((item: any) => (
                                   <div key={item.id} className="grid grid-cols-5 gap-2 text-sm">
                                     <span className="text-white">{item.product_name}</span>
                                     <span className="text-gray-300">{item.variant_name}</span>
@@ -859,7 +859,7 @@ export function WholesalerDashboard() {
                                   <span className="text-center">Qty</span>
                                   <span className="text-right">Line Total</span>
                                 </div>
-                                {invoice.orders.order_items.map((item) => (
+                                {invoice.orders.order_items.map((item: any) => (
                                   <div key={item.id} className="grid grid-cols-5 gap-2 text-sm">
                                     <span className="text-white">{item.product_name}</span>
                                     <span className="text-gray-300">{item.variant_name}</span>

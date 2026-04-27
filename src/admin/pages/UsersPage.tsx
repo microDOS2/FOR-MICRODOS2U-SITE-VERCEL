@@ -71,6 +71,7 @@ const roleLabels: Record<string, string> = {
   wholesaler: 'Wholesaler',
   distributor: 'Distributor',
   influencer: 'Influencer',
+  shipping_fulfillment: 'Shipping / Fulfillment',
 }
 
 const roleBadgeClasses: Record<string, string> = {
@@ -80,6 +81,7 @@ const roleBadgeClasses: Record<string, string> = {
   wholesaler: 'bg-[#44f80c]/20 text-[#44f80c]',
   distributor: 'bg-[#ff66c4]/20 text-[#ff66c4]',
   influencer: 'bg-orange-500/20 text-orange-500',
+  shipping_fulfillment: 'bg-cyan-500/20 text-cyan-500',
 }
 
 const ALL_US_STATES = [
@@ -182,7 +184,7 @@ export function UsersPage() {
   type FilterMode = 'all' | 'employees' | 'business'
   const [filterMode, setFilterMode] = useState<FilterMode>('all')
 
-  const employeeRoles = ['admin', 'sales_manager', 'sales_rep']
+  const employeeRoles = ['admin', 'sales_manager', 'sales_rep', 'shipping_fulfillment']
   const businessRoles = ['wholesaler', 'distributor', 'influencer']
 
   // Inline manager assignment
@@ -908,6 +910,7 @@ export function UsersPage() {
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="sales_manager">Sales Manager</SelectItem>
                   <SelectItem value="sales_rep">Sales Rep</SelectItem>
+                  <SelectItem value="shipping_fulfillment">Shipping / Fulfillment</SelectItem>
                 </SelectContent>
               </Select>
               <div className="flex items-start gap-2 mt-2 p-2 bg-[#ff66c4]/10 border border-[#ff66c4]/20 rounded-lg">

@@ -25,6 +25,8 @@ import { AdminPortal } from './pages/AdminPortal';
 import { Products } from './pages/Products';
 import { InfluencerPortal } from './pages/InfluencerPortal';
 import { InfluencerDashboard } from './pages/InfluencerDashboard';
+import { ShippingPortal } from './pages/ShippingPortal';
+import { ShippingDashboard } from './pages/ShippingDashboard';
 import { Navigation } from './components/Navigation';
 import { Footer } from './components/Footer';
 import { CartProvider } from './context/CartContext';
@@ -75,6 +77,8 @@ function AppContent() {
     '/products',
     '/influencer-portal',
     '/influencer-dashboard',
+    '/shipping-portal',
+    '/shipping-dashboard',
   ].includes(location.pathname) || location.pathname.startsWith('/admin');
 
   return (
@@ -122,6 +126,8 @@ function AppContent() {
           <Route path="/products" element={<Products />} />
           <Route path="/influencer-portal" element={<InfluencerPortal />} />
           <Route path="/influencer-dashboard" element={<InfluencerDashboard />} />
+          <Route path="/shipping-portal" element={<ShippingPortal />} />
+          <Route path="/shipping-dashboard" element={<ShippingDashboard />} />
 
           {/* Admin Command Center — /admin/* */}
           <Route path="/admin" element={<AdminLayout />}>

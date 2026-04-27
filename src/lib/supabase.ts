@@ -5,7 +5,7 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export type UserRole = 'admin' | 'sales_manager' | 'sales_rep' | 'wholesaler' | 'distributor' | 'influencer';
+export type UserRole = 'admin' | 'sales_manager' | 'sales_rep' | 'wholesaler' | 'distributor' | 'influencer' | 'shipping_fulfillment';
 
 export interface Application {
   id: string;

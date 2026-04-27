@@ -73,6 +73,9 @@ export function Navigation() {
           case 'sales_rep':
             navigate('/sales-rep-dashboard');
             break;
+          case 'shipping_fulfillment':
+            navigate('/shipping-dashboard');
+            break;
           case 'distributor':
             navigate('/distributor-dashboard');
             break;

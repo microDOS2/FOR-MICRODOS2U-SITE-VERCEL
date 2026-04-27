@@ -38,8 +38,6 @@ import { ApplicationsPage } from './admin/pages/ApplicationsPage';
 import { AccountsPage } from './admin/pages/AssignmentsPage';
 import { InfluencersPage } from './admin/pages/InfluencersPage';
 import { ProductsPage } from './admin/pages/ProductsPage';
-import { OrdersPage } from './admin/pages/OrdersPage';
-import { InvoicesPage } from './admin/pages/InvoicesPage';
 import { AgreementsPage } from './admin/pages/AgreementsPage';
 import { StoresPage } from './admin/pages/StoresPage';
 import { ApprovalsPage } from './admin/pages/ApprovalsPage';
@@ -134,8 +132,6 @@ function AppContent() {
           <Route path="assignments" element={<Navigate to="/admin/accounts" replace />} />
             <Route path="influencers" element={<InfluencersPage />} />
             <Route path="products" element={<ProductsPage />} />
-            <Route path="orders" element={<OrdersPage />} />
-            <Route path="invoices" element={<InvoicesPage />} />
             <Route path="agreements" element={<AgreementsPage />} />
             <Route path="orders-invoices" element={<OrdersInvoicesPage />} />
             <Route path="fulfillment" element={<Navigate to="/admin/orders-invoices" replace />} />

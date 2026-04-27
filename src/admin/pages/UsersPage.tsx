@@ -342,6 +342,8 @@ export function UsersPage() {
         setCreatingUser(false)
         return
       }
+      // Auto-confirm email so user can log in immediately (no verification email)
+      await supabase.rpc('confirm_user_email', { p_email: newUserEmail })
       await supabase.from('users').insert({
         id: authData.user.id,
         email: newUserEmail,

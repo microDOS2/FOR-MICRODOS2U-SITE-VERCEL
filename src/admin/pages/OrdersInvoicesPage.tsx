@@ -4,8 +4,9 @@ import { formatCurrency } from '@/lib/utils'
 import {
   Search, Download, CheckCircle, Truck, FileText, ShoppingCart,
   Loader2, Building2,
-  Phone, Mail, MapPin, User, Plus, X
+  Phone, Mail, MapPin, User, Plus, X, CreditCard
 } from 'lucide-react'
+import { PaymentService } from '@/lib/paymentService'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -879,6 +880,33 @@ function OrderCard({
             >
               {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
               Mark as Paid (Wire)
+            </button>
+            {/* Phase 9: Pay Now — placeholder for High Wire integration */}
+            <button
+              onClick={async () => {
+                try {
+                  const config = await PaymentService.getConfig()
+                  if (!config.clientId) {
+                    toast.info('Payment processor not configured. Add credentials in Admin → Config.')
+                    return
+                  }
+                  const intent = await PaymentService.createPaymentIntent({
+                    invoiceId: invoice.id,
+                    amount: invoice.amount,
+                    customerEmail: order.users?.email || '',
+                    description: `Invoice ${invoice.invoice_number}`,
+                  })
+                  toast.success(`Payment link created: ${intent.id}`)
+                  console.log('Payment intent:', intent)
+                } catch (err: any) {
+                  toast.error('Payment link failed: ' + err.message)
+                }
+              }}
+              disabled={isProcessing}
+              className="flex items-center gap-2 px-4 py-2 bg-[#44f80c]/10 hover:bg-[#44f80c]/20 text-[#44f80c] rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              <CreditCard className="w-4 h-4" />
+              Pay Now (Online)
             </button>
           </>
         )}

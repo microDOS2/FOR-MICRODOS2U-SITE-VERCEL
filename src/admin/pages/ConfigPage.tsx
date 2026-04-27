@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
-import { Search, Plus, Pencil, Trash2, X, Save, Settings, Users, Store, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, X, Save, Settings, Users, Store, ToggleLeft, ToggleRight, CreditCard, Link, Server, Key } from 'lucide-react'
 
 interface ConfigItem {
   id: string
@@ -180,6 +180,55 @@ export function ConfigPage() {
               <Badge className={influencerAppsEnabled ? 'bg-green-500/20 text-green-400' : 'bg-gray-800 text-gray-500'}>
                 {influencerAppsEnabled ? 'Enabled' : 'Disabled'}
               </Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Payment Processor Configuration */}
+      <Card className="bg-[#150f24] border-white/10">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-[#44f80c]" />
+            Payment Processor — High Wire Payments
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-3 bg-[#0a0514] rounded-lg border border-white/10">
+              <Server className="w-5 h-5 text-[#44f80c] mt-0.5" />
+              <div>
+                <p className="text-white font-medium">Processor</p>
+                <p className="text-gray-400 text-sm">High Wire Payments (high-risk merchant services)</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-[#0a0514] rounded-lg border border-white/10">
+              <Link className="w-5 h-5 text-[#ff66c4] mt-0.5" />
+              <div>
+                <p className="text-white font-medium">Integration Status</p>
+                <p className="text-gray-400 text-sm">
+                  Placeholder / hook mode — API credentials required from High Wire account manager.
+                  When credentials are entered below, the &quot;Pay Now&quot; button will appear on invoices.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-[#0a0514] rounded-lg border border-white/10">
+              <Key className="w-5 h-5 text-yellow-500 mt-0.5" />
+              <div>
+                <p className="text-white font-medium">Required Credentials</p>
+                <ul className="text-gray-400 text-sm space-y-1 mt-1">
+                  <li>• Client ID / Merchant ID</li>
+                  <li>• API Key / Secret</li>
+                  <li>• API Endpoint URL (test or live)</li>
+                  <li>• Webhook Secret (for payment notifications)</li>
+                </ul>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-sm text-gray-500">
+                Credentials are stored in app_config (see table below — keys prefixed with <code className="text-[#44f80c]">payment_</code>).
+              </p>
+              <Badge className="bg-yellow-500/10 text-yellow-400">NOT CONFIGURED</Badge>
             </div>
           </div>
         </CardContent>

@@ -1056,7 +1056,7 @@ export function UsersPage() {
                 </select>
               </div>
             )}
-            {editingUser && ['sales_rep', 'sales_manager', 'admin'].includes(editingUser.role || '') && (
+            {editingUser && ['sales_rep', 'sales_manager', 'admin', 'shipping_fulfillment'].includes(editingUser.role || '') && (
               <div>
                 <Label className="text-gray-300">Password</Label>
                 <Input

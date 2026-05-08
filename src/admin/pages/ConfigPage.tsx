@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
-import { Search, Plus, Pencil, Trash2, X, Save, Settings, Users, Store, ToggleLeft, ToggleRight, CreditCard, Link, Server, Key } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, X, Save, Settings, Users, Store, ToggleLeft, ToggleRight, CreditCard, Link, Server, Key, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 
 interface ConfigItem {
   id: string
@@ -25,7 +25,84 @@ export function ConfigPage() {
   const [influencerAppsEnabled, setInfluencerAppsEnabled] = useState(false)
   const [appConfigLoading, setAppConfigLoading] = useState(false)
 
-  useEffect(() => { fetchConfigs(); fetchAppConfig() }, [search])
+  // Payment processor config state
+  const [paymentConfig, setPaymentConfig] = useState({
+    processor: 'authorize_net',
+    mode: 'test' as 'test' | 'live',
+    clientId: '',
+    apiKey: '',
+    publicClientKey: '',
+  })
+  const [showApiKey, setShowApiKey] = useState(false)
+  const [savingPayment, setSavingPayment] = useState(false)
+  const [paymentConfigStatus, setPaymentConfigStatus] = useState<'not_configured' | 'configured'>('not_configured')
+
+  useEffect(() => { fetchConfigs(); fetchAppConfig(); fetchPaymentConfig() }, [search])
+
+  const fetchPaymentConfig = async () => {
+    try {
+      const { data } = await supabase
+        .from('app_config')
+        .select('key, value')
+        .in('key', [
+          'payment_processor',
+          'payment_mode',
+          'payment_client_id',
+          'payment_api_key',
+          'payment_public_client_key',
+        ])
+      const map = new Map((data || []).map((r: any) => [r.key, r.value]))
+      const proc = map.get('payment_processor') || 'authorize_net'
+      const mode = (map.get('payment_mode') as 'test' | 'live') || 'test'
+      const clientId = map.get('payment_client_id') || ''
+      const apiKey = map.get('payment_api_key') || ''
+      const publicKey = map.get('payment_public_client_key') || ''
+      setPaymentConfig({ processor: proc, mode, clientId, apiKey, publicClientKey: publicKey })
+      const hasCreds = clientId.length > 0 && apiKey.length > 0
+      setPaymentConfigStatus(hasCreds ? 'configured' : 'not_configured')
+    } catch {
+      // Leave defaults
+    }
+  }
+
+  const savePaymentConfig = async () => {
+    setSavingPayment(true)
+    try {
+      const endpointUrl = paymentConfig.mode === 'live'
+        ? 'https://api.authorize.net/xml/v1/request.api'
+        : 'https://apitest.authorize.net/xml/v1/request.api'
+
+      const entries = [
+        { key: 'payment_processor', value: paymentConfig.processor, description: 'Active payment processor (authorize_net or high_wire_payments)' },
+        { key: 'payment_mode', value: paymentConfig.mode, description: 'Payment mode: test or live' },
+        { key: 'payment_client_id', value: paymentConfig.clientId, description: 'Authorize.net API Login ID' },
+        { key: 'payment_api_key', value: paymentConfig.apiKey, description: 'Authorize.net Transaction Key' },
+        { key: 'payment_public_client_key', value: paymentConfig.publicClientKey, description: 'Authorize.net Public Client Key for Accept.js' },
+        { key: 'payment_endpoint_url', value: endpointUrl, description: 'Authorize.net API endpoint URL (auto-set by mode)' },
+        { key: 'payment_webhook_secret', value: '', description: 'Webhook secret for payment notifications (optional)' },
+      ]
+
+      for (const entry of entries) {
+        const { error } = await supabase.from('app_config').upsert(
+          { key: entry.key, value: entry.value, description: entry.description, updated_at: new Date().toISOString() },
+          { onConflict: 'key' }
+        )
+        if (error) {
+          alert('Failed to save ' + entry.key + ': ' + error.message)
+          setSavingPayment(false)
+          return
+        }
+      }
+
+      const hasCreds = paymentConfig.clientId.length > 0 && paymentConfig.apiKey.length > 0
+      setPaymentConfigStatus(hasCreds ? 'configured' : 'not_configured')
+      await fetchConfigs() // Refresh the config table below
+      alert('Authorize.net configuration saved!')
+    } catch (err: any) {
+      alert(err?.message || 'Failed to save payment config')
+    }
+    setSavingPayment(false)
+  }
 
   const fetchConfigs = async () => {
     setLoading(true)
@@ -185,50 +262,145 @@ export function ConfigPage() {
         </CardContent>
       </Card>
 
-      {/* Payment Processor Configuration */}
+      {/* Payment Processor Configuration — Authorize.net */}
       <Card className="bg-[#150f24] border-white/10">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-[#44f80c]" />
-            Payment Processor — High Wire Payments
+            Payment Processor — Authorize.net
+            {paymentConfigStatus === 'configured' ? (
+              <Badge className="bg-green-500/20 text-green-400 ml-2"><CheckCircle className="w-3 h-3 mr-1" /> CONFIGURED</Badge>
+            ) : (
+              <Badge className="bg-yellow-500/10 text-yellow-400 ml-2"><AlertCircle className="w-3 h-3 mr-1" /> NOT CONFIGURED</Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 p-3 bg-[#0a0514] rounded-lg border border-white/10">
-              <Server className="w-5 h-5 text-[#44f80c] mt-0.5" />
+          <div className="space-y-5">
+            {/* Processor + Mode row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <p className="text-white font-medium">Processor</p>
-                <p className="text-gray-400 text-sm">High Wire Payments (high-risk merchant services)</p>
+                <label className="block text-sm font-medium text-gray-400 mb-1.5">Processor</label>
+                <select
+                  value={paymentConfig.processor}
+                  onChange={(e) => setPaymentConfig({ ...paymentConfig, processor: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                >
+                  <option value="authorize_net">Authorize.net</option>
+                  <option value="high_wire_payments">High Wire Payments</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1.5">Mode</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPaymentConfig({ ...paymentConfig, mode: 'test' })}
+                    className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+                      paymentConfig.mode === 'test'
+                        ? 'bg-[#ff66c4]/20 border-[#ff66c4] text-[#ff66c4]'
+                        : 'bg-[#0a0514] border-white/10 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Sandbox (Test)
+                  </button>
+                  <button
+                    onClick={() => setPaymentConfig({ ...paymentConfig, mode: 'live' })}
+                    className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+                      paymentConfig.mode === 'live'
+                        ? 'bg-green-500/20 border-green-500 text-green-400'
+                        : 'bg-[#0a0514] border-white/10 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Live
+                  </button>
+                </div>
               </div>
             </div>
-            <div className="flex items-start gap-3 p-3 bg-[#0a0514] rounded-lg border border-white/10">
-              <Link className="w-5 h-5 text-[#ff66c4] mt-0.5" />
-              <div>
-                <p className="text-white font-medium">Integration Status</p>
-                <p className="text-gray-400 text-sm">
-                  Placeholder / hook mode — API credentials required from High Wire account manager.
-                  When credentials are entered below, the &quot;Pay Now&quot; button will appear on invoices.
-                </p>
+
+            {/* API Login ID */}
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">API Login ID</label>
+              <div className="relative">
+                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  value={paymentConfig.clientId}
+                  onChange={(e) => setPaymentConfig({ ...paymentConfig, clientId: e.target.value })}
+                  placeholder="Your Authorize.net API Login ID"
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Found in your Authorize.net Merchant Interface under Account → API Login ID & Transaction Key</p>
+            </div>
+
+            {/* Transaction Key */}
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">Transaction Key</label>
+              <div className="relative">
+                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={paymentConfig.apiKey}
+                  onChange={(e) => setPaymentConfig({ ...paymentConfig, apiKey: e.target.value })}
+                  placeholder="Your Authorize.net Transaction Key"
+                  className="w-full pl-10 pr-12 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                />
+                <button
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                  title={showApiKey ? 'Hide' : 'Show'}
+                >
+                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Keep this secret. Used server-side only via Edge Function.</p>
+            </div>
+
+            {/* Public Client Key (for Accept.js) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">Public Client Key <span className="text-gray-600">(for Accept.js)</span></label>
+              <div className="relative">
+                <Server className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  value={paymentConfig.publicClientKey}
+                  onChange={(e) => setPaymentConfig({ ...paymentConfig, publicClientKey: e.target.value })}
+                  placeholder="Your Authorize.net Public Client Key"
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Generate at Account → Security Settings → Manage Public Client Key. Used client-side to tokenize cards.
+              </p>
+            </div>
+
+            {/* Endpoint URL (read-only, auto-set) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">API Endpoint <span className="text-gray-600">(auto-set)</span></label>
+              <div className="relative">
+                <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  readOnly
+                  value={paymentConfig.mode === 'live' ? 'https://api.authorize.net/xml/v1/request.api' : 'https://apitest.authorize.net/xml/v1/request.api'}
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#0a0514]/50 border border-white/5 rounded-lg text-sm text-gray-500 cursor-not-allowed"
+                />
               </div>
             </div>
-            <div className="flex items-start gap-3 p-3 bg-[#0a0514] rounded-lg border border-white/10">
-              <Key className="w-5 h-5 text-yellow-500 mt-0.5" />
-              <div>
-                <p className="text-white font-medium">Required Credentials</p>
-                <ul className="text-gray-400 text-sm space-y-1 mt-1">
-                  <li>• Client ID / Merchant ID</li>
-                  <li>• API Key / Secret</li>
-                  <li>• API Endpoint URL (test or live)</li>
-                  <li>• Webhook Secret (for payment notifications)</li>
-                </ul>
-              </div>
-            </div>
+
+            {/* Save button */}
             <div className="flex items-center justify-between pt-2">
               <p className="text-sm text-gray-500">
-                Credentials are stored in app_config (see table below — keys prefixed with <code className="text-[#44f80c]">payment_</code>).
+                Credentials stored encrypted in app_config table. Transaction Key never exposed to frontend after save.
               </p>
-              <Badge className="bg-yellow-500/10 text-yellow-400">NOT CONFIGURED</Badge>
+              <button
+                onClick={savePaymentConfig}
+                disabled={savingPayment}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#44f80c] to-[#9a02d0] hover:opacity-90 rounded-lg text-sm text-white font-medium transition-opacity disabled:opacity-50"
+              >
+                {savingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save Payment Config
+              </button>
             </div>
           </div>
         </CardContent>

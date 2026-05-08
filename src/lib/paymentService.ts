@@ -1,19 +1,16 @@
 /**
- * PaymentService — Abstraction layer for High Wire Payments
+ * PaymentService — Abstraction layer for payment processing
  * Phase 9: Payment Processor Hook
  *
- * This module provides a clean interface for all payment operations.
- * When High Wire API credentials are available, replace the mock
- * implementations in each method with real API calls.
- *
  * Supported processors (configured via app_config):
- * - 'high_wire_payments' (primary)
+ * - 'authorize_net' (ACTIVE — Accept.js + Edge Function)
+ * - 'high_wire_payments' (placeholder)
  * - 'stripe' (future)
  * - 'square' (future)
- * - 'authorize_net' (future)
  */
 
 import { supabase } from '@/lib/supabase';
+import { getAuthorizeNetConfig } from './authorizeNetService';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -85,6 +82,13 @@ async function getPaymentConfig(): Promise<PaymentConfig> {
 
 function generateIntentId(): string {
   return `pi_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────
+
+async function isAuthorizeNetEnabled(): Promise<boolean> {
+  const cfg = await getAuthorizeNetConfig()
+  return cfg.enabled
 }
 
 // ─── Service Methods ─────────────────────────────────────────────────
@@ -270,9 +274,17 @@ export const PaymentService = {
 
   /**
    * Build a customer-facing payment link for an invoice.
-   * Returns a URL the wholesaler/distributor can click to pay online.
+   * For Authorize.net, returns '#authorize-net' as a signal to open
+   * the CheckoutModal. For legacy/mock, returns a placeholder URL.
    */
   async getInvoicePaymentUrl(invoiceId: string, amount: number, customerEmail: string): Promise<string | null> {
+    const authNetEnabled = await isAuthorizeNetEnabled()
+    if (authNetEnabled) {
+      // Signal to the UI: open CheckoutModal with Authorize.net
+      return '#authorize-net'
+    }
+
+    // Legacy mock flow
     const intent = await PaymentService.createPaymentIntent({
       invoiceId,
       amount,

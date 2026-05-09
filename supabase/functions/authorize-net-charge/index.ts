@@ -40,30 +40,26 @@ interface AuthorizeNetResponse {
   }
 }
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, content-type, apikey',
+}
+
+function jsonResponse(body: object, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      ...CORS_HEADERS,
+    },
+  })
+}
+
 serve(async (req) => {
-  // ─── CORS ───
+  // ─── CORS Preflight ───
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, content-type, apikey',
-      },
-    })
-  }
-
-  // ─── Auth check ───
-  const authHeader = req.headers.get('Authorization') || ''
-  const apiKey = req.headers.get('apikey') || ''
-
-  // Verify the caller is authenticated via Supabase
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
-  if (!authHeader && !apiKey) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return new Response(null, { status: 204, headers: CORS_HEADERS })
   }
 
   try {
@@ -75,9 +71,12 @@ serve(async (req) => {
     const isSandbox = (Deno.env.get('AUTHORIZE_NET_MODE') || 'test') === 'test'
 
     if (!apiLoginId || !transactionKey) {
-      return new Response(
-        JSON.stringify({ error: 'Payment processor not configured. Set AUTHORIZE_NET_API_LOGIN_ID and AUTHORIZE_NET_TRANSACTION_KEY in Supabase secrets.' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      return jsonResponse(
+        {
+          success: false,
+          error: 'Payment processor not configured. Set AUTHORIZE_NET_API_LOGIN_ID and AUTHORIZE_NET_TRANSACTION_KEY in Supabase secrets.',
+        },
+        500
       )
     }
 
@@ -116,9 +115,7 @@ serve(async (req) => {
     // ─── Call Authorize.net ───
     const response = await fetch(endpointUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
 
@@ -132,14 +129,7 @@ serve(async (req) => {
     if (overallResult !== 'Ok') {
       const apiError = result.messages?.message?.[0]?.text || 'Unknown Authorize.net error'
       const apiCode = result.messages?.message?.[0]?.code || 'E00001'
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: apiError,
-          code: apiCode,
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      )
+      return jsonResponse({ success: false, error: apiError, code: apiCode }, 400)
     }
 
     // Handle transaction-level errors
@@ -151,43 +141,26 @@ serve(async (req) => {
         || txResponse?.messages?.[0]?.code
         || '0'
 
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: txError,
-          code: txErrorCode,
-          transactionId: txResponse?.transId || null,
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      return jsonResponse(
+        { success: false, error: txError, code: txErrorCode, transactionId: txResponse?.transId || null },
+        400
       )
     }
 
     // ─── Success ───
-    return new Response(
-      JSON.stringify({
-        success: true,
-        transactionId: txResponse.transId,
-        authCode: txResponse.authCode,
-        avsResultCode: txResponse.avsResultCode,
-        cvvResultCode: txResponse.cvvResultCode,
-        accountNumber: txResponse.accountNumber,
-        accountType: txResponse.accountType,
-        message: txResponse.messages?.[0]?.description || 'Transaction approved',
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      }
-    )
+    return jsonResponse({
+      success: true,
+      transactionId: txResponse.transId,
+      authCode: txResponse.authCode,
+      avsResultCode: txResponse.avsResultCode,
+      cvvResultCode: txResponse.cvvResultCode,
+      accountNumber: txResponse.accountNumber,
+      accountType: txResponse.accountType,
+      message: txResponse.messages?.[0]?.description || 'Transaction approved',
+    }, 200)
 
   } catch (err: any) {
     console.error('[authorize-net-charge] Error:', err)
-    return new Response(
-      JSON.stringify({ success: false, error: err.message || 'Internal error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    )
+    return jsonResponse({ success: false, error: err.message || 'Internal error' }, 500)
   }
 })

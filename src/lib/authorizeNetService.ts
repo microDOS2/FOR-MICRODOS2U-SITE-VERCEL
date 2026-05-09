@@ -44,8 +44,9 @@ export interface AuthorizeNetConfig {
 
 let scriptLoaded = false
 let scriptLoading: Promise<void> | null = null
+const SUPABASE_URL = 'https://fildaxejimuvfrcqmoba.supabase.co'
 
-function loadAcceptJs(mode: 'test' | 'live'): Promise<void> {
+function loadAcceptJs(mode: 'test' | 'live', retries = 2): Promise<void> {
   if (scriptLoaded) return Promise.resolve()
   if (scriptLoading) return scriptLoading
 
@@ -65,11 +66,44 @@ function loadAcceptJs(mode: 'test' | 'live'): Promise<void> {
     script.src = url
     script.type = 'text/javascript'
     script.charset = 'utf-8'
+    script.async = true
+
+    let timeoutId: ReturnType<typeof setTimeout>
+
+    const cleanup = () => {
+      clearTimeout(timeoutId)
+      script.onload = null
+      script.onerror = null
+    }
+
     script.onload = () => {
+      cleanup()
       scriptLoaded = true
       resolve()
     }
-    script.onerror = () => reject(new Error('Failed to load Accept.js'))
+
+    script.onerror = () => {
+      cleanup()
+      document.head.removeChild(script)
+      if (retries > 0) {
+        scriptLoading = null
+        loadAcceptJs(mode, retries - 1).then(resolve).catch(reject)
+      } else {
+        reject(new Error('Failed to load Accept.js'))
+      }
+    }
+
+    timeoutId = setTimeout(() => {
+      cleanup()
+      document.head.removeChild(script)
+      if (retries > 0) {
+        scriptLoading = null
+        loadAcceptJs(mode, retries - 1).then(resolve).catch(reject)
+      } else {
+        reject(new Error('Accept.js load timed out'))
+      }
+    }, 10000)
+
     document.head.appendChild(script)
   })
 
@@ -182,7 +216,7 @@ export async function chargeCard(
   const { data: sessionData } = await supabase.auth.getSession()
   const accessToken = sessionData?.session?.access_token || ''
 
-  const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/authorize-net-charge`
+  const functionUrl = `${SUPABASE_URL}/functions/v1/authorize-net-charge`
 
   const resp = await fetch(functionUrl, {
     method: 'POST',

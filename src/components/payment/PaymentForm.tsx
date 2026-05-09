@@ -10,7 +10,6 @@ import {
   tokenizeCard,
   chargeCard,
   type AuthorizeNetConfig,
-  type OpaqueData,
 } from '@/lib/authorizeNetService'
 
 interface PaymentFormProps {

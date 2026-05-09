@@ -46,7 +46,25 @@ let scriptLoaded = false
 let scriptLoading: Promise<void> | null = null
 const SUPABASE_URL = 'https://fildaxejimuvfrcqmoba.supabase.co'
 
-function loadAcceptJs(mode: 'test' | 'live', retries = 2): Promise<void> {
+function waitForAcceptJs(maxWait = 5000, interval = 200): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now()
+    const check = () => {
+      if (typeof (window as any).Accept !== 'undefined') {
+        resolve()
+        return
+      }
+      if (Date.now() - startTime > maxWait) {
+        reject(new Error('Accept.js initialized but Accept global not found'))
+        return
+      }
+      setTimeout(check, interval)
+    }
+    check()
+  })
+}
+
+function loadAcceptJs(mode: 'test' | 'live', retries = 3): Promise<void> {
   if (scriptLoaded) return Promise.resolve()
   if (scriptLoading) return scriptLoading
 
@@ -56,17 +74,23 @@ function loadAcceptJs(mode: 'test' | 'live', retries = 2): Promise<void> {
         ? 'https://js.authorize.net/v1/Accept.js'
         : 'https://jstest.authorize.net/v1/Accept.js'
 
+    // If script tag already exists, just wait for Accept global
     if (document.querySelector(`script[src="${url}"]`)) {
-      scriptLoaded = true
-      resolve()
+      console.log('[AuthorizeNet] Script tag already exists, waiting for Accept global...')
+      waitForAcceptJs().then(() => {
+        scriptLoaded = true
+        resolve()
+      }).catch(reject)
       return
     }
+
+    console.log(`[AuthorizeNet] Loading Accept.js from ${url}...`)
 
     const script = document.createElement('script')
     script.src = url
     script.type = 'text/javascript'
     script.charset = 'utf-8'
-    script.async = true
+    script.crossOrigin = 'anonymous'
 
     let timeoutId: ReturnType<typeof setTimeout>
 
@@ -77,32 +101,51 @@ function loadAcceptJs(mode: 'test' | 'live', retries = 2): Promise<void> {
     }
 
     script.onload = () => {
+      console.log('[AuthorizeNet] Script loaded, polling for Accept global...')
       cleanup()
-      scriptLoaded = true
-      resolve()
+      // Script loaded but Accept global may not be ready yet — poll for it
+      waitForAcceptJs(8000, 300).then(() => {
+        console.log('[AuthorizeNet] Accept.js ready')
+        scriptLoaded = true
+        resolve()
+      }).catch((err) => {
+        console.error('[AuthorizeNet] Accept global not found after load:', err)
+        if (retries > 0) {
+          scriptLoading = null
+          document.head.removeChild(script)
+          loadAcceptJs(mode, retries - 1).then(resolve).catch(reject)
+        } else {
+          reject(new Error('Accept.js loaded but Accept global is undefined. Your domain may not be whitelisted in Authorize.net Merchant Interface.'))
+        }
+      })
     }
 
-    script.onerror = () => {
+    script.onerror = (e) => {
       cleanup()
-      document.head.removeChild(script)
+      console.error('[AuthorizeNet] Script load error:', e)
+      if (script.parentNode) document.head.removeChild(script)
       if (retries > 0) {
         scriptLoading = null
-        loadAcceptJs(mode, retries - 1).then(resolve).catch(reject)
+        console.log(`[AuthorizeNet] Retrying... (${retries} attempts left)`)
+        setTimeout(() => {
+          loadAcceptJs(mode, retries - 1).then(resolve).catch(reject)
+        }, 1000)
       } else {
-        reject(new Error('Failed to load Accept.js'))
+        reject(new Error('Failed to load Accept.js — check CSP settings or domain whitelist'))
       }
     }
 
     timeoutId = setTimeout(() => {
       cleanup()
-      document.head.removeChild(script)
+      if (script.parentNode) document.head.removeChild(script)
       if (retries > 0) {
         scriptLoading = null
+        console.log(`[AuthorizeNet] Load timed out, retrying... (${retries} attempts left)`)
         loadAcceptJs(mode, retries - 1).then(resolve).catch(reject)
       } else {
-        reject(new Error('Accept.js load timed out'))
+        reject(new Error('Accept.js load timed out after all retries'))
       }
-    }, 10000)
+    }, 15000)
 
     document.head.appendChild(script)
   })

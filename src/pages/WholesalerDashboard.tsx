@@ -29,6 +29,7 @@ import {
   Lock,
   Building2,
   Save,
+  CreditCard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -62,6 +63,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { CheckoutModal } from '@/components/payment/CheckoutModal';
 
 
 interface StoreLocation {
@@ -175,6 +177,10 @@ export function WholesalerDashboard() {
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+
+  // Payment modal state
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState<{ id: string; amount: number; invoiceNumber: string } | null>(null);
 
   const toggleOrderExpand = (orderId: string) => {
     setExpandedOrders(prev => {
@@ -807,6 +813,24 @@ export function WholesalerDashboard() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
+                            {(invoice.status === 'pending' || invoice.status === 'overdue') && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-[#44f80c] hover:text-[#44f80c]/80 hover:bg-[#44f80c]/10"
+                                onClick={() => {
+                                  setPaymentInvoice({
+                                    id: invoice.id,
+                                    amount: invoice.amount,
+                                    invoiceNumber: invoice.invoice_number,
+                                  });
+                                  setPaymentModalOpen(true);
+                                }}
+                                title="Pay Now"
+                              >
+                                <CreditCard className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" onClick={() => toggleInvoiceExpand(invoice.id)}>
                               <Eye className="w-4 h-4" />
                             </Button>
@@ -1620,6 +1644,42 @@ export function WholesalerDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Payment Modal — Authorize.net Checkout */}
+      {paymentInvoice && (
+        <CheckoutModal
+          open={paymentModalOpen}
+          onClose={() => {
+            setPaymentModalOpen(false);
+            setPaymentInvoice(null);
+          }}
+          amount={paymentInvoice.amount}
+          invoiceId={paymentInvoice.invoiceNumber}
+          customerEmail={user?.email || ''}
+          description={`Payment for Invoice ${paymentInvoice.invoiceNumber}`}
+          onPaymentSuccess={(result) => {
+            supabase
+              .from('invoices')
+              .update({ status: 'paid', transaction_id: result.transactionId })
+              .eq('id', paymentInvoice.id)
+              .then(({ error }) => {
+                if (error) console.error('Failed to update invoice:', error);
+                else {
+                  setInvoices((prev) =>
+                    prev.map((inv) =>
+                      inv.id === paymentInvoice.id
+                        ? { ...inv, status: 'paid', transaction_id: result.transactionId }
+                        : inv
+                    )
+                  );
+                }
+              });
+          }}
+          onPaymentError={(error) => {
+            console.error('Payment error:', error);
+          }}
+        />
+      )}
     </main>
   );
 }

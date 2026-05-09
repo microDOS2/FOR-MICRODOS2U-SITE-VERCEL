@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Building2, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 export function DistributorPortal() {
   const navigate = useNavigate();
@@ -18,7 +19,7 @@ export function DistributorPortal() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       toast.error('Please enter both email and password');
       return;
@@ -26,16 +27,63 @@ export function DistributorPortal() {
 
     setLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    // Mock successful login
-    toast.success('Welcome back!', {
-      description: 'Redirecting to your dashboard...',
-    });
+      if (authError || !authData.user) {
+        toast.error(authError?.message || 'Invalid email or password');
+        setLoading(false);
+        return;
+      }
 
-    setLoading(false);
-    navigate('/distributor-dashboard');
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('role, status')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (userError || !userData) {
+        toast.error('Account not found in distributor database');
+        await supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
+
+      const allowedRoles = ['distributor', 'admin'];
+      if (!allowedRoles.includes(userData.role)) {
+        toast.error(`Access denied. Your role (${userData.role}) cannot access the distributor portal.`);
+        await supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
+
+      if (userData.status === 'pending') {
+        toast.error('Your account is pending approval. Please contact admin.');
+        await supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
+
+      if (rememberMe) {
+        await supabase.auth.setSession({
+          access_token: authData.session!.access_token,
+          refresh_token: authData.session!.refresh_token,
+        });
+      }
+
+      toast.success('Welcome back!', {
+        description: 'Redirecting to your dashboard...',
+      });
+
+      setLoading(false);
+      navigate('/distributor-dashboard');
+    } catch (err: any) {
+      toast.error(err?.message || 'Login failed');
+      setLoading(false);
+    }
   };
 
   return (

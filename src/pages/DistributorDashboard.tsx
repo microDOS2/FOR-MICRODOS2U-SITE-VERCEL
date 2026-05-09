@@ -375,17 +375,19 @@ export function DistributorDashboard() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-brand-800 border-brand-700 cursor-pointer card-hover" onClick={() => setActiveTab('orders')}>
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-[#44f80c]/10 flex items-center justify-center">
-              <ShoppingCart className="w-6 h-6 text-[#44f80c]" />
-            </div>
-            <div>
-              <h3 className="font-bold text-white">Place New Order</h3>
-              <p className="text-sm text-gray-400">Submit a purchase order</p>
-            </div>
-          </CardContent>
-        </Card>
+        <Link to="/products">
+          <Card className="bg-brand-800 border-brand-700 cursor-pointer card-hover">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg bg-[#44f80c]/10 flex items-center justify-center">
+                <ShoppingCart className="w-6 h-6 text-[#44f80c]" />
+              </div>
+              <div>
+                <h3 className="font-bold text-white">Place New Order</h3>
+                <p className="text-sm text-gray-400">Browse products and submit a purchase order</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
         <Card className="bg-brand-800 border-brand-700 cursor-pointer card-hover" onClick={() => setActiveTab('invoices')}>
           <CardContent className="p-6 flex items-center gap-4">
             <div className="w-12 h-12 rounded-lg bg-[#9a02d0]/10 flex items-center justify-center">
@@ -950,6 +952,14 @@ export function DistributorDashboard() {
               )}
             </button>
           ))}
+
+          <Link
+            to="/products"
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-brand-700 transition-colors"
+          >
+            <Package className="w-5 h-5" />
+            <span>Products</span>
+          </Link>
 
           <div className="pt-4 border-t border-brand-700 mt-4">
             <button

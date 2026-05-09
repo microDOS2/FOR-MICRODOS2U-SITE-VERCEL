@@ -1,10 +1,8 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 interface ChargeRequest {
-  opaqueData: {
-    dataDescriptor: string
-    dataValue: string
-  }
+  opaqueData: { dataDescriptor: string; dataValue: string }
   amount: string
   invoiceId: string
   customerEmail: string
@@ -14,84 +12,61 @@ interface ChargeRequest {
 interface AuthorizeNetResponse {
   messages: {
     resultCode: string
-    message: Array<{
-      code: string
-      text: string
-    }>
+    message: Array<{ code: string; text: string }>
   }
   transactionResponse?: {
     responseCode: string
+    transId: string
     authCode: string
     avsResultCode: string
     cvvResultCode: string
-    transId: string
-    refTransID: string
-    transHash: string
     accountNumber: string
     accountType: string
-    messages?: Array<{
-      code: string
-      description: string
-    }>
-    errors?: Array<{
-      errorCode: string
-      errorText: string
-    }>
+    messages?: Array<{ code: string; description: string }>
+    errors?: Array<{ errorCode: string; errorText: string }>
   }
 }
 
-const CORS_HEADERS = {
+const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, content-type, apikey',
 }
 
-function jsonResponse(body: object, status = 200): Response {
+function json(body: object, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: {
-      'Content-Type': 'application/json',
-      ...CORS_HEADERS,
-    },
+    headers: { 'Content-Type': 'application/json', ...CORS },
   })
 }
 
 serve(async (req) => {
-  // ─── CORS Preflight ───
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: CORS_HEADERS })
+    return new Response(null, { status: 204, headers: CORS })
   }
+
+  const supabaseAdmin = createClient(
+    'https://fildaxejimuvfrcqmoba.supabase.co',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+  )
 
   try {
     const body: ChargeRequest = await req.json()
+    const loginId = Deno.env.get('AUTHORIZE_NET_API_LOGIN_ID') || ''
+    const txKey = Deno.env.get('AUTHORIZE_NET_TRANSACTION_KEY') || ''
+    const sandbox = (Deno.env.get('AUTHORIZE_NET_MODE') || 'test') === 'test'
 
-    // ─── Get merchant credentials from env ───
-    const apiLoginId = Deno.env.get('AUTHORIZE_NET_API_LOGIN_ID') || ''
-    const transactionKey = Deno.env.get('AUTHORIZE_NET_TRANSACTION_KEY') || ''
-    const isSandbox = (Deno.env.get('AUTHORIZE_NET_MODE') || 'test') === 'test'
-
-    if (!apiLoginId || !transactionKey) {
-      return jsonResponse(
-        {
-          success: false,
-          error: 'Payment processor not configured. Set AUTHORIZE_NET_API_LOGIN_ID and AUTHORIZE_NET_TRANSACTION_KEY in Supabase secrets.',
-        },
-        500
-      )
+    if (!loginId || !txKey) {
+      return json({ success: false, error: 'Payment processor not configured' }, 500)
     }
 
-    const endpointUrl = isSandbox
+    const endpoint = sandbox
       ? 'https://apitest.authorize.net/xml/v1/request.api'
       : 'https://api.authorize.net/xml/v1/request.api'
 
-    // ─── Build the transaction request ───
-    // XSD element order: transactionType, amount, payment, order, customer...
     const payload = {
       createTransactionRequest: {
-        merchantAuthentication: {
-          name: apiLoginId,
-          transactionKey: transactionKey,
-        },
+        merchantAuthentication: { name: loginId, transactionKey: txKey },
         refId: body.invoiceId,
         transactionRequest: {
           transactionType: 'authCaptureTransaction',
@@ -106,62 +81,54 @@ serve(async (req) => {
             invoiceNumber: body.invoiceId,
             description: body.description || `Payment for Invoice ${body.invoiceId}`,
           },
-          customer: {
-            email: body.customerEmail,
-          },
+          customer: { email: body.customerEmail },
         },
       },
     }
 
-    // ─── Call Authorize.net ───
-    const response = await fetch(endpointUrl, {
+    const resp = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
 
-    const result: AuthorizeNetResponse = await response.json()
+    const result: AuthorizeNetResponse = await resp.json()
+    const tx = result.transactionResponse
 
-    // ─── Parse response ───
-    const txResponse = result.transactionResponse
-    const overallResult = result.messages?.resultCode
-
-    // Handle overall API errors
-    if (overallResult !== 'Ok') {
-      const apiError = result.messages?.message?.[0]?.text || 'Unknown Authorize.net error'
-      const apiCode = result.messages?.message?.[0]?.code || 'E00001'
-      return jsonResponse({ success: false, error: apiError, code: apiCode }, 400)
+    if (result.messages?.resultCode !== 'Ok') {
+      const err = result.messages?.message?.[0]
+      return json({ success: false, error: err?.text || 'API error', code: err?.code || 'E00001' }, 400)
     }
 
-    // Handle transaction-level errors
-    if (txResponse?.responseCode !== '1') {
-      const txError = txResponse?.errors?.[0]?.errorText
-        || txResponse?.messages?.[0]?.description
-        || 'Transaction declined'
-      const txErrorCode = txResponse?.errors?.[0]?.errorCode
-        || txResponse?.messages?.[0]?.code
-        || '0'
-
-      return jsonResponse(
-        { success: false, error: txError, code: txErrorCode, transactionId: txResponse?.transId || null },
-        400
-      )
+    if (tx?.responseCode !== '1') {
+      const err = tx?.errors?.[0] || tx?.messages?.[0]
+      return json({ success: false, error: err?.errorText || err?.description || 'Declined', code: err?.errorCode || err?.code || '0' }, 400)
     }
 
-    // ─── Success ───
-    return jsonResponse({
+    // SUCCESS - update invoice via service role
+    let updated = false
+    try {
+      const { error } = await supabaseAdmin
+        .from('invoices')
+        .update({ status: 'paid', transaction_id: tx.transId, paid_at: new Date().toISOString() })
+        .eq('invoice_number', body.invoiceId)
+      if (!error) updated = true
+    } catch (e) {
+      console.error('Invoice update failed:', e)
+    }
+
+    return json({
       success: true,
-      transactionId: txResponse.transId,
-      authCode: txResponse.authCode,
-      avsResultCode: txResponse.avsResultCode,
-      cvvResultCode: txResponse.cvvResultCode,
-      accountNumber: txResponse.accountNumber,
-      accountType: txResponse.accountType,
-      message: txResponse.messages?.[0]?.description || 'Transaction approved',
+      transactionId: tx.transId,
+      authCode: tx.authCode,
+      accountNumber: tx.accountNumber,
+      accountType: tx.accountType,
+      invoiceUpdated: updated,
+      message: tx.messages?.[0]?.description || 'Approved',
     }, 200)
 
   } catch (err: any) {
     console.error('[authorize-net-charge] Error:', err)
-    return jsonResponse({ success: false, error: err.message || 'Internal error' }, 500)
+    return json({ success: false, error: err.message || 'Internal error' }, 500)
   }
 })

@@ -40,117 +40,31 @@ export interface AuthorizeNetConfig {
   endpointUrl: string
 }
 
-// ─── Load Accept.js Script Dynamically ───────────────────────────────
+// ─── Accept.js is pre-loaded in index.html ───────────────────────────
+// <script src="https://jstest.authorize.net/v1/Accept.js">
+// This just verifies it's ready before use.
 
 let scriptLoaded = false
-let scriptLoading: Promise<void> | null = null
 const SUPABASE_URL = 'https://fildaxejimuvfrcqmoba.supabase.co'
 
-function waitForAcceptJs(maxWait = 5000, interval = 200): Promise<void> {
+function ensureAcceptJsReady(maxWait = 8000): Promise<void> {
+  if (scriptLoaded) return Promise.resolve()
   return new Promise((resolve, reject) => {
-    const startTime = Date.now()
+    const start = Date.now()
     const check = () => {
       if (typeof (window as any).Accept !== 'undefined') {
+        scriptLoaded = true
         resolve()
         return
       }
-      if (Date.now() - startTime > maxWait) {
-        reject(new Error('Accept.js initialized but Accept global not found'))
+      if (Date.now() - start > maxWait) {
+        reject(new Error('Accept.js is not loaded correctly'))
         return
       }
-      setTimeout(check, interval)
+      setTimeout(check, 300)
     }
     check()
   })
-}
-
-function loadAcceptJs(mode: 'test' | 'live', retries = 3): Promise<void> {
-  if (scriptLoaded) return Promise.resolve()
-  if (scriptLoading) return scriptLoading
-
-  scriptLoading = new Promise((resolve, reject) => {
-    const url =
-      mode === 'live'
-        ? 'https://js.authorize.net/v1/Accept.js'
-        : 'https://jstest.authorize.net/v1/Accept.js'
-
-    // If script tag already exists, just wait for Accept global
-    if (document.querySelector(`script[src="${url}"]`)) {
-      console.log('[AuthorizeNet] Script tag already exists, waiting for Accept global...')
-      waitForAcceptJs().then(() => {
-        scriptLoaded = true
-        resolve()
-      }).catch(reject)
-      return
-    }
-
-    console.log(`[AuthorizeNet] Loading Accept.js from ${url}...`)
-
-    const script = document.createElement('script')
-    script.src = url
-    script.type = 'text/javascript'
-    script.charset = 'utf-8'
-    script.crossOrigin = 'anonymous'
-
-    let timeoutId: ReturnType<typeof setTimeout>
-
-    const cleanup = () => {
-      clearTimeout(timeoutId)
-      script.onload = null
-      script.onerror = null
-    }
-
-    script.onload = () => {
-      console.log('[AuthorizeNet] Script loaded, polling for Accept global...')
-      cleanup()
-      // Script loaded but Accept global may not be ready yet — poll for it
-      waitForAcceptJs(8000, 300).then(() => {
-        console.log('[AuthorizeNet] Accept.js ready')
-        scriptLoaded = true
-        resolve()
-      }).catch((err) => {
-        console.error('[AuthorizeNet] Accept global not found after load:', err)
-        if (retries > 0) {
-          scriptLoading = null
-          document.head.removeChild(script)
-          loadAcceptJs(mode, retries - 1).then(resolve).catch(reject)
-        } else {
-          reject(new Error('Accept.js loaded but Accept global is undefined. Your domain may not be whitelisted in Authorize.net Merchant Interface.'))
-        }
-      })
-    }
-
-    script.onerror = (e) => {
-      cleanup()
-      console.error('[AuthorizeNet] Script load error:', e)
-      if (script.parentNode) document.head.removeChild(script)
-      if (retries > 0) {
-        scriptLoading = null
-        console.log(`[AuthorizeNet] Retrying... (${retries} attempts left)`)
-        setTimeout(() => {
-          loadAcceptJs(mode, retries - 1).then(resolve).catch(reject)
-        }, 1000)
-      } else {
-        reject(new Error('Failed to load Accept.js — check CSP settings or domain whitelist'))
-      }
-    }
-
-    timeoutId = setTimeout(() => {
-      cleanup()
-      if (script.parentNode) document.head.removeChild(script)
-      if (retries > 0) {
-        scriptLoading = null
-        console.log(`[AuthorizeNet] Load timed out, retrying... (${retries} attempts left)`)
-        loadAcceptJs(mode, retries - 1).then(resolve).catch(reject)
-      } else {
-        reject(new Error('Accept.js load timed out after all retries'))
-      }
-    }, 15000)
-
-    document.head.appendChild(script)
-  })
-
-  return scriptLoading
 }
 
 // ─── Fetch Config from Supabase ──────────────────────────────────────
@@ -196,7 +110,7 @@ export async function tokenizeCard(
   },
   config: AuthorizeNetConfig
 ): Promise<TokenizeResult> {
-  await loadAcceptJs(config.mode)
+  await ensureAcceptJsReady()
 
   return new Promise((resolve) => {
     const authData = {

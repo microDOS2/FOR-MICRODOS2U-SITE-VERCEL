@@ -85,6 +85,7 @@ serve(async (req) => {
       : 'https://api.authorize.net/xml/v1/request.api'
 
     // ─── Build the transaction request ───
+    // XSD element order: transactionType, amount, payment, order, customer...
     const payload = {
       createTransactionRequest: {
         merchantAuthentication: {
@@ -101,12 +102,12 @@ serve(async (req) => {
               dataValue: body.opaqueData.dataValue,
             },
           },
-          customer: {
-            email: body.customerEmail,
-          },
           order: {
             invoiceNumber: body.invoiceId,
             description: body.description || `Payment for Invoice ${body.invoiceId}`,
+          },
+          customer: {
+            email: body.customerEmail,
           },
         },
       },

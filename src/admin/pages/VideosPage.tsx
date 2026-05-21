@@ -69,9 +69,16 @@ export function VideosPage() {
     if (!exists) {
       const { error } = await supabase.storage.createBucket('videos', {
         public: true,
-        fileSizeLimit: 104857600, // 100MB
+        fileSizeLimit: 52428800, // 50MB — Supabase free tier max per file
       });
       if (error) throw error;
+    } else {
+      // Update existing bucket to ensure limit is set
+      const { error } = await supabase.storage.updateBucket('videos', {
+        public: true,
+        fileSizeLimit: 52428800,
+      });
+      if (error) console.log('Bucket update (non-critical):', error.message);
     }
   };
 
@@ -83,8 +90,8 @@ export function VideosPage() {
       toast.error('Please upload a video file (MP4, WebM, etc.)');
       return;
     }
-    if (file.size > 100 * 1024 * 1024) {
-      toast.error('File too large. Maximum is 100MB.');
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('File too large. Maximum is 50MB per file.');
       return;
     }
 

@@ -137,29 +137,6 @@
   background: #52525b;
 }
 
-/* YouTube Video Square */
-.youtube-square {
-  position: relative;
-  width: 100%;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.youtube-square::before {
-  content: '';
-  display: block;
-  padding-top: 100%;
-}
-
-.youtube-square iframe {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border-radius: 1rem;
-}
-
 /* Leaflet dark mode overrides */
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {

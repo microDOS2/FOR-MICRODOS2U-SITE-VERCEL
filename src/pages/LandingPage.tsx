@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   Flask,
   ShieldCheck,
@@ -32,7 +32,9 @@ interface Video {
   id: string;
   title: string;
   description: string;
-  youtube_id: string;
+  storage_path: string;
+  file_size: number;
+  mime_type: string;
   sort_order: number;
   active: boolean;
   section: string;
@@ -42,6 +44,8 @@ interface Video {
 export function LandingPage() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [videoLoading, setVideoLoading] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     async function fetchVideos() {
@@ -59,10 +63,23 @@ export function LandingPage() {
     fetchVideos();
   }, []);
 
-  // Build YouTube embed URL from playlist of active video IDs
-  const youtubeUrl = videos.length > 0
-    ? `https://www.youtube.com/embed/${videos[0].youtube_id}?autoplay=1&mute=1&loop=1&playlist=${videos.map(v => v.youtube_id).join(',')}&controls=1&rel=0&modestbranding=1`
-    : '';
+  // Get public URL for a video
+  const getVideoUrl = (storagePath: string) => {
+    const { data } = supabase.storage.from('videos').getPublicUrl(storagePath);
+    return data?.publicUrl || '';
+  };
+
+  const handleNext = () => {
+    setCurrentIndex((prev) => (prev + 1) % videos.length);
+  };
+
+  const handlePrev = () => {
+    setCurrentIndex((prev) => (prev - 1 + videos.length) % videos.length);
+  };
+
+  const handleVideoEnd = () => {
+    handleNext();
+  };
 
   return (
     <div className="min-h-screen">
@@ -743,25 +760,68 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* YouTube Video Section — loaded from database */}
+      {/* Self-Hosted Video Carousel — loaded from Supabase Storage */}
       <section className="py-20 bg-black/50 border-y border-white/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="youtube-square border-4 border-[#9a02d0]/30 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(154,2,208,0.2)]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(154,2,208,0.2)] border-2 border-[#9a02d0]/30 bg-[#0a0514]">
             {videoLoading ? (
-              <div className="w-full aspect-square bg-[#150f24] flex items-center justify-center">
+              <div className="w-full aspect-video bg-[#150f24] flex items-center justify-center min-h-[300px]">
                 <Loader2 className="w-8 h-8 animate-spin text-[#9a02d0]" />
               </div>
-            ) : youtubeUrl ? (
-              <iframe
-                src={youtubeUrl}
-                title="microDOS(2) Experience Video"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
+            ) : videos.length > 0 ? (
+              <>
+                <video
+                  key={videos[currentIndex].id}
+                  ref={videoRef}
+                  src={getVideoUrl(videos[currentIndex].storage_path)}
+                  autoPlay
+                  muted
+                  playsInline
+                  onEnded={handleVideoEnd}
+                  className="w-full aspect-video object-contain bg-black"
+                />
+                {/* Overlay controls */}
+                <div className="absolute inset-0 flex items-center justify-between px-4 pointer-events-none">
+                  <button
+                    onClick={handlePrev}
+                    className="pointer-events-auto w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-colors"
+                    aria-label="Previous video"
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </button>
+                  <button
+                    onClick={handleNext}
+                    className="pointer-events-auto w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-colors"
+                    aria-label="Next video"
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </button>
+                </div>
+                {/* Dots indicator */}
+                {videos.length > 1 && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                    {videos.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentIndex(i)}
+                        className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                          i === currentIndex ? 'bg-[#9a02d0]' : 'bg-white/30 hover:bg-white/50'
+                        }`}
+                        aria-label={`Go to video ${i + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
+                {/* Video title */}
+                {videos[currentIndex].title && (
+                  <div className="absolute top-4 left-4 px-3 py-1 rounded-lg bg-black/50 text-white text-sm font-medium">
+                    {videos[currentIndex].title}
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="w-full aspect-square bg-[#150f24] flex items-center justify-center text-gray-500">
-                No videos configured
+              <div className="w-full aspect-video bg-[#150f24] flex items-center justify-center text-gray-500 min-h-[300px]">
+                No videos uploaded yet
               </div>
             )}
           </div>

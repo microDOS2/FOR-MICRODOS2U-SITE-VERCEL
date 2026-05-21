@@ -1,39 +1,44 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, Pencil, Trash2, X, Save, Loader2, GripVertical, Video } from 'lucide-react';
+import { Search, Trash2, Loader2, Upload, GripVertical, Play, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Video {
   id: string;
   title: string;
   description: string;
-  youtube_id: string;
+  storage_path: string;
+  file_size: number;
+  mime_type: string;
   sort_order: number;
   active: boolean;
   section: string;
   created_at: string;
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
 export function VideosPage() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-
-  // Add/edit form
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formTitle, setFormTitle] = useState('');
-  const [formDesc, setFormDesc] = useState('');
-  const [formYoutubeId, setFormYoutubeId] = useState('');
-  const [formOrder, setFormOrder] = useState(0);
-  const [formActive, setFormActive] = useState(true);
-  const [saving, setSaving] = useState(false);
-
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchVideos = async () => {
     setLoading(true);
@@ -41,89 +46,122 @@ export function VideosPage() {
       .from('videos')
       .select('*')
       .order('sort_order', { ascending: true });
-    if (error) {
-      toast.error('Failed to load videos: ' + error.message);
-    } else {
-      setVideos(data || []);
-    }
+    if (error) toast.error('Failed to load videos: ' + error.message);
+    else setVideos(data || []);
     setLoading(false);
   };
 
   useEffect(() => { fetchVideos(); }, []);
 
-  const resetForm = () => {
-    setEditingId(null);
-    setFormTitle('');
-    setFormDesc('');
-    setFormYoutubeId('');
-    setFormOrder(videos.length + 1);
-    setFormActive(true);
-    setShowForm(false);
+  // Close preview on unmount
+  useEffect(() => {
+    return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); };
+  }, [previewUrl]);
+
+  const getPublicUrl = (path: string) => {
+    const { data } = supabase.storage.from('videos').getPublicUrl(path);
+    return data?.publicUrl || '';
   };
 
-  const openAdd = () => {
-    resetForm();
-    setFormOrder(videos.length + 1);
-    setShowForm(true);
+  const ensureBucket = async () => {
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const exists = buckets?.some(b => b.name === 'videos');
+    if (!exists) {
+      const { error } = await supabase.storage.createBucket('videos', {
+        public: true,
+        fileSizeLimit: 104857600, // 100MB
+      });
+      if (error) throw error;
+    }
   };
 
-  const openEdit = (v: Video) => {
-    setEditingId(v.id);
-    setFormTitle(v.title);
-    setFormDesc(v.description);
-    setFormYoutubeId(v.youtube_id);
-    setFormOrder(v.sort_order);
-    setFormActive(v.active);
-    setShowForm(true);
-  };
+  const handleFiles = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
 
-  const handleSave = async () => {
-    if (!formYoutubeId.trim()) {
-      toast.error('YouTube ID is required');
+    if (!file.type.startsWith('video/')) {
+      toast.error('Please upload a video file (MP4, WebM, etc.)');
       return;
     }
-    // Extract just the ID if they pasted a full URL
-    let ytId = formYoutubeId.trim();
-    const urlMatch = ytId.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
-    if (urlMatch) ytId = urlMatch[1];
-
-    if (!/^[a-zA-Z0-9_-]{11}$/.test(ytId)) {
-      toast.error('Invalid YouTube ID. Use the 11-character video ID or paste the full URL.');
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error('File too large. Maximum is 100MB.');
       return;
     }
 
-    setSaving(true);
-    if (editingId) {
-      const { error } = await supabase.from('videos').update({
-        title: formTitle.trim(),
-        description: formDesc.trim(),
-        youtube_id: ytId,
-        sort_order: formOrder,
-        active: formActive,
-      }).eq('id', editingId);
-      if (error) toast.error('Update failed: ' + error.message);
-      else { toast.success('Video updated'); resetForm(); fetchVideos(); }
-    } else {
-      const { error } = await supabase.from('videos').insert({
-        title: formTitle.trim(),
-        description: formDesc.trim(),
-        youtube_id: ytId,
-        sort_order: formOrder,
-        active: formActive,
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      await ensureBucket();
+
+      const ext = file.name.split('.').pop() || 'mp4';
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `landing/${Date.now()}-${safeName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('videos')
+        .upload(path, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const nextOrder = videos.length > 0 ? Math.max(...videos.map(v => v.sort_order)) + 1 : 1;
+
+      const { error: dbError } = await supabase.from('videos').insert({
+        title: file.name.replace(/\.[^/.]+$/, ''),
+        description: '',
+        storage_path: path,
+        file_size: file.size,
+        mime_type: file.type,
+        sort_order: nextOrder,
+        active: true,
         section: 'landing',
       });
-      if (error) toast.error('Add failed: ' + error.message);
-      else { toast.success('Video added'); resetForm(); fetchVideos(); }
+
+      if (dbError) throw dbError;
+
+      toast.success(`"${file.name}" uploaded successfully`);
+      fetchVideos();
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      toast.error('Upload failed: ' + (err.message || 'Unknown error'));
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
-    setSaving(false);
+  }, [videos]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    handleFiles(e.dataTransfer.files);
+  }, [handleFiles]);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Remove this video?')) return;
-    setDeletingId(id);
-    const { error } = await supabase.from('videos').delete().eq('id', id);
-    if (error) toast.error('Delete failed: ' + error.message);
-    else { toast.success('Video removed'); fetchVideos(); }
+  const handleDragLeave = () => setDragOver(false);
+
+  const handleDelete = async (v: Video) => {
+    if (!confirm(`Delete "${v.title || v.storage_path}"?`)) return;
+    setDeletingId(v.id);
+
+    // Delete from storage
+    const { error: storageError } = await supabase.storage
+      .from('videos')
+      .remove([v.storage_path]);
+    if (storageError) console.error('Storage delete error:', storageError);
+
+    // Delete from database
+    const { error: dbError } = await supabase.from('videos').delete().eq('id', v.id);
+    if (dbError) toast.error('Delete failed: ' + dbError.message);
+    else { toast.success('Video deleted'); fetchVideos(); }
+
     setDeletingId(null);
   };
 
@@ -133,9 +171,43 @@ export function VideosPage() {
     else { toast.success(v.active ? 'Video hidden' : 'Video shown'); fetchVideos(); }
   };
 
+  const handleMove = async (id: string, direction: 'up' | 'down') => {
+    const idx = videos.findIndex(v => v.id === id);
+    if (idx === -1) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= videos.length) return;
+
+    const newVideos = [...videos];
+    const temp = newVideos[idx].sort_order;
+    newVideos[idx].sort_order = newVideos[swapIdx].sort_order;
+    newVideos[swapIdx].sort_order = temp;
+
+    await supabase.from('videos').update({ sort_order: newVideos[idx].sort_order }).eq('id', newVideos[idx].id);
+    await supabase.from('videos').update({ sort_order: newVideos[swapIdx].sort_order }).eq('id', newVideos[swapIdx].id);
+
+    setVideos(newVideos.sort((a, b) => a.sort_order - b.sort_order));
+  };
+
+  const handleUpdateTitle = async (id: string, title: string) => {
+    const { error } = await supabase.from('videos').update({ title }).eq('id', id);
+    if (error) toast.error('Update failed: ' + error.message);
+    else fetchVideos();
+  };
+
+  const openPreview = (v: Video) => {
+    setPreviewId(v.id);
+    setPreviewUrl(getPublicUrl(v.storage_path));
+  };
+
+  const closePreview = () => {
+    setPreviewId(null);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl('');
+  };
+
   const filtered = videos.filter(v =>
     !search || v.title.toLowerCase().includes(search.toLowerCase()) ||
-    v.youtube_id.toLowerCase().includes(search.toLowerCase())
+    v.storage_path.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -143,89 +215,49 @@ export function VideosPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="text-2xl font-bold text-white">Landing Page Videos</h2>
-          <p className="text-gray-400 text-sm">Manage the YouTube videos that play on the home page</p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={openAdd} className="bg-[#44f80c] hover:bg-[#3ad80a] text-black">
-            <Plus className="w-4 h-4 mr-2" /> Add Video
-          </Button>
+          <p className="text-gray-400 text-sm">Upload and manage self-hosted videos for the home page carousel</p>
         </div>
       </div>
 
-      {/* Add/Edit Form */}
-      {showForm && (
-        <Card className="bg-[#150f24] border-white/10 mb-6">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Video className="w-5 h-5 text-[#9a02d0]" />
-              {editingId ? 'Edit Video' : 'Add Video'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm text-gray-400">Title</label>
-                <Input
-                  value={formTitle}
-                  onChange={e => setFormTitle(e.target.value)}
-                  placeholder="Video title"
-                  className="bg-[#0a0514] border-white/10 text-white"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm text-gray-400">YouTube ID <span className="text-red-400">*</span></label>
-                <Input
-                  value={formYoutubeId}
-                  onChange={e => setFormYoutubeId(e.target.value)}
-                  placeholder="MLDChN3C1bI or paste full URL"
-                  className="bg-[#0a0514] border-white/10 text-white"
-                />
-                <p className="text-gray-600 text-xs">The 11-character code from the YouTube URL, or paste the full URL</p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm text-gray-400">Sort Order</label>
-                <Input
-                  type="number"
-                  value={formOrder}
-                  onChange={e => setFormOrder(parseInt(e.target.value) || 0)}
-                  className="bg-[#0a0514] border-white/10 text-white"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm text-gray-400">Status</label>
-                <div className="flex items-center gap-3 pt-2">
-                  <button
-                    onClick={() => setFormActive(!formActive)}
-                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                      formActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                    }`}
-                  >
-                    {formActive ? 'Active' : 'Inactive'}
-                  </button>
+      {/* Upload Drop Zone */}
+      <Card className={`border-2 border-dashed mb-6 transition-colors ${
+        dragOver ? 'border-[#9a02d0] bg-[#9a02d0]/5' : 'border-white/20 bg-[#150f24]'
+      }`}>
+        <CardContent className="p-8">
+          <div
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            className="text-center cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={e => handleFiles(e.target.files)}
+            />
+            {uploading ? (
+              <div className="space-y-3">
+                <Loader2 className="w-10 h-10 animate-spin text-[#9a02d0] mx-auto" />
+                <p className="text-white font-medium">Uploading...</p>
+                <div className="w-full max-w-xs mx-auto bg-black/50 rounded-full h-2">
+                  <div className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] h-2 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
                 </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm text-gray-400">Description</label>
-              <Input
-                value={formDesc}
-                onChange={e => setFormDesc(e.target.value)}
-                placeholder="Optional description"
-                className="bg-[#0a0514] border-white/10 text-white"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleSave} disabled={saving} className="bg-[#44f80c] hover:bg-[#3ad80a] text-black">
-                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                Save
-              </Button>
-              <Button onClick={resetForm} variant="outline" className="border-white/10 text-gray-300 hover:text-white">
-                <X className="w-4 h-4 mr-2" /> Cancel
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            ) : (
+              <div className="space-y-3">
+                <div className="w-14 h-14 rounded-full bg-[#9a02d0]/20 flex items-center justify-center mx-auto">
+                  <Upload className="w-7 h-7 text-[#9a02d0]" />
+                </div>
+                <p className="text-white font-medium text-lg">Drag & drop a video here</p>
+                <p className="text-gray-500 text-sm">or click to browse. MP4, WebM, MOV up to 100MB</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Video List */}
       <Card className="bg-[#150f24] border-white/10">
@@ -238,6 +270,7 @@ export function VideosPage() {
               placeholder="Search videos..."
               className="bg-[#0a0514] border-white/10 text-white max-w-sm"
             />
+            <span className="text-gray-500 text-sm ml-auto">{videos.filter(v => v.active).length} active / {videos.length} total</span>
           </div>
 
           {loading ? (
@@ -246,42 +279,55 @@ export function VideosPage() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              {search ? 'No videos match your search' : 'No videos. Click "Add Video" to get started.'}
+              {search ? 'No videos match your search' : 'No videos uploaded yet. Drag & drop a file above to get started.'}
             </div>
           ) : (
             <div className="space-y-3">
-              {filtered.map(v => (
+              {filtered.map((v, idx) => (
                 <div
                   key={v.id}
                   className="flex items-center gap-4 p-4 bg-[#0a0514] rounded-lg border border-white/5 hover:border-white/10 transition-colors"
                 >
-                  <GripVertical className="w-4 h-4 text-gray-600 shrink-0" />
-                  <div className="w-16 h-12 rounded bg-[#150f24] overflow-hidden shrink-0">
-                    <img
-                      src={`https://img.youtube.com/vi/${v.youtube_id}/mqdefault.jpg`}
-                      alt={v.title}
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <button onClick={() => handleMove(v.id, 'up')} disabled={idx === 0} className="text-gray-600 hover:text-white disabled:opacity-20">
+                      <ChevronLeft className="w-4 h-4 rotate-90" />
+                    </button>
+                    <button onClick={() => handleMove(v.id, 'down')} disabled={idx === filtered.length - 1} className="text-gray-600 hover:text-white disabled:opacity-20">
+                      <ChevronLeft className="w-4 h-4 -rotate-90" />
+                    </button>
                   </div>
+
+                  {/* Thumbnail / Play button */}
+                  <button
+                    onClick={() => openPreview(v)}
+                    className="w-20 h-14 rounded bg-[#150f24] overflow-hidden shrink-0 flex items-center justify-center hover:ring-2 hover:ring-[#9a02d0] transition-all relative group"
+                  >
+                    <Play className="w-6 h-6 text-white/70 group-hover:text-white group-hover:scale-110 transition-all absolute" />
+                  </button>
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-white font-medium truncate">{v.title || 'Untitled'}</span>
+                      <Input
+                        value={v.title}
+                        onChange={e => handleUpdateTitle(v.id, e.target.value)}
+                        onBlur={() => { /* saved on every change via handleUpdateTitle */ }}
+                        className="bg-transparent border-transparent hover:border-white/10 focus:border-[#9a02d0] text-white font-medium px-1 py-0 h-auto text-sm w-full max-w-md"
+                      />
                       <Badge
-                        className={v.active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}
-                        style={{ cursor: 'pointer' }}
+                        className={v.active ? 'bg-green-500/20 text-green-400 cursor-pointer' : 'bg-red-500/20 text-red-400 cursor-pointer'}
                         onClick={() => handleToggleActive(v)}
                       >
-                        {v.active ? 'Active' : 'Inactive'}
+                        {v.active ? 'Active' : 'Hidden'}
                       </Badge>
                     </div>
-                    <p className="text-gray-500 text-xs mt-0.5">ID: {v.youtube_id} | Order: {v.sort_order}</p>
+                    <p className="text-gray-600 text-xs mt-1 truncate">
+                      {v.storage_path} &middot; {formatBytes(v.file_size)} &middot; Order: {v.sort_order}
+                    </p>
                   </div>
+
                   <div className="flex items-center gap-1 shrink-0">
-                    <Button onClick={() => openEdit(v)} size="sm" className="bg-white/5 hover:bg-white/10 text-white" title="Edit">
-                      <Pencil className="w-4 h-4" />
-                    </Button>
                     <Button
-                      onClick={() => handleDelete(v.id)}
+                      onClick={() => handleDelete(v)}
                       size="sm"
                       className="bg-white/5 hover:bg-red-500/20 text-white hover:text-red-400"
                       disabled={deletingId === v.id}
@@ -296,6 +342,26 @@ export function VideosPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Video Preview Modal */}
+      {previewId && previewUrl && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={closePreview}>
+          <div className="relative max-w-4xl w-full" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={closePreview}
+              className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <video
+              src={previewUrl}
+              controls
+              autoPlay
+              className="w-full rounded-lg bg-black"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

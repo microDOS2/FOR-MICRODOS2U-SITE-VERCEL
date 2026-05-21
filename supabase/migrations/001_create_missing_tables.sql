@@ -47,6 +47,16 @@ DROP FUNCTION IF EXISTS get_my_manager(UUID);
 DROP FUNCTION IF EXISTS get_managers_for_accounts(UUID[]);
 DROP FUNCTION IF EXISTS get_reps_for_manager(UUID);
 
+-- 6b. Recreate get_all_users without the dropped plain_password column
+-- (This was a pre-existing function that broke when we dropped the column)
+DROP FUNCTION IF EXISTS get_all_users();
+CREATE OR REPLACE FUNCTION get_all_users()
+RETURNS SETOF users AS $$
+BEGIN
+    RETURN QUERY SELECT * FROM users ORDER BY created_at DESC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 7. Create the missing RPC functions that were referenced in code
 
 -- Function: insert_user (was used in ApplicationsPage)

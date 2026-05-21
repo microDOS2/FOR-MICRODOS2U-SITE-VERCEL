@@ -43,11 +43,9 @@ export function VideosPage() {
   const fetchVideos = async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from('videos')
-      .select('*')
-      .order('sort_order', { ascending: true });
+      .rpc('get_all_videos');
     if (error) toast.error('Failed to load videos: ' + error.message);
-    else setVideos(data || []);
+    else setVideos((data || []).sort((a: Video, b: Video) => a.sort_order - b.sort_order));
     setLoading(false);
   };
 
@@ -115,15 +113,15 @@ export function VideosPage() {
 
       const nextOrder = videos.length > 0 ? Math.max(...videos.map(v => v.sort_order)) + 1 : 1;
 
-      const { error: dbError } = await supabase.from('videos').insert({
-        title: file.name.replace(/\.[^/.]+$/, ''),
-        description: '',
-        storage_path: path,
-        file_size: file.size,
-        mime_type: file.type,
-        sort_order: nextOrder,
-        active: true,
-        section: 'landing',
+      const { error: dbError } = await supabase.rpc('insert_video', {
+        p_title: file.name.replace(/\.[^/.]+$/, ''),
+        p_description: '',
+        p_storage_path: path,
+        p_file_size: file.size,
+        p_mime_type: file.type,
+        p_sort_order: nextOrder,
+        p_active: true,
+        p_section: 'landing',
       });
 
       if (dbError) throw dbError;
@@ -164,7 +162,7 @@ export function VideosPage() {
     if (storageError) console.error('Storage delete error:', storageError);
 
     // Delete from database
-    const { error: dbError } = await supabase.from('videos').delete().eq('id', v.id);
+    const { error: dbError } = await supabase.rpc('delete_video_record', { p_id: v.id });
     if (dbError) toast.error('Delete failed: ' + dbError.message);
     else { toast.success('Video deleted'); fetchVideos(); }
 
@@ -172,7 +170,7 @@ export function VideosPage() {
   };
 
   const handleToggleActive = async (v: Video) => {
-    const { error } = await supabase.from('videos').update({ active: !v.active }).eq('id', v.id);
+    const { error } = await supabase.rpc('toggle_video_active', { p_id: v.id });
     if (error) toast.error('Toggle failed: ' + error.message);
     else { toast.success(v.active ? 'Video hidden' : 'Video shown'); fetchVideos(); }
   };
@@ -188,14 +186,14 @@ export function VideosPage() {
     newVideos[idx].sort_order = newVideos[swapIdx].sort_order;
     newVideos[swapIdx].sort_order = temp;
 
-    await supabase.from('videos').update({ sort_order: newVideos[idx].sort_order }).eq('id', newVideos[idx].id);
-    await supabase.from('videos').update({ sort_order: newVideos[swapIdx].sort_order }).eq('id', newVideos[swapIdx].id);
+    await supabase.rpc('update_video_order', { p_id: newVideos[idx].id, p_order: newVideos[idx].sort_order });
+    await supabase.rpc('update_video_order', { p_id: newVideos[swapIdx].id, p_order: newVideos[swapIdx].sort_order });
 
     setVideos(newVideos.sort((a, b) => a.sort_order - b.sort_order));
   };
 
   const handleUpdateTitle = async (id: string, title: string) => {
-    const { error } = await supabase.from('videos').update({ title }).eq('id', id);
+    const { error } = await supabase.rpc('update_video_title', { p_id: id, p_title: title });
     if (error) toast.error('Update failed: ' + error.message);
     else fetchVideos();
   };

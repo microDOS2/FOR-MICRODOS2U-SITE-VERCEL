@@ -758,10 +758,10 @@ export function LandingPage() {
 
       {/* Self-Hosted Video Carousel — loaded from Supabase Storage */}
       <section className="py-20 bg-black/50 border-y border-white/5">
-        <div className="max-w-sm mx-auto px-4">
+        <div className="max-w-md mx-auto px-4">
           <div className="relative rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(154,2,208,0.2)] border-2 border-[#9a02d0]/30 bg-[#0a0514]">
             {videoLoading ? (
-              <div className="w-full aspect-video bg-[#150f24] flex items-center justify-center min-h-[300px]">
+              <div className="w-full aspect-square bg-[#150f24] flex items-center justify-center min-h-[300px]">
                 <Loader2 className="w-8 h-8 animate-spin text-[#9a02d0]" />
               </div>
             ) : videos.length > 0 ? (
@@ -774,7 +774,7 @@ export function LandingPage() {
                   muted
                   playsInline
                   onEnded={handleVideoEnd}
-                  className="w-full aspect-video object-contain bg-black"
+                  className="w-full aspect-square object-cover bg-black"
                 />
 
                 {/* Dots indicator */}

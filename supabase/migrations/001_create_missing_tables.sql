@@ -332,3 +332,72 @@ BEGIN
     ORDER BY u.business_name;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ─── VIDEO ADMIN RPCs ──────────────────────────────────────
+
+-- Get all videos (admin bypass for RLS)
+DROP FUNCTION IF EXISTS get_all_videos();
+CREATE OR REPLACE FUNCTION get_all_videos()
+RETURNS SETOF videos AS $$
+BEGIN
+    RETURN QUERY SELECT * FROM videos ORDER BY sort_order ASC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Toggle video active status
+DROP FUNCTION IF EXISTS toggle_video_active(UUID);
+CREATE OR REPLACE FUNCTION toggle_video_active(p_id UUID)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE videos SET active = NOT active WHERE id = p_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Delete a video record
+DROP FUNCTION IF EXISTS delete_video_record(UUID);
+CREATE OR REPLACE FUNCTION delete_video_record(p_id UUID)
+RETURNS VOID AS $$
+BEGIN
+    DELETE FROM videos WHERE id = p_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Update video sort_order
+DROP FUNCTION IF EXISTS update_video_order(UUID, INTEGER);
+CREATE OR REPLACE FUNCTION update_video_order(p_id UUID, p_order INTEGER)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE videos SET sort_order = p_order WHERE id = p_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Update video title
+DROP FUNCTION IF EXISTS update_video_title(UUID, TEXT);
+CREATE OR REPLACE FUNCTION update_video_title(p_id UUID, p_title TEXT)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE videos SET title = p_title WHERE id = p_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Insert video (admin bypass for RLS)
+DROP FUNCTION IF EXISTS insert_video(TEXT, TEXT, TEXT, BIGINT, TEXT, INTEGER, BOOLEAN, TEXT);
+CREATE OR REPLACE FUNCTION insert_video(
+    p_title TEXT,
+    p_description TEXT,
+    p_storage_path TEXT,
+    p_file_size BIGINT,
+    p_mime_type TEXT,
+    p_sort_order INTEGER,
+    p_active BOOLEAN,
+    p_section TEXT
+) RETURNS UUID AS $$
+DECLARE
+    new_id UUID;
+BEGIN
+    INSERT INTO videos (title, description, storage_path, file_size, mime_type, sort_order, active, section)
+    VALUES (p_title, p_description, p_storage_path, p_file_size, p_mime_type, p_sort_order, p_active, p_section)
+    RETURNING id INTO new_id;
+    RETURN new_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, Trash2, Loader2, Upload, GripVertical, Play, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Trash2, Loader2, Upload, Play, X, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Video {
@@ -94,7 +94,6 @@ export function VideosPage() {
     try {
       await ensureBucket();
 
-      const ext = file.name.split('.').pop() || 'mp4';
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `landing/${Date.now()}-${safeName}`;
 

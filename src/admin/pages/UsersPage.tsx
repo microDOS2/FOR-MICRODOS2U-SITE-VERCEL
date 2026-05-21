@@ -329,21 +329,30 @@ export function UsersPage() {
     setCreatingUser(true)
     const password = generatePassword()
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newUserEmail,
-        password,
-        options: { data: { business_name: newUserName, role: newUserRole } },
+      // Use edge function (admin API) to bypass rate limits
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-auth-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          email: newUserEmail,
+          password,
+          business_name: newUserName,
+          role: newUserRole,
+          site_url: window.location.origin,
+        }),
       })
-      if (authError || !authData.user) {
-        toast.error(authError?.message || 'Failed to create user')
-        setCreatingUser(false)
-        return
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: 'Failed to create user' }))
+        throw new Error(err.error || 'Failed to create user')
       }
-      // Auto-confirm email so user can log in immediately (no verification email)
-      const { error: confirmErr } = await supabase.rpc('confirm_user_email', { p_email: newUserEmail })
-      if (confirmErr) console.warn('confirm_user_email error:', confirmErr)
+      const result = await resp.json()
+      // Insert into public.users table
       const { error: insertErr } = await supabase.rpc('insert_user', {
-        p_id: authData.user.id,
+        p_id: result.user.id,
         p_email: newUserEmail,
         p_business_name: newUserName,
         p_role: newUserRole,
@@ -354,7 +363,7 @@ export function UsersPage() {
       setSentEmailTo(newUserEmail)
       setShowCreateModal(false)
       setShowEmailSentModal(true)
-      toast.success('User created! Welcome email sent.')
+      toast.success(`User created! Password: ${password}`)
       setNewUserName('')
       setNewUserEmail('')
       setNewUserRole('')
@@ -372,18 +381,29 @@ export function UsersPage() {
     }
     setAddingAccount(true)
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: accountEmail,
-        password: accountPassword,
-        options: { data: { business_name: accountBusinessName, role: accountType } },
+      // Use edge function (admin API) to bypass rate limits
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-auth-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          email: accountEmail,
+          password: accountPassword,
+          business_name: accountBusinessName,
+          role: accountType,
+          site_url: window.location.origin,
+        }),
       })
-      if (authError || !authData.user) {
-        toast.error(authError?.message || 'Failed to create account')
-        setAddingAccount(false)
-        return
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: 'Failed to create account' }))
+        throw new Error(err.error || 'Failed to create account')
       }
+      const result = await resp.json()
       const { error: insertErr } = await supabase.rpc('insert_user', {
-        p_id: authData.user.id,
+        p_id: result.user.id,
         p_email: accountEmail,
         p_business_name: accountBusinessName,
         p_phone: accountPhone || null,

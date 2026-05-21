@@ -1072,4 +1072,10 @@ export function UsersPage() {
               <p className="text-white font-mono text-sm">{sentEmailTo}</p>
             </div>
             <p className="text-gray-400 text-sm">The user has received an email with their login credentials and will be prompted to change their password on first login.</p>
-   
+            <Button onClick={() => setShowEmailSentModal(false)} className="w-full bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">Done</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

@@ -340,14 +340,16 @@ export function UsersPage() {
         return
       }
       // Auto-confirm email so user can log in immediately (no verification email)
-      await supabase.rpc('confirm_user_email', { p_email: newUserEmail })
-      await supabase.rpc('insert_user', {
+      const { error: confirmErr } = await supabase.rpc('confirm_user_email', { p_email: newUserEmail })
+      if (confirmErr) console.warn('confirm_user_email error:', confirmErr)
+      const { error: insertErr } = await supabase.rpc('insert_user', {
         p_id: authData.user.id,
         p_email: newUserEmail,
         p_business_name: newUserName,
         p_role: newUserRole,
         p_status: 'approved',
       })
+      if (insertErr) throw new Error('Failed to insert user record: ' + insertErr.message)
       await fetchAll()
       setSentEmailTo(newUserEmail)
       setShowCreateModal(false)
@@ -380,7 +382,7 @@ export function UsersPage() {
         setAddingAccount(false)
         return
       }
-      await supabase.rpc('insert_user', {
+      const { error: insertErr } = await supabase.rpc('insert_user', {
         p_id: authData.user.id,
         p_email: accountEmail,
         p_business_name: accountBusinessName,
@@ -394,6 +396,7 @@ export function UsersPage() {
         p_role: accountType,
         p_status: 'approved',
       })
+      if (insertErr) throw new Error('Failed to insert business account: ' + insertErr.message)
       await fetchAll()
       toast.success(`${roleLabels[accountType]} account created!`)
       setShowAddAccountModal(false)
@@ -1069,10 +1072,4 @@ export function UsersPage() {
               <p className="text-white font-mono text-sm">{sentEmailTo}</p>
             </div>
             <p className="text-gray-400 text-sm">The user has received an email with their login credentials and will be prompted to change their password on first login.</p>
-            <Button onClick={() => setShowEmailSentModal(false)} className="w-full bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">Done</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
-}
+   

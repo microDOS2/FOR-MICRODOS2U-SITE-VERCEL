@@ -341,12 +341,12 @@ export function UsersPage() {
       }
       // Auto-confirm email so user can log in immediately (no verification email)
       await supabase.rpc('confirm_user_email', { p_email: newUserEmail })
-      await supabase.from('users').insert({
-        id: authData.user.id,
-        email: newUserEmail,
-        business_name: newUserName,
-        role: newUserRole,
-        status: 'approved',
+      await supabase.rpc('insert_user', {
+        p_id: authData.user.id,
+        p_email: newUserEmail,
+        p_business_name: newUserName,
+        p_role: newUserRole,
+        p_status: 'approved',
       })
       await fetchAll()
       setSentEmailTo(newUserEmail)
@@ -380,20 +380,19 @@ export function UsersPage() {
         setAddingAccount(false)
         return
       }
-      await supabase.from('users').insert({
-        id: authData.user.id,
-        email: accountEmail,
-        business_name: accountBusinessName,
-        contact_name: accountContactName || null,
-        license_number: accountLicense,
-        ein: accountEin,
-        phone: accountPhone || null,
-        address: accountAddress || null,
-        city: accountCity || null,
-        state: accountState || null,
-        zip: accountZip || null,
-        role: accountType,
-        status: 'approved',
+      await supabase.rpc('insert_user', {
+        p_id: authData.user.id,
+        p_email: accountEmail,
+        p_business_name: accountBusinessName,
+        p_phone: accountPhone || null,
+        p_address: accountAddress || null,
+        p_city: accountCity || null,
+        p_state: accountState || null,
+        p_zip: accountZip || null,
+        p_license_number: accountLicense,
+        p_ein: accountEin,
+        p_role: accountType,
+        p_status: 'approved',
       })
       await fetchAll()
       toast.success(`${roleLabels[accountType]} account created!`)

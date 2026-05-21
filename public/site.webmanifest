@@ -1,0 +1,26 @@
+{
+  "name": "microDOS(2) - Microdosing Made Simple",
+  "short_name": "microDOS(2)",
+  "description": "Premium microdosing solutions for mental clarity, focus, and well-being.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0514",
+  "theme_color": "#0a0514",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

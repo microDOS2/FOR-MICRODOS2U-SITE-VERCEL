@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS territories (
 ALTER TABLE territories ENABLE ROW LEVEL SECURITY;
 
 -- 5. Create policies for admin access
+DROP POLICY IF EXISTS "Admin full access to territories" ON territories;
 CREATE POLICY "Admin full access to territories"
     ON territories FOR ALL
     USING (auth.uid() IN (SELECT id FROM users WHERE role = 'admin'));

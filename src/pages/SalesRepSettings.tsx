@@ -62,20 +62,22 @@ export function SalesRepSettings() {
       return
     }
 
-    // Get my manager via RPC (bypasses RLS)
+    // Get my manager directly
     let managerName = 'Unassigned'
     let managerEmail = ''
     let managerPhone: string | null = null
     let managerCity: string | null = null
     let managerState: string | null = null
-    const { data: mgrJson } = await supabase
-      .rpc('get_my_manager', { p_rep_id: repId })
-    if (mgrJson) {
-      managerName = mgrJson.manager_name || mgrJson.manager_email || 'Unknown'
-      managerEmail = mgrJson.manager_email || ''
-      managerPhone = mgrJson.manager_phone || null
-      managerCity = mgrJson.manager_city || null
-      managerState = mgrJson.manager_state || null
+    const { data: me } = await supabase.from('users').select('manager_id').eq('id', repId).single()
+    if (me?.manager_id) {
+      const { data: mgr } = await supabase.from('users').select('business_name,email,phone,city,state').eq('id', me.manager_id).single()
+      if (mgr) {
+        managerName = mgr.business_name || mgr.email || 'Unknown'
+        managerEmail = mgr.email || ''
+        managerPhone = mgr.phone || null
+        managerCity = mgr.city || null
+        managerState = mgr.state || null
+      }
     }
 
     // Count accounts

@@ -1,6 +1,6 @@
 import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
-import { User, Shield, Users, Store, MapPin, Crown, Sparkles, Loader2 } from 'lucide-react'
+import { User, Shield, Users, Store, MapPin, Crown, Loader2 } from 'lucide-react'
 
 const roleConfig: Record<string, { label: string; color: string; icon: any }> = {
   admin:         { label: 'Admin',         color: 'bg-[#9a02d0]/20 text-[#9a02d0]', icon: Crown },
@@ -8,7 +8,6 @@ const roleConfig: Record<string, { label: string; color: string; icon: any }> = 
   sales_rep:     { label: 'Sales Rep',     color: 'bg-[#ff66c4]/20 text-[#ff66c4]', icon: Users },
   wholesaler:    { label: 'Wholesaler',    color: 'bg-[#44f80c]/20 text-[#44f80c]', icon: Store },
   distributor:   { label: 'Distributor',   color: 'bg-[#ff66c4]/20 text-[#ff66c4]', icon: Store },
-  influencer:    { label: 'Influencer',    color: 'bg-[#ff66c4]/20 text-[#ff66c4]', icon: Sparkles },
 }
 
 export function UserInfoBar() {

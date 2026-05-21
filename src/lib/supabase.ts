@@ -3,9 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = 'https://fildaxejimuvfrcqmoba.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbGRheGVqaW11dmZyY3Ftb2JhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMDg2OTUsImV4cCI6MjA5MTY4NDY5NX0.Pe3HHtbo1_OiUTSgnq0qGSgzkkcTxRJ01kfOxsv2Gig';
 
+export const SUPABASE_URL = supabaseUrl;
+export const SUPABASE_ANON_KEY = supabaseAnonKey;
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export type UserRole = 'admin' | 'sales_manager' | 'sales_rep' | 'wholesaler' | 'distributor' | 'influencer' | 'shipping_fulfillment';
+export type UserRole = 'admin' | 'sales_manager' | 'sales_rep' | 'wholesaler' | 'distributor' | 'shipping_fulfillment';
 
 export interface Application {
   id: string;
@@ -90,7 +93,6 @@ export interface Order {
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   notes: string | null;
   referral_code: string | null;
-  influencer_id: string | null;
   created_at: string;
   shipped_date: string | null;
   delivered_date: string | null;

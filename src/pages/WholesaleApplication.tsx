@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Building2, Mail, Phone, MapPin, FileText, CheckCircle, ArrowRight, Loader2, Users } from 'lucide-react';
+import { Building2, Mail, Phone, MapPin, FileText, CheckCircle, ArrowRight, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -42,7 +42,6 @@ export function WholesaleApplication() {
   const [success, setSuccess] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showErrors, setShowErrors] = useState(false);
-  const [influencerEnabled, setInfluencerEnabled] = useState(false);
 
   const [formData, setFormData] = useState({
     business_name: '',
@@ -59,29 +58,10 @@ export function WholesaleApplication() {
     zip: '',
     volume_estimate: '',
     business_type: '',
-    account_type: '', // 'wholesaler' | 'distributor' | 'influencer'
+    account_type: '', // 'wholesaler' | 'distributor'
     agreeTerms: false,
     agreeCompliance: false,
   });
-
-  // Fetch admin setting: is influencer application enabled?
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const { data } = await supabase
-          .from('site_settings')
-          .select('value')
-          .eq('key', 'application_config')
-          .single();
-        if (data?.value?.influencer_applications_enabled === true) {
-          setInfluencerEnabled(true);
-        }
-      } catch {
-        // Default: disabled
-      }
-    };
-    fetchSettings();
-  }, []);
 
   const updateField = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -120,8 +100,7 @@ export function WholesaleApplication() {
   };
 
   const validateStep3 = () => {
-    // Volume estimate not required for influencers
-    if (formData.account_type !== 'influencer' && !formData.volume_estimate) {
+    if (!formData.volume_estimate) {
       return false;
     }
     if (!formData.agreeTerms) {
@@ -162,7 +141,7 @@ export function WholesaleApplication() {
         if (!formData.state) newErrors.state = 'State is required';
         if (!formData.zip) newErrors.zip = 'ZIP code is required';
       } else if (step === 3) {
-        if (formData.account_type !== 'influencer' && !formData.volume_estimate) newErrors.volume_estimate = 'Please select estimated volume';
+        if (!formData.volume_estimate) newErrors.volume_estimate = 'Please select estimated volume';
         if (!formData.agreeTerms) newErrors.agreeTerms = 'You must agree to the Terms of Service';
       }
       setErrors(newErrors);
@@ -189,10 +168,7 @@ export function WholesaleApplication() {
       }
 
       // 2. Prepare user profile data
-      const role = formData.account_type as 'wholesaler' | 'distributor' | 'influencer';
-      const referralCode = role === 'influencer'
-        ? `MICRO2-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
-        : null;
+      const role = formData.account_type as 'wholesaler' | 'distributor';
 
       const userPayload = {
         id: authData.user.id,
@@ -208,8 +184,7 @@ export function WholesaleApplication() {
         state: formData.state,
         zip: formData.zip,
         status: 'pending' as const,
-        volume_estimate: role === 'influencer' ? null : (formData.volume_estimate || null),
-        referral_code: referralCode,
+        volume_estimate: formData.volume_estimate || null,
         referral_count: 0,
         total_referral_sales: 0,
       };
@@ -271,7 +246,7 @@ export function WholesaleApplication() {
           <Link to="/" className="inline-block">
             <span className="text-3xl font-bold text-white">
               micro<span className="text-[#9a02d0]">DOS</span>
-              <span className="text-[#44f80c]">(2)</span>
+              <span className="text-[#ff66c4]">(2)</span>
             </span>
           </Link>
           <h2 className="mt-4 text-2xl font-bold text-white">Commercial Account Application</h2>
@@ -303,7 +278,7 @@ export function WholesaleApplication() {
             <CardTitle className="text-white">
               {step === 1 && 'Business Information'}
               {step === 2 && 'Contact Details'}
-              {step === 3 && (formData.account_type === 'influencer' ? 'Terms & Agreement' : 'Terms & Volume')}
+              {step === 3 && 'Terms & Volume'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -315,7 +290,7 @@ export function WholesaleApplication() {
                     <Label className="text-gray-300">
                       Account Type <span className="text-red-400">*</span>
                     </Label>
-                    <div className={`flex gap-4 ${influencerEnabled ? 'flex-col sm:flex-row' : ''}`}>
+                    <div className="flex gap-4">
                       <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors flex-1 ${
                         formData.account_type === 'wholesaler'
                           ? 'border-[#44f80c] bg-[#44f80c]/10'
@@ -346,24 +321,6 @@ export function WholesaleApplication() {
                         />
                         <span className="text-white">Distributor</span>
                       </label>
-                      {influencerEnabled && (
-                        <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors flex-1 ${
-                          formData.account_type === 'influencer'
-                            ? 'border-[#ff66c4] bg-[#ff66c4]/10'
-                            : 'border-white/10 hover:border-white/30'
-                        }`}>
-                          <input
-                            type="radio"
-                            name="account_type"
-                            value="influencer"
-                            checked={formData.account_type === 'influencer'}
-                            onChange={(e) => updateField('account_type', e.target.value)}
-                            className="w-4 h-4 accent-[#ff66c4]"
-                          />
-                          <Users className="w-4 h-4 text-[#ff66c4]" />
-                          <span className="text-white">Influencer</span>
-                        </label>
-                      )}
                     </div>
                     {showErrors && errors.account_type && (
                       <p className="text-red-400 text-xs">{errors.account_type}</p>
@@ -492,7 +449,7 @@ export function WholesaleApplication() {
                     </div>
                   </div>
 
-                  {/* Business Type - Only for Wholesalers (hidden for Distributor and Influencer) */}
+                  {/* Business Type - Only for Wholesalers (hidden for Distributor) */}
                   {formData.account_type === 'wholesaler' && (
                     <div className="space-y-2">
                       <Label htmlFor="business_type" className="text-gray-300">
@@ -619,31 +576,29 @@ export function WholesaleApplication() {
 
               {step === 3 && (
                 <>
-                  {formData.account_type !== 'influencer' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="volume" className="text-gray-300">
-                        Estimated Monthly Volume <span className="text-red-400">*</span>
-                      </Label>
-                      <Select
-                        value={formData.volume_estimate}
-                        onValueChange={(v) => updateField('volume_estimate', v)}
-                      >
-                        <SelectTrigger className={`bg-[#0a0514] text-white ${showErrors && errors.volume_estimate ? 'border-red-500' : 'border-white/10'}`}>
-                          <SelectValue placeholder="Select Volume" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#150f24] border-white/10">
-                          {VOLUME_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value} className="text-white">
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {showErrors && errors.volume_estimate && (
-                        <p className="text-red-400 text-xs">{errors.volume_estimate}</p>
-                      )}
-                    </div>
-                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="volume" className="text-gray-300">
+                      Estimated Monthly Volume <span className="text-red-400">*</span>
+                    </Label>
+                    <Select
+                      value={formData.volume_estimate}
+                      onValueChange={(v) => updateField('volume_estimate', v)}
+                    >
+                      <SelectTrigger className={`bg-[#0a0514] text-white ${showErrors && errors.volume_estimate ? 'border-red-500' : 'border-white/10'}`}>
+                        <SelectValue placeholder="Select Volume" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#150f24] border-white/10">
+                        {VOLUME_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value} className="text-white">
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {showErrors && errors.volume_estimate && (
+                      <p className="text-red-400 text-xs">{errors.volume_estimate}</p>
+                    )}
+                  </div>
 
                   <div className="space-y-4 pt-4">
                     <div className="flex items-start space-x-3">

@@ -120,6 +120,7 @@ export function Products() {
 
   useEffect(() => {
     let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout>;
 
     async function fetchData() {
       // Always reset state on each attempt
@@ -138,7 +139,6 @@ export function Products() {
 
         const dbProducts = rpcData?.products || [];
         const dbVariants = rpcData?.variants || [];
-        console.log('[Products] RPC loaded', dbProducts.length, 'products,', dbVariants.length, 'variants');
 
         if (cancelled) return;
 
@@ -192,7 +192,7 @@ export function Products() {
     }
 
     // 15-second safety timeout — only fires if fetchData truly hangs
-    const timeoutId = setTimeout(() => {
+    timeoutId = setTimeout(() => {
       if (!cancelled) {
         setError('Connection timed out after 15 seconds. The database may be unreachable.');
         setLoading(false);

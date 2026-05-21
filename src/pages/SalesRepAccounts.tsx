@@ -59,9 +59,17 @@ export function SalesRepAccounts() {
       return
     }
 
-    // Get accounts + manager info via RPC (bypasses RLS)
-    const { data: acctJson } = await supabase
-      .rpc('get_my_accounts', { p_rep_id: repId })
+    // Get accounts where this rep is assigned via rep_account_assignments
+    const { data: assignmentsData } = await supabase
+      .from('rep_account_assignments')
+      .select('account_id')
+      .eq('rep_id', repId)
+
+    const assignedAccountIds = (assignmentsData || []).map((a: any) => a.account_id)
+
+    const { data: acctJson } = assignedAccountIds.length > 0
+      ? await supabase.from('users').select('*').in('id', assignedAccountIds)
+      : { data: [] }
 
     if (!acctJson || acctJson.length === 0) {
       setAccounts([])

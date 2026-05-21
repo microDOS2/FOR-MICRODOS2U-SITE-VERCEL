@@ -6,7 +6,7 @@
  * Edge Function to charge the card server-side.
  */
 
-import { supabase } from '@/lib/supabase'
+import { supabase, SUPABASE_ANON_KEY } from '@/lib/supabase'
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -40,15 +40,73 @@ export interface AuthorizeNetConfig {
   endpointUrl: string
 }
 
-// ─── Accept.js is pre-loaded in index.html ───────────────────────────
-// <script src="https://jstest.authorize.net/v1/Accept.js">
-// This just verifies it's ready before use.
+// ─── Dynamic Accept.js loading based on payment mode ─────────────────
 
 let scriptLoaded = false
+let scriptLoading = false
 const SUPABASE_URL = 'https://fildaxejimuvfrcqmoba.supabase.co'
+const ACCEPT_JS_URLS = {
+  test: 'https://jstest.authorize.net/v1/Accept.js',
+  live: 'https://js.authorize.net/v1/Accept.js',
+}
 
-function ensureAcceptJsReady(maxWait = 8000): Promise<void> {
+function loadAcceptJsScript(mode: 'test' | 'live'): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof document === 'undefined') {
+      reject(new Error('Document not available'))
+      return
+    }
+    const existing = document.querySelector('script[data-acceptjs]') as HTMLScriptElement | null
+    if (existing) {
+      existing.addEventListener('load', () => resolve())
+      if ((window as any).Accept) resolve()
+      return
+    }
+    const script = document.createElement('script')
+    script.src = ACCEPT_JS_URLS[mode]
+    script.charset = 'utf-8'
+    script.async = true
+    script.setAttribute('data-acceptjs', mode)
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error(`Failed to load Accept.js (${mode})`))
+    document.head.appendChild(script)
+  })
+}
+
+async function ensureAcceptJsReady(mode?: 'test' | 'live', maxWait = 8000): Promise<void> {
   if (scriptLoaded) return Promise.resolve()
+  if (scriptLoading) {
+    // Wait for existing load
+    return new Promise((resolve, reject) => {
+      const start = Date.now()
+      const check = () => {
+        if (scriptLoaded) { resolve(); return }
+        if (Date.now() - start > maxWait) { reject(new Error('Accept.js load timeout')); return }
+        setTimeout(check, 300)
+      }
+      check()
+    })
+  }
+
+  // If Accept.js is already in DOM from elsewhere
+  if (typeof (window as any).Accept !== 'undefined') {
+    scriptLoaded = true
+    return Promise.resolve()
+  }
+
+  // Need to load it dynamically
+  if (mode) {
+    scriptLoading = true
+    try {
+      await loadAcceptJsScript(mode)
+      scriptLoaded = true
+    } finally {
+      scriptLoading = false
+    }
+    return
+  }
+
+  // No mode specified - try to detect from config or default to test
   return new Promise((resolve, reject) => {
     const start = Date.now()
     const check = () => {
@@ -58,7 +116,7 @@ function ensureAcceptJsReady(maxWait = 8000): Promise<void> {
         return
       }
       if (Date.now() - start > maxWait) {
-        reject(new Error('Accept.js is not loaded correctly'))
+        reject(new Error('Accept.js is not loaded. Make sure the script is loaded before calling tokenizeCard.'))
         return
       }
       setTimeout(check, 300)
@@ -110,7 +168,7 @@ export async function tokenizeCard(
   },
   config: AuthorizeNetConfig
 ): Promise<TokenizeResult> {
-  await ensureAcceptJsReady()
+  await ensureAcceptJsReady(config.mode)
 
   return new Promise((resolve) => {
     const authData = {
@@ -180,7 +238,7 @@ export async function chargeCard(
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
-      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+      apikey: SUPABASE_ANON_KEY,
     },
     body: JSON.stringify({
       opaqueData,

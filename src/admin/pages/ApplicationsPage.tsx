@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,7 +19,7 @@ interface Application {
   license_number: string | null
   ein: string | null
   website: string | null
-  account_type: 'wholesaler' | 'distributor' | 'influencer'
+  account_type: 'wholesaler' | 'distributor'
   business_type: string | null
   volume_estimate: string | null
   status: 'pending' | 'approved' | 'rejected' | 'more_info_needed'
@@ -30,13 +30,11 @@ interface Application {
 const typeLabels: Record<string, string> = {
   wholesaler: 'Wholesaler',
   distributor: 'Distributor',
-  influencer: 'Influencer',
 }
 
 const typeBadgeClasses: Record<string, string> = {
   wholesaler: 'bg-[#44f80c]/20 text-[#44f80c]',
   distributor: 'bg-[#ff66c4]/20 text-[#ff66c4]',
-  influencer: 'bg-orange-500/20 text-orange-400',
 }
 
 function generatePassword(length = 12): string {
@@ -87,11 +85,11 @@ export function ApplicationsPage() {
 
     try {
       // 1. Create auth user via Edge Function (NO welcome email sent)
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-auth-user`, {
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-auth-user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           email: app.email,
@@ -113,22 +111,24 @@ export function ApplicationsPage() {
         return
       }
 
-      // 2. Insert into users table via RPC (bypasses RLS)
-      const { error: userError } = await supabase.rpc('insert_user', {
-        p_id: userId,
-        p_email: app.email,
-        p_business_name: app.business_name,
-        p_role: app.account_type,
-        p_status: 'approved',
-        p_phone: app.phone,
-        p_address: app.address,
-        p_city: app.city,
-        p_state: app.state,
-        p_zip: app.zip,
-        p_license_number: app.license_number,
-        p_ein: app.ein,
-        p_website: app.website,
-        p_volume_estimate: app.volume_estimate,
+      // 2. Insert into users table directly (admin has service role via edge function)
+      const { error: userError } = await supabase.from('users').insert({
+        id: userId,
+        email: app.email,
+        business_name: app.business_name,
+        role: app.account_type,
+        status: 'approved',
+        phone: app.phone,
+        address: app.address,
+        city: app.city,
+        state: app.state,
+        zip: app.zip,
+        license_number: app.license_number,
+        ein: app.ein,
+        website: app.website,
+        volume_estimate: app.volume_estimate,
+        referral_count: 0,
+        total_referral_sales: 0,
       })
 
       if (userError) {
@@ -366,7 +366,6 @@ export function ApplicationsPage() {
                 <p className="text-white font-medium">
                   {approvedApp.account_type === 'wholesaler' && '/wholesaler-portal'}
                   {approvedApp.account_type === 'distributor' && '/distributor-portal'}
-                  {approvedApp.account_type === 'influencer' && '/influencer-portal'}
                 </p>
               </div>
 

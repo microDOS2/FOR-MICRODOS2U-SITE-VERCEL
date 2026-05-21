@@ -171,26 +171,35 @@ export function TerritoryTransferPage() {
     setShowConfirmModal(false)
     setTransferring(true)
 
-    const transfers = Array.from(selectedAccounts).map(id => {
-      const acct = accounts.find(a => a.id === id)
-      return {
-        account_id: id,
-        rep_id: acct?.assigned_rep_id && moveRepFlags[id] ? acct.assigned_rep_id : null,
+    try {
+      let movedAccounts = 0
+      let movedReps = 0
+
+      for (const accountId of Array.from(selectedAccounts)) {
+        const acct = accounts.find(a => a.id === accountId)
+        if (!acct) continue
+
+        // Update account's manager
+        const { error: updateError } = await supabase.from('users').update({
+          manager_id: targetManagerId
+        }).eq('id', accountId)
+
+        if (updateError) throw updateError
+        movedAccounts++
+
+        // Move rep if requested
+        if (acct.assigned_rep_id && moveRepFlags[accountId]) {
+          const { error: repError } = await supabase.from('users').update({
+            manager_id: targetManagerId
+          }).eq('id', acct.assigned_rep_id)
+
+          if (repError) throw repError
+          movedReps++
+        }
       }
-    })
 
-    const { data, error } = await supabase.rpc('transfer_accounts_batch_json', {
-      p_source_manager_id: sourceManagerId,
-      p_target_manager_id: targetManagerId,
-      p_transfers: transfers,
-    })
-
-    if (error) {
-      console.error('transfer_accounts_batch_json error:', error)
-      toast.error('Transfer failed: ' + error.message)
-    } else {
       toast.success(
-        `Transfer complete! ${data?.moved_accounts || selectedCount} accounts moved, ${data?.moved_reps || moveRepCount} reps moved, ${data?.transfer_count || moveRepCount} new transfer queue entries.`,
+        `Transfer complete! ${movedAccounts} accounts moved, ${movedReps} reps moved.`,
         { duration: 6000 }
       )
       setSelectedAccounts(new Set())
@@ -198,7 +207,11 @@ export function TerritoryTransferPage() {
       setSourceManagerId('')
       setTargetManagerId('')
       await fetchData()
+    } catch (err: any) {
+      console.error('Transfer error:', err)
+      toast.error('Transfer failed: ' + (err.message || 'Unknown error'))
     }
+
     setTransferring(false)
   }
 

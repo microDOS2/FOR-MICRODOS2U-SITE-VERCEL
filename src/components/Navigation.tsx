@@ -79,9 +79,6 @@ export function Navigation() {
           case 'distributor':
             navigate('/distributor-dashboard');
             break;
-          case 'influencer':
-            navigate('/influencer-dashboard');
-            break;
           case 'wholesaler':
           default:
             navigate('/wholesaler-dashboard');

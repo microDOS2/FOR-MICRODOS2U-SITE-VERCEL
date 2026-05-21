@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
@@ -70,7 +70,6 @@ const roleLabels: Record<string, string> = {
   sales_rep: 'Sales Rep',
   wholesaler: 'Wholesaler',
   distributor: 'Distributor',
-  influencer: 'Influencer',
   shipping_fulfillment: 'Shipping / Fulfillment',
 }
 
@@ -80,7 +79,6 @@ const roleBadgeClasses: Record<string, string> = {
   sales_rep: 'bg-blue-500/20 text-blue-500',
   wholesaler: 'bg-[#44f80c]/20 text-[#44f80c]',
   distributor: 'bg-[#ff66c4]/20 text-[#ff66c4]',
-  influencer: 'bg-orange-500/20 text-orange-500',
   shipping_fulfillment: 'bg-cyan-500/20 text-cyan-500',
 }
 
@@ -135,7 +133,7 @@ export function UsersPage() {
   const [accountContactName, setAccountContactName] = useState('')
   const [accountEmail, setAccountEmail] = useState('')
   const [accountPassword, setAccountPassword] = useState('')
-  const [accountType, setAccountType] = useState<'wholesaler' | 'distributor' | 'influencer'>('wholesaler')
+  const [accountType, setAccountType] = useState<'wholesaler' | 'distributor'>('wholesaler')
   const [accountPhone, setAccountPhone] = useState('')
   const [accountAddress, setAccountAddress] = useState('')
   const [accountCity, setAccountCity] = useState('')
@@ -185,7 +183,7 @@ export function UsersPage() {
   const [filterMode, setFilterMode] = useState<FilterMode>('all')
 
   const employeeRoles = ['admin', 'sales_manager', 'sales_rep', 'shipping_fulfillment']
-  const businessRoles = ['wholesaler', 'distributor', 'influencer']
+  const businessRoles = ['wholesaler', 'distributor']
 
   // Inline manager assignment
   const [savingManager, setSavingManager] = useState<string | null>(null)
@@ -324,7 +322,7 @@ export function UsersPage() {
       toast.error('Please fill in all fields')
       return
     }
-    const blockedRoles = ['wholesaler', 'distributor', 'influencer']
+    const blockedRoles = ['wholesaler', 'distributor']
     if (blockedRoles.includes(newUserRole)) {
       toast.error(`"${roleLabels[newUserRole]}" accounts must be created via "Add Business Account"`)
       return
@@ -348,7 +346,6 @@ export function UsersPage() {
         id: authData.user.id,
         email: newUserEmail,
         business_name: newUserName,
-        plain_password: password,
         role: newUserRole,
         status: 'approved',
       })
@@ -389,7 +386,6 @@ export function UsersPage() {
         email: accountEmail,
         business_name: accountBusinessName,
         contact_name: accountContactName || null,
-        plain_password: accountPassword,
         license_number: accountLicense,
         ein: accountEin,
         phone: accountPhone || null,
@@ -423,7 +419,7 @@ export function UsersPage() {
     setEditCity(user.city || '')
     setEditState(user.state || '')
     setEditStatus(user.status || 'approved')
-    setEditPassword(user.raw?.plain_password || '')
+    setEditPassword('')
     setEditManagerId(user.raw?.manager_id || '')
     setShowEditModal(true)
   }
@@ -432,45 +428,40 @@ export function UsersPage() {
     if (!editingUser) return
     setSavingEdit(true)
     try {
-      // Use RPC to bypass RLS and update any user
-      const { error } = await supabase.rpc('update_user', {
-        p_id: editingUser.id,
-        p_business_name: editName,
-        p_phone: editPhone || null,
-        p_city: editCity || null,
-        p_state: editState || null,
-        p_status: editStatus,
-      })
-      // Update plain_password separately
+      // Update user directly via admin client
+      const { error } = await supabase.from('users').update({
+        business_name: editName,
+        phone: editPhone || null,
+        city: editCity || null,
+        state: editState || null,
+        status: editStatus,
+      }).eq('id', editingUser.id)
+
+      // Update auth password if provided
       if (editPassword !== '') {
         if (editPassword.length < 6) {
           toast.error('Password must be at least 6 characters')
           setSavingEdit(false)
           return
         }
-        await supabase.from('users').update({ plain_password: editPassword }).eq('id', editingUser.id)
-        // Also update the actual Supabase Auth password via Edge Function
         try {
-          const { data: { session } } = await supabase.auth.getSession()
-          const resp = await fetch('https://fildaxejimuvfrcqmoba.supabase.co/functions/v1/update-auth-password', {
+          const resp = await fetch(`${SUPABASE_URL}/functions/v1/update-auth-password`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session?.access_token || ''}`,
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbGRheGVqaW11dmZyY3Ftb2JhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMDg2OTUsImV4cCI6MjA5MTY4NDY5NX0.Pe3HHtbo1_OiUTSgnq0qGSgzkkcTxRJ01kfOxsv2Gig'
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+              'apikey': SUPABASE_ANON_KEY,
             },
             body: JSON.stringify({ user_id: editingUser.id, new_password: editPassword })
           })
           const result = await resp.json()
           if (!resp.ok || result.error) {
             console.error('Edge function error:', result)
-            toast.error('Password saved but login update failed: ' + (result.error || 'Unknown error'))
-          } else {
-            console.log('Auth password updated:', result)
+            toast.error('Password update failed: ' + (result.error || 'Unknown error'))
           }
         } catch (err: any) {
           console.error('Failed to call edge function:', err)
-          toast.error('Password saved but login update failed: ' + (err?.message || 'Network error'))
+          toast.error('Password update failed: ' + (err?.message || 'Network error'))
         }
       }
       if (error) {
@@ -479,10 +470,9 @@ export function UsersPage() {
         // Update manager_id if changed
         const oldManagerId = editingUser.raw?.manager_id || ''
         if (editManagerId !== oldManagerId) {
-          const { error: mgrError } = await supabase.rpc('assign_manager', {
-            target_user_id: editingUser.id,
-            new_manager_id: editManagerId || null
-          })
+          const { error: mgrError } = await supabase.from('users').update({
+            manager_id: editManagerId || null
+          }).eq('id', editingUser.id)
           if (mgrError) {
             toast.error('Profile updated but manager assignment failed: ' + mgrError.message)
             setSavingEdit(false)
@@ -512,10 +502,9 @@ export function UsersPage() {
   const handleAssignManager = async (accountId: string, managerId: string) => {
     setSavingManager(accountId)
     try {
-      const { error } = await supabase.rpc('assign_manager', {
-        target_user_id: accountId,
-        new_manager_id: managerId || null
-      })
+      const { error } = await supabase.from('users').update({
+        manager_id: managerId || null
+      }).eq('id', accountId)
       if (error) throw error
       setAllAccounts(prev => prev.map(a =>
         a.id === accountId ? { ...a, raw: { ...a.raw, manager_id: managerId || null } } : a
@@ -545,8 +534,8 @@ export function UsersPage() {
     setActionLoading(user.id + '-delete')
     try {
       if (user.source === 'users') {
-        // Use RPC to bypass RLS and delete any user
-        const { error } = await supabase.rpc('delete_user', { p_id: user.id })
+        // Delete user directly via admin client
+        const { error } = await supabase.from('users').delete().eq('id', user.id)
         if (error) {
           toast.error('Delete failed: ' + error.message)
           setActionLoading(null)
@@ -573,9 +562,9 @@ export function UsersPage() {
         setSavingStates(null)
         return
       }
-      const { error } = await supabase.rpc('assign_state', {
-        p_manager_id: managerId,
-        p_state_code: state,
+      const { error } = await supabase.from('manager_state_assignments').insert({
+        manager_id: managerId,
+        state_code: state,
       })
       if (error) throw error
       setManagerStateMap(prev => {
@@ -596,10 +585,8 @@ export function UsersPage() {
   const handleRemoveState = async (managerId: string, state: string) => {
     setSavingStates(managerId)
     try {
-      const { error } = await supabase.rpc('remove_state', {
-        p_manager_id: managerId,
-        p_state_code: state,
-      })
+      const { error } = await supabase.from('manager_state_assignments').delete()
+        .eq('manager_id', managerId).eq('state_code', state)
       if (error) throw error
       setManagerStateMap(prev => {
         const next = new Map(prev)
@@ -632,7 +619,6 @@ export function UsersPage() {
     switch (accountType) {
       case 'wholesaler': return 'Wholesaler'
       case 'distributor': return 'Distributor'
-      case 'influencer': return 'Influencer'
     }
   }
 
@@ -918,7 +904,7 @@ export function UsersPage() {
               <div className="flex items-start gap-2 mt-2 p-2 bg-[#ff66c4]/10 border border-[#ff66c4]/20 rounded-lg">
                 <Info className="w-4 h-4 text-[#ff66c4] mt-0.5 shrink-0" />
                 <p className="text-xs text-[#ff66c4]">
-                  Wholesaler, Distributor, and Influencer accounts must be created via <strong>Add Business Account</strong>.
+                  Wholesaler and Distributor accounts must be created via <strong>Add Business Account</strong>.
                 </p>
               </div>
             </div>
@@ -943,7 +929,7 @@ export function UsersPage() {
             <div>
               <Label className="text-gray-300">Account Type <span className="text-red-400">*</span></Label>
               <div className="flex gap-4 mt-1 flex-wrap">
-                {(['wholesaler', 'distributor', 'influencer'] as const).map((t) => (
+                {(['wholesaler', 'distributor'] as const).map((t) => (
                   <label key={t} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${accountType === t ? 'border-[#9a02d0] bg-[#9a02d0]/10' : 'border-white/10 hover:border-white/30'}`}>
                     <input type="radio" name="acct_type" value={t} checked={accountType === t} onChange={() => setAccountType(t)} className="w-4 h-4 accent-[#9a02d0]" />
                     <span className="text-white">{roleLabels[t]}</span>
@@ -1013,7 +999,7 @@ export function UsersPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-gray-300">{(['wholesaler', 'distributor', 'influencer'].includes(editingUser?.role || '')) ? 'Business Name' : 'Full Name'}</Label>
+              <Label className="text-gray-300">{(['wholesaler', 'distributor'].includes(editingUser?.role || '')) ? 'Business Name' : 'Full Name'}</Label>
               <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="bg-[#0a0514] border-white/10 text-white" />
             </div>
             <div>
@@ -1041,7 +1027,7 @@ export function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
-            {editingUser && ['sales_rep', 'wholesaler', 'distributor', 'influencer'].includes(editingUser.role || '') && (
+            {editingUser && ['sales_rep', 'wholesaler', 'distributor'].includes(editingUser.role || '') && (
               <div>
                 <Label className="text-gray-300">Sales Manager</Label>
                 <select

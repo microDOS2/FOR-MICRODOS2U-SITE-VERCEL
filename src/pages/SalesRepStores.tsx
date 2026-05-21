@@ -67,9 +67,18 @@ export function SalesRepStores() {
       return
     }
 
-    // Get account details + manager info via RPC (bypasses RLS)
-    const { data: managerJson } = await supabase
-      .rpc('get_managers_for_accounts', { p_account_ids: accountIds })
+    // Get account details + manager info directly
+    const { data: accountsData } = await supabase
+      .from('users')
+      .select('id,business_name,email,phone,manager_id')
+      .in('id', accountIds)
+
+    // Get manager details
+    const managerIds = (accountsData || []).map((a: any) => a.manager_id).filter(Boolean)
+    const { data: managersData } = managerIds.length > 0
+      ? await supabase.from('users').select('id,business_name,email,phone,city,state').in('id', managerIds)
+      : { data: [] }
+    const managersMap = new Map((managersData || []).map((m: any) => [m.id, m]))
 
     const accountInfoMap = new Map<string, {
       account_name: string | null
@@ -81,16 +90,17 @@ export function SalesRepStores() {
       manager_city: string | null
       manager_state: string | null
     }>()
-    ;(managerJson || []).forEach((m: any) => {
+    ;(accountsData || []).forEach((m: any) => {
+      const mgr = managersMap.get(m.manager_id)
       accountInfoMap.set(m.id, {
         account_name: m.business_name || 'Unknown',
         account_email: m.email || null,
         account_phone: m.phone || null,
-        manager_name: m.manager_name || 'Unassigned',
-        manager_email: m.manager_email || null,
-        manager_phone: m.manager_phone || null,
-        manager_city: m.manager_city || null,
-        manager_state: m.manager_state || null,
+        manager_name: mgr?.business_name || 'Unassigned',
+        manager_email: mgr?.email || null,
+        manager_phone: mgr?.phone || null,
+        manager_city: mgr?.city || null,
+        manager_state: mgr?.state || null,
       })
     })
 

@@ -23,13 +23,14 @@ import { SalesRepNotifications } from './pages/SalesRepNotifications';
 import { SalesRepSettings } from './pages/SalesRepSettings';
 import { AdminPortal } from './pages/AdminPortal';
 import { Products } from './pages/Products';
-import { InfluencerPortal } from './pages/InfluencerPortal';
-import { InfluencerDashboard } from './pages/InfluencerDashboard';
 import { ShippingPortal } from './pages/ShippingPortal';
 import { ShippingDashboard } from './pages/ShippingDashboard';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { Navigation } from './components/Navigation';
 import { Footer } from './components/Footer';
 import { CartProvider } from './context/CartContext';
+import { RequireAuth } from './components/RequireAuth';
 import { Toaster } from 'sonner';
 
 // Admin Command Center (sidebar-based, /admin/*)
@@ -38,7 +39,6 @@ import { DashboardPage } from './admin/pages/DashboardPage';
 import { UsersPage } from './admin/pages/UsersPage';
 import { ApplicationsPage } from './admin/pages/ApplicationsPage';
 import { AccountsPage } from './admin/pages/AssignmentsPage';
-import { InfluencersPage } from './admin/pages/InfluencersPage';
 import { ProductsPage } from './admin/pages/ProductsPage';
 import { AgreementsPage } from './admin/pages/AgreementsPage';
 import { StoresPage } from './admin/pages/StoresPage';
@@ -75,8 +75,6 @@ function AppContent() {
     '/sales-rep-settings',
     '/admin-portal',
     '/products',
-    '/influencer-portal',
-    '/influencer-dashboard',
     '/shipping-portal',
     '/shipping-dashboard',
   ].includes(location.pathname) || location.pathname.startsWith('/admin');
@@ -99,44 +97,45 @@ function AppContent() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/store-locator" element={<StoreLocator />} />
           <Route path="/wholesale-application" element={<WholesaleApplication />} />
-          <Route path="/wholesaler-portal" element={<WholesalerPortal />} />
           <Route path="/contact" element={<ContactPage />} />
-          <Route path="/wholesaler-dashboard" element={<WholesalerDashboard />} />
-          <Route path="/distributor-portal" element={<DistributorPortal />} />
-          <Route path="/distributor-dashboard" element={<DistributorDashboard />} />
-          <Route path="/distributor-orders" element={<Navigate to="/distributor-dashboard" replace />} />
-          <Route path="/distributor-invoices" element={<Navigate to="/distributor-dashboard" replace />} />
-          <Route path="/distributor-agreements" element={<Navigate to="/distributor-dashboard" replace />} />
-          <Route path="/distributor-settings" element={<Navigate to="/distributor-dashboard" replace />} />
-          <Route path="/sales-manager-portal" element={<SalesManagerPortal />} />
-          <Route path="/sales-manager-dashboard" element={<SalesManagerDashboard />} />
-          <Route path="/sales-manager-team" element={<SalesManagerTeam />} />
-          <Route path="/sales-manager-accounts" element={<SalesManagerAccounts />} />
-          <Route path="/sales-manager-performance" element={<SalesManagerPerformance />} />
-          <Route path="/sales-manager-stores" element={<SalesManagerStores />} />
-          <Route path="/sales-manager-settings" element={<SalesManagerSettings />} />
-          <Route path="/sales-rep-portal" element={<SalesRepPortal />} />
-          <Route path="/sales-rep-dashboard" element={<SalesRepDashboard />} />
-          <Route path="/sales-rep-accounts" element={<SalesRepAccounts />} />
-          <Route path="/sales-rep-stores" element={<SalesRepStores />} />
-          <Route path="/sales-rep-orders" element={<SalesRepOrders />} />
-          <Route path="/sales-rep-notifications" element={<SalesRepNotifications />} />
-          <Route path="/sales-rep-settings" element={<SalesRepSettings />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+          {/* Auth-protected portal routes */}
+          <Route path="/wholesaler-portal" element={<RequireAuth allowedRoles={['wholesaler', 'admin']}><WholesalerPortal /></RequireAuth>} />
+          <Route path="/wholesaler-dashboard" element={<RequireAuth allowedRoles={['wholesaler', 'admin']}><WholesalerDashboard /></RequireAuth>} />
+          <Route path="/distributor-portal" element={<RequireAuth allowedRoles={['distributor', 'admin']}><DistributorPortal /></RequireAuth>} />
+          <Route path="/distributor-dashboard" element={<RequireAuth allowedRoles={['distributor', 'admin']}><DistributorDashboard /></RequireAuth>} />
+          <Route path="/distributor-orders" element={<RequireAuth allowedRoles={['distributor', 'admin']}><Navigate to="/distributor-dashboard" replace /></RequireAuth>} />
+          <Route path="/distributor-invoices" element={<RequireAuth allowedRoles={['distributor', 'admin']}><Navigate to="/distributor-dashboard" replace /></RequireAuth>} />
+          <Route path="/distributor-agreements" element={<RequireAuth allowedRoles={['distributor', 'admin']}><Navigate to="/distributor-dashboard" replace /></RequireAuth>} />
+          <Route path="/distributor-settings" element={<RequireAuth allowedRoles={['distributor', 'admin']}><Navigate to="/distributor-dashboard" replace /></RequireAuth>} />
+          <Route path="/sales-manager-portal" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerPortal /></RequireAuth>} />
+          <Route path="/sales-manager-dashboard" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerDashboard /></RequireAuth>} />
+          <Route path="/sales-manager-team" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerTeam /></RequireAuth>} />
+          <Route path="/sales-manager-accounts" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerAccounts /></RequireAuth>} />
+          <Route path="/sales-manager-performance" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerPerformance /></RequireAuth>} />
+          <Route path="/sales-manager-stores" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerStores /></RequireAuth>} />
+          <Route path="/sales-manager-settings" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerSettings /></RequireAuth>} />
+          <Route path="/sales-rep-portal" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepPortal /></RequireAuth>} />
+          <Route path="/sales-rep-dashboard" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepDashboard /></RequireAuth>} />
+          <Route path="/sales-rep-accounts" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepAccounts /></RequireAuth>} />
+          <Route path="/sales-rep-stores" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepStores /></RequireAuth>} />
+          <Route path="/sales-rep-orders" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepOrders /></RequireAuth>} />
+          <Route path="/sales-rep-notifications" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepNotifications /></RequireAuth>} />
+          <Route path="/sales-rep-settings" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepSettings /></RequireAuth>} />
           <Route path="/admin-portal" element={<AdminPortal />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/influencer-portal" element={<InfluencerPortal />} />
-          <Route path="/influencer-dashboard" element={<InfluencerDashboard />} />
-          <Route path="/shipping-portal" element={<ShippingPortal />} />
-          <Route path="/shipping-dashboard" element={<ShippingDashboard />} />
+          <Route path="/products" element={<RequireAuth><Products /></RequireAuth>} />
+          <Route path="/shipping-portal" element={<RequireAuth allowedRoles={['shipping_fulfillment', 'admin']}><ShippingPortal /></RequireAuth>} />
+          <Route path="/shipping-dashboard" element={<RequireAuth allowedRoles={['shipping_fulfillment', 'admin']}><ShippingDashboard /></RequireAuth>} />
 
           {/* Admin Command Center — /admin/* */}
-          <Route path="/admin" element={<AdminLayout />}>
+          <Route path="/admin" element={<RequireAuth allowedRoles={['admin']}><AdminLayout /></RequireAuth>}>
             <Route index element={<DashboardPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="applications" element={<ApplicationsPage />} />
             <Route path="accounts" element={<AccountsPage />} />
-          <Route path="assignments" element={<Navigate to="/admin/accounts" replace />} />
-            <Route path="influencers" element={<InfluencersPage />} />
+            <Route path="assignments" element={<Navigate to="/admin/accounts" replace />} />
             <Route path="products" element={<ProductsPage />} />
             <Route path="agreements" element={<AgreementsPage />} />
             <Route path="orders-invoices" element={<OrdersInvoicesPage />} />

@@ -44,7 +44,7 @@ export interface WholesalerStarterKit {
   inStock: boolean;
 }
 
-export type UserRole = 'admin' | 'sales_manager' | 'sales_rep' | 'distributor' | 'wholesaler' | 'influencer';
+export type UserRole = 'admin' | 'sales_manager' | 'sales_rep' | 'distributor' | 'wholesaler';
 
 export interface CartItem {
   productId: string;

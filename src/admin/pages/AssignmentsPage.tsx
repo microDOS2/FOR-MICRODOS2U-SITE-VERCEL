@@ -179,10 +179,9 @@ export function AccountsPage() {
     try {
       const acct = accounts.find(a => a.id === accountId)
       const oldManager = acct?.manager_name
-      const { error } = await supabase.rpc('assign_manager', {
-        target_user_id: accountId,
-        new_manager_id: managerId || null
-      })
+      const { error } = await supabase.from('users').update({
+        manager_id: managerId || null
+      }).eq('id', accountId)
       if (error) throw error
       setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, manager_name: managerId ? (managers.find(m => m.id === managerId)?.business_name || managers.find(m => m.id === managerId)?.email || 'Unknown') : null } : a))
       const newMgr = managers.find(m => m.id === managerId)

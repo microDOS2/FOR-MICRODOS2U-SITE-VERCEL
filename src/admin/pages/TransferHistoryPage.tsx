@@ -88,10 +88,9 @@ export function TransferHistoryPage() {
   const handleAdminResolve = async (transferId: string, status: 'accepted' | 'rejected') => {
     if (!confirm(`Admin override: mark this transfer as ${status}?`)) return
     setResolvingId(transferId)
-    const { error } = await supabase.rpc('admin_resolve_transfer', {
-      p_transfer_id: transferId,
-      p_status: status,
-    })
+    const { error } = await supabase.from('assignment_transfers')
+      .update({ status, resolved_at: new Date().toISOString() })
+      .eq('id', transferId)
     if (error) {
       console.error('admin_resolve_transfer error:', error)
       toast.error('Failed: ' + error.message)

@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
-import { Search, Plus, Pencil, Trash2, X, Save, Settings, Users, Store, ToggleLeft, ToggleRight, CreditCard, Link, Server, Key, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, X, Save, Settings, Store, CreditCard, Link, Server, Key, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 
 interface ConfigItem {
   id: string
@@ -21,10 +21,6 @@ export function ConfigPage() {
   const [editingConfig, setEditingConfig] = useState<ConfigItem | null>(null)
   const [formData, setFormData] = useState({ key: '', value: '', description: '' })
 
-  // Influencer apps toggle state (from old admin)
-  const [influencerAppsEnabled, setInfluencerAppsEnabled] = useState(false)
-  const [appConfigLoading, setAppConfigLoading] = useState(false)
-
   // Payment processor config state
   const [paymentConfig, setPaymentConfig] = useState({
     processor: 'authorize_net',
@@ -37,7 +33,7 @@ export function ConfigPage() {
   const [savingPayment, setSavingPayment] = useState(false)
   const [paymentConfigStatus, setPaymentConfigStatus] = useState<'not_configured' | 'configured'>('not_configured')
 
-  useEffect(() => { fetchConfigs(); fetchAppConfig(); fetchPaymentConfig() }, [search])
+  useEffect(() => { fetchConfigs(); fetchPaymentConfig() }, [search])
 
   const fetchPaymentConfig = async () => {
     try {
@@ -114,36 +110,6 @@ export function ConfigPage() {
     setLoading(false)
   }
 
-  const fetchAppConfig = async () => {
-    try {
-      const { data } = await supabase.from('site_settings').select('value').eq('key', 'application_config').single()
-      if (data?.value?.influencer_applications_enabled === true) {
-        setInfluencerAppsEnabled(true)
-      }
-    } catch {
-      // Default disabled
-    }
-  }
-
-  const toggleInfluencerApps = async () => {
-    setAppConfigLoading(true)
-    const newValue = !influencerAppsEnabled
-    try {
-      const { error } = await supabase.from('site_settings').upsert(
-        { key: 'application_config', value: { influencer_applications_enabled: newValue }, updated_at: new Date().toISOString() },
-        { onConflict: 'key' }
-      )
-      if (error) {
-        alert('Failed to update: ' + error.message)
-      } else {
-        setInfluencerAppsEnabled(newValue)
-      }
-    } catch (err: any) {
-      alert(err?.message || 'Failed to update')
-    }
-    setAppConfigLoading(false)
-  }
-
   const handleSave = async () => {
     if (!formData.key.trim()) { alert('Key is required'); return }
     if (editingConfig) {
@@ -178,44 +144,6 @@ export function ConfigPage() {
         <p className="text-gray-400">Manage application settings and feature toggles</p>
       </div>
 
-      {/* Influencer Applications Toggle — from old admin */}
-      <Card className="bg-[#150f24] border-white/10">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-[#ff66c4]/20 flex items-center justify-center shrink-0">
-                <Users className="w-6 h-6 text-[#ff66c4]" />
-              </div>
-              <div>
-                <h3 className="font-bold text-white text-lg">Influencer Applications</h3>
-                <p className="text-gray-400 text-sm mt-1">
-                  When enabled, applicants can select &quot;Influencer&quot; as an account type on the
-                  wholesale application form. When disabled, only Wholesaler and Distributor
-                  options are shown.
-                </p>
-                <div className="flex items-center gap-2 mt-3">
-                  <Badge className={influencerAppsEnabled ? 'bg-green-500/20 text-green-400' : 'bg-gray-800 text-gray-500'}>
-                    {influencerAppsEnabled ? 'ENABLED' : 'DISABLED'}
-                  </Badge>
-                  <span className="text-gray-500 text-xs">
-                    {influencerAppsEnabled ? 'Influencer option visible on application form' : 'Influencer option hidden from application form'}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <button onClick={toggleInfluencerApps} disabled={appConfigLoading} className="shrink-0 ml-4">
-              {appConfigLoading ? (
-                <div className="w-14 h-8 bg-gray-700 rounded-full animate-pulse" />
-              ) : influencerAppsEnabled ? (
-                <ToggleRight className="w-14 h-8 text-[#44f80c]" />
-              ) : (
-                <ToggleLeft className="w-14 h-8 text-gray-600" />
-              )}
-            </button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Application Types Summary */}
       <Card className="bg-[#150f24] border-white/10">
         <CardHeader>
@@ -245,18 +173,6 @@ export function ConfigPage() {
                 </div>
               </div>
               <Badge className="bg-green-500/20 text-green-400">Enabled</Badge>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-[#0a0514] rounded-lg border border-white/10">
-              <div className="flex items-center gap-3">
-                <Users className="w-5 h-5 text-[#ff66c4]" />
-                <div>
-                  <p className="text-white font-medium">Influencer Applications</p>
-                  <p className="text-gray-500 text-xs">Admin controlled</p>
-                </div>
-              </div>
-              <Badge className={influencerAppsEnabled ? 'bg-green-500/20 text-green-400' : 'bg-gray-800 text-gray-500'}>
-                {influencerAppsEnabled ? 'Enabled' : 'Disabled'}
-              </Badge>
             </div>
           </div>
         </CardContent>

@@ -35,7 +35,6 @@ interface ApprovedAccount {
 const typeBadgeClasses: Record<string, string> = {
   wholesaler: 'bg-[#44f80c]/20 text-[#44f80c]',
   distributor: 'bg-[#ff66c4]/20 text-[#ff66c4]',
-  influencer: 'bg-orange-500/20 text-orange-400',
 }
 
 export function ApprovalsPage() {

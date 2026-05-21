@@ -61,14 +61,4 @@ export interface Distributor {
   assignedSalesRepIds: string[];
 }
 
-export interface Influencer {
-  id: string;
-  name: string;
-  email: string;
-  referralCode: string;
-  qrCodeUrl: string | null;
-  totalReferrals: number;
-  totalEarnings: number;
-  status: 'active' | 'inactive' | 'pending';
-  createdAt: string;
-}
+

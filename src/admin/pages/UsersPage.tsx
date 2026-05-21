@@ -21,7 +21,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import {
-  Users, Plus, Search, Check, Copy, Store, UserPlus, Loader2, X, Info, Pencil
+  Users, Plus, Search, Check, Store, UserPlus, Loader2, X, Info, Pencil
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DBUser } from '@/lib/supabase'
@@ -156,9 +156,8 @@ export function UsersPage() {
   const [editManagerId, setEditManagerId] = useState('')
 
   // Password modal
-  const [showPasswordModal, setShowPasswordModal] = useState(false)
-  const [generatedPassword, setGeneratedPassword] = useState('')
-  const [copied, setCopied] = useState(false)
+  const [showEmailSentModal, setShowEmailSentModal] = useState(false)
+  const [sentEmailTo, setSentEmailTo] = useState('')
 
   // Action loading
   const [actionLoading, setActionLoading] = useState<string | null>(null)
@@ -350,10 +349,10 @@ export function UsersPage() {
         status: 'approved',
       })
       await fetchAll()
-      setGeneratedPassword(password)
+      setSentEmailTo(newUserEmail)
       setShowCreateModal(false)
-      setShowPasswordModal(true)
-      toast.success('User created!')
+      setShowEmailSentModal(true)
+      toast.success('User created! Welcome email sent.')
       setNewUserName('')
       setNewUserEmail('')
       setNewUserRole('')
@@ -606,13 +605,6 @@ export function UsersPage() {
       toast.error(err?.message || 'Failed to remove state')
     }
     setSavingStates(null)
-  }
-
-  const copyPassword = () => {
-    navigator.clipboard.writeText(generatedPassword)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-    toast.success('Password copied')
   }
 
   const accountTypeLabel = () => {
@@ -1063,27 +1055,22 @@ export function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ═══ PASSWORD MODAL ═══ */}
-      <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+      {/* ═══ EMAIL SENT CONFIRMATION MODAL ═══ */}
+      <Dialog open={showEmailSentModal} onOpenChange={setShowEmailSentModal}>
         <DialogContent className="bg-[#150f24] border border-white/10 text-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Check className="w-5 h-5 text-[#44f80c]" /> Account Created
             </DialogTitle>
-            <DialogDescription className="text-gray-400">Copy and securely share these credentials</DialogDescription>
+            <DialogDescription className="text-gray-400">Welcome email sent automatically</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="bg-[#0a0514] p-4 rounded-lg border border-white/10">
-              <Label className="text-gray-400 text-sm mb-2 block">Temporary Password</Label>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 bg-[#150f24] p-3 rounded text-[#44f80c] font-mono text-lg break-all">{generatedPassword}</code>
-                <Button onClick={copyPassword} variant="outline" className="border-white/10 shrink-0">
-                  {copied ? <Check className="w-4 h-4 text-[#44f80c]" /> : <Copy className="w-4 h-4" />}
-                </Button>
-              </div>
+              <Label className="text-gray-400 text-sm mb-2 block">Email Sent To</Label>
+              <p className="text-white font-mono text-sm">{sentEmailTo}</p>
             </div>
-            <p className="text-gray-400 text-sm">The user will be prompted to change this password on first login.</p>
-            <Button onClick={() => setShowPasswordModal(false)} className="w-full bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">Done</Button>
+            <p className="text-gray-400 text-sm">The user has received an email with their login credentials and will be prompted to change their password on first login.</p>
+            <Button onClick={() => setShowEmailSentModal(false)} className="w-full bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">Done</Button>
           </div>
         </DialogContent>
       </Dialog>

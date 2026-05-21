@@ -1,5 +1,5 @@
-// Edge Function: Create auth user WITHOUT sending welcome email
-// Uses admin API with email_confirm=true — no email is sent
+// Edge Function: Create auth user and send welcome email
+// Uses admin API with email_confirm=true + sends credentials via Resend
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 
@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, password, business_name, role } = await req.json()
+    const { email, password, business_name, role, site_url } = await req.json()
 
     if (!email || !password) {
       return new Response(
@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // Create user via admin API — NO email is sent
+    // Create user via admin API
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -49,13 +49,76 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Send welcome email with credentials
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+    if (RESEND_API_KEY) {
+      try {
+        const appUrl = site_url || 'https://for-microdos-2-u-site-vercel.vercel.app';
+        const emailHtml = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background-color:#0a0514;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0a0514;">
+<tr><td align="center" style="padding:40px 20px;">
+<table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+<tr><td align="center" style="padding-bottom:30px;">
+<span style="font-size:28px;font-weight:bold;"><span style="color:#44f80c;">micro</span><span style="color:#9a02d0;">DOS</span><span style="color:#ff66c4;">(2)</span></span>
+</td></tr>
+<tr><td style="background-color:#150f24;border-radius:12px;padding:40px;border:1px solid rgba(255,255,255,0.1);">
+<h1 style="color:#ffffff;font-size:24px;margin:0 0 10px 0;text-align:center;">Welcome to microDOS(2)</h1>
+<p style="color:#9a02d0;font-size:14px;margin:0 0 30px 0;text-align:center;font-weight:bold;">Your Account is Ready</p>
+<div style="color:#d1d5db;font-size:15px;line-height:1.7;margin-bottom:30px;">
+<p>Hi ${business_name || 'there'},</p>
+<p>An administrator has created an account for you on the <strong style="color:#ffffff;">microDOS(2)</strong> platform.</p>
+<p style="margin-top:20px;"><strong style="color:#ffffff;">Your Login Credentials:</strong></p>
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:15px 0;background:#0a0514;border-radius:8px;padding:20px;border:1px solid rgba(255,255,255,0.1);">
+<tr><td style="padding:10px 20px;">
+<p style="margin:0;color:#9a02d0;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Email / Username</p>
+<p style="margin:5px 0 0 0;color:#ffffff;font-size:16px;font-family:monospace;">${email}</p>
+</td></tr>
+<tr><td style="padding:10px 20px;">
+<p style="margin:0;color:#9a02d0;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Temporary Password</p>
+<p style="margin:5px 0 0 0;color:#44f80c;font-size:16px;font-family:monospace;font-weight:bold;">${password}</p>
+</td></tr>
+</table>
+<p style="font-size:13px;color:#ff66c4;"><strong>Please change your password after your first login.</strong></p>
+</div>
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;">
+<tr><td align="center">
+<a href="${appUrl}" style="display:inline-block;background:linear-gradient(135deg,#9a02d0,#7a01a8);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:bold;">Log In Now</a>
+</td></tr>
+</table>
+</td></tr>
+<tr><td align="center" style="padding-top:30px;color:#6b7280;font-size:12px;line-height:1.6;">
+<p style="margin:0;">microDOS(2) &middot; Premium Microdosing Solutions</p>
+<p style="margin:5px 0 0 0;">This email was sent automatically. Do not reply.</p>
+</td></tr>
+</table></td></tr></table></body></html>`;
+
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: 'microDOS(2) <notifications@microdos2.com>',
+            to: email,
+            subject: 'Your microDOS(2) Account Has Been Created',
+            html: emailHtml,
+          }),
+        });
+      } catch (emailErr) {
+        console.error('Welcome email failed (non-critical):', emailErr);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         user: {
           id: userData.user.id,
           email: userData.user.email,
         },
-        message: 'User created successfully (no email sent)',
+        message: 'User created and welcome email sent',
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

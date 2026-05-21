@@ -84,7 +84,7 @@ export function ApplicationsPage() {
     const password = generatePassword()
 
     try {
-      // 1. Create auth user via Edge Function (NO welcome email sent)
+      // 1. Create auth user via Edge Function (auto-sends welcome email)
       const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-auth-user`, {
         method: 'POST',
         headers: {
@@ -96,6 +96,7 @@ export function ApplicationsPage() {
           password,
           business_name: app.business_name,
           role: app.account_type,
+          site_url: window.location.origin,
         }),
       })
 

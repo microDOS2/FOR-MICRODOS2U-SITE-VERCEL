@@ -199,6 +199,26 @@ export function WholesaleApplication() {
         return;
       }
 
+      // 4. Send application received confirmation email
+      try {
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL || 'https://fildaxejimuvfrcqmoba.supabase.co'}/functions/v1/notify-application`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbGRheGVqaW11dmZyY3Ftb2JhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMDg2OTUsImV4cCI6MjA5MTY4NDY5NX0.Pe3HHtbo1_OiUTSgnq0qGSgzkkcTxRJ01kfOxsv2Gig'}`,
+          },
+          body: JSON.stringify({
+            type: 'application_received',
+            email: formData.email.trim(),
+            business_name: formData.business_name,
+            account_type: role,
+            site_url: window.location.origin,
+          }),
+        });
+      } catch (emailErr) {
+        console.error('Confirmation email failed:', emailErr);
+      }
+
       toast.success('Application submitted successfully!');
       setSuccess(true);
     } catch (err: any) {

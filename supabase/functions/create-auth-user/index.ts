@@ -1,5 +1,6 @@
 // Edge Function: Create auth user and send welcome email
 // Uses admin API with email_confirm=true + sends credentials via Resend
+// If user already exists, returns existing user ID so frontend can insert into users table
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 
@@ -9,7 +10,6 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -24,37 +24,55 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Create service_role client (has admin access, bypasses RLS)
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') || '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // Create user via admin API
+    let userId: string
+    let isExisting = false
+
+    // Try to create user
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: {
-        business_name,
-        role,
-      },
+      user_metadata: { business_name, role },
     })
 
     if (createError) {
-      return new Response(
-        JSON.stringify({ error: createError.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      // If "already exists", find the existing user and return their ID
+      if (createError.message?.toLowerCase().includes('already') ||
+          createError.message?.toLowerCase().includes('exists')) {
+        const { data: listData } = await supabaseAdmin.auth.admin.listUsers()
+        const existing = listData?.users?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase())
+        if (existing) {
+          userId = existing.id
+          isExisting = true
+        } else {
+          return new Response(
+            JSON.stringify({ error: createError.message }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+      } else {
+        return new Response(
+          JSON.stringify({ error: createError.message }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    } else {
+      userId = userData.user.id
     }
 
-    // Send welcome email with credentials
-    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-    if (RESEND_API_KEY) {
-      try {
-        const appUrl = site_url || 'https://for-microdos-2-u-site-vercel.vercel.app';
-        const emailHtml = `<!DOCTYPE html>
+    // Send welcome email (only for new users, skip if already exists)
+    if (!isExisting) {
+      const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+      if (RESEND_API_KEY) {
+        try {
+          const appUrl = site_url || 'https://for-microdos-2-u-site-vercel.vercel.app';
+          const emailHtml = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background-color:#0a0514;font-family:Arial,Helvetica,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0a0514;">
@@ -94,31 +112,30 @@ Deno.serve(async (req) => {
 </td></tr>
 </table></td></tr></table></body></html>`;
 
-        await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: 'microDOS(2) <notifications@microdos2.com>',
-            to: email,
-            subject: 'Your microDOS(2) Account Has Been Created',
-            html: emailHtml,
-          }),
-        });
-      } catch (emailErr) {
-        console.error('Welcome email failed (non-critical):', emailErr);
+          await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${RESEND_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: 'microDOS(2) <notifications@microdos2.com>',
+              to: email,
+              subject: 'Your microDOS(2) Account Has Been Created',
+              html: emailHtml,
+            }),
+          });
+        } catch (emailErr) {
+          console.error('Welcome email failed (non-critical):', emailErr);
+        }
       }
     }
 
     return new Response(
       JSON.stringify({
-        user: {
-          id: userData.user.id,
-          email: userData.user.email,
-        },
-        message: 'User created and welcome email sent',
+        user: { id: userId, email },
+        existing: isExisting,
+        message: isExisting ? 'User already exists, returning ID' : 'User created and welcome email sent',
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

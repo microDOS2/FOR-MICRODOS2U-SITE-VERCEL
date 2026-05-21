@@ -1,4 +1,7 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { Loader2 } from 'lucide-react';
 import {
   Flask,
   ShieldCheck,
@@ -25,7 +28,42 @@ import {
 import { ContentLink } from '@/components/ContentLink';
 import { contentLinks } from '@/lib/contentLinks';
 
+interface Video {
+  id: string;
+  title: string;
+  description: string;
+  youtube_id: string;
+  sort_order: number;
+  active: boolean;
+  section: string;
+  created_at: string;
+}
+
 export function LandingPage() {
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [videoLoading, setVideoLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchVideos() {
+      const { data, error } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('active', true)
+        .eq('section', 'landing')
+        .order('sort_order', { ascending: true });
+      if (!error && data) {
+        setVideos(data);
+      }
+      setVideoLoading(false);
+    }
+    fetchVideos();
+  }, []);
+
+  // Build YouTube embed URL from playlist of active video IDs
+  const youtubeUrl = videos.length > 0
+    ? `https://www.youtube.com/embed/${videos[0].youtube_id}?autoplay=1&mute=1&loop=1&playlist=${videos.map(v => v.youtube_id).join(',')}&controls=1&rel=0&modestbranding=1`
+    : '';
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -705,17 +743,27 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* YouTube Video Section */}
+      {/* YouTube Video Section — loaded from database */}
       <section className="py-20 bg-black/50 border-y border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="youtube-square border-4 border-[#9a02d0]/30 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(154,2,208,0.2)]">
-            <iframe
-              src="https://www.youtube.com/embed/MLDChN3C1bI?autoplay=1&mute=1&loop=1&playlist=MLDChN3C1bI,0b-w8j6lIKQ,MOBdkkeXLto&controls=1&rel=0&modestbranding=1"
-              title="microDOS(2) Experience Video"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
+            {videoLoading ? (
+              <div className="w-full aspect-square bg-[#150f24] flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-[#9a02d0]" />
+              </div>
+            ) : youtubeUrl ? (
+              <iframe
+                src={youtubeUrl}
+                title="microDOS(2) Experience Video"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            ) : (
+              <div className="w-full aspect-square bg-[#150f24] flex items-center justify-center text-gray-500">
+                No videos configured
+              </div>
+            )}
           </div>
         </div>
       </section>

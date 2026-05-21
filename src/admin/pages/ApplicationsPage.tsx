@@ -112,24 +112,20 @@ export function ApplicationsPage() {
         return
       }
 
-      // 2. Insert into users table directly (admin has service role via edge function)
-      const { error: userError } = await supabase.from('users').insert({
-        id: userId,
-        email: app.email,
-        business_name: app.business_name,
-        role: app.account_type,
-        status: 'approved',
-        phone: app.phone,
-        address: app.address,
-        city: app.city,
-        state: app.state,
-        zip: app.zip,
-        license_number: app.license_number,
-        ein: app.ein,
-        website: app.website,
-        volume_estimate: app.volume_estimate,
-        referral_count: 0,
-        total_referral_sales: 0,
+      // 2. Insert into users table via RPC (bypasses RLS)
+      const { error: userError } = await supabase.rpc('insert_user', {
+        p_id: userId,
+        p_email: app.email,
+        p_business_name: app.business_name,
+        p_role: app.account_type,
+        p_status: 'approved',
+        p_phone: app.phone,
+        p_address: app.address,
+        p_city: app.city,
+        p_state: app.state,
+        p_zip: app.zip,
+        p_license_number: app.license_number,
+        p_ein: app.ein,
       })
 
       if (userError) {
@@ -137,6 +133,16 @@ export function ApplicationsPage() {
         setActionLoading(null)
         return
       }
+
+      // 2b. Update extra fields that insert_user RPC doesn't handle
+      const { error: updateErr } = await supabase.rpc('update_user_fields', {
+        p_user_id: userId,
+        p_website: app.website,
+        p_volume_estimate: app.volume_estimate,
+        p_referral_count: 0,
+        p_total_referral_sales: 0,
+      })
+      if (updateErr) console.warn('update_user_fields warning:', updateErr)
 
       // 3. Update application via RPC (bypasses RLS)
       const { error: appError } = await supabase.rpc('update_application_status', {

@@ -68,7 +68,7 @@ export function useAuth() {
 
       if (session?.user) {
         loadUser(session.user.id);
-      } else if (!session && event !== 'SIGNED_OUT') {
+      } else if (!session) {
         // Transient null state during token refresh — don't clear
       }
     });

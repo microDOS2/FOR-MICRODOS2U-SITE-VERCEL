@@ -68,7 +68,6 @@ export function SalesRepSettings() {
     let managerPhone: string | null = null
     let managerCity: string | null = null
     let managerState: string | null = null
-    const { data: me } = await supabase.from('users').select('manager_id').eq('id', repId).single()
     if (me?.manager_id) {
       const { data: mgr } = await supabase.from('users').select('business_name,email,phone,city,state').eq('id', me.manager_id).single()
       if (mgr) {

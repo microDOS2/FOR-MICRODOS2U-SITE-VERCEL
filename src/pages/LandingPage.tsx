@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import {
   Flask,
   ShieldCheck,
@@ -71,10 +71,6 @@ export function LandingPage() {
 
   const handleNext = () => {
     setCurrentIndex((prev) => (prev + 1) % videos.length);
-  };
-
-  const handlePrev = () => {
-    setCurrentIndex((prev) => (prev - 1 + videos.length) % videos.length);
   };
 
   const handleVideoEnd = () => {
@@ -762,7 +758,7 @@ export function LandingPage() {
 
       {/* Self-Hosted Video Carousel — loaded from Supabase Storage */}
       <section className="py-20 bg-black/50 border-y border-white/5">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-sm mx-auto px-4">
           <div className="relative rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(154,2,208,0.2)] border-2 border-[#9a02d0]/30 bg-[#0a0514]">
             {videoLoading ? (
               <div className="w-full aspect-video bg-[#150f24] flex items-center justify-center min-h-[300px]">
@@ -780,23 +776,7 @@ export function LandingPage() {
                   onEnded={handleVideoEnd}
                   className="w-full aspect-video object-contain bg-black"
                 />
-                {/* Overlay controls */}
-                <div className="absolute inset-0 flex items-center justify-between px-4 pointer-events-none">
-                  <button
-                    onClick={handlePrev}
-                    className="pointer-events-auto w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-colors"
-                    aria-label="Previous video"
-                  >
-                    <ChevronLeft className="w-6 h-6" />
-                  </button>
-                  <button
-                    onClick={handleNext}
-                    className="pointer-events-auto w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-colors"
-                    aria-label="Next video"
-                  >
-                    <ChevronRight className="w-6 h-6" />
-                  </button>
-                </div>
+
                 {/* Dots indicator */}
                 {videos.length > 1 && (
                   <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">

@@ -762,7 +762,7 @@ export function LandingPage() {
 
       {/* Self-Hosted Video Carousel — loaded from Supabase Storage */}
       <section className="py-20 bg-black/50 border-y border-white/5">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(154,2,208,0.2)] border-2 border-[#9a02d0]/30 bg-[#0a0514]">
             {videoLoading ? (
               <div className="w-full aspect-video bg-[#150f24] flex items-center justify-center min-h-[300px]">
@@ -812,12 +812,7 @@ export function LandingPage() {
                     ))}
                   </div>
                 )}
-                {/* Video title */}
-                {videos[currentIndex].title && (
-                  <div className="absolute top-4 left-4 px-3 py-1 rounded-lg bg-black/50 text-white text-sm font-medium">
-                    {videos[currentIndex].title}
-                  </div>
-                )}
+
               </>
             ) : (
               <div className="w-full aspect-video bg-[#150f24] flex items-center justify-center text-gray-500 min-h-[300px]">

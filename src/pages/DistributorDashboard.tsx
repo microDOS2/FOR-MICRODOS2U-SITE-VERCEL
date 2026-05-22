@@ -676,7 +676,7 @@ export function DistributorDashboard() {
                             ) : invoice.orders?.notes ? (
                               <div className="space-y-2">
                                 <p className="text-xs font-medium text-gray-400 mb-2">Invoice Details (from Order {invoice.orders.po_number}):</p>
-                                <p className="text-sm text-white">{invoice.orders.notes}</p>
+                                <pre className="text-sm text-white whitespace-pre-wrap font-sans">{invoice.orders!.notes.replace(/;\s*/, "\n")}</pre>
                               </div>
                             ) : (
                               <p className="text-sm text-gray-500">No detailed invoice items available.</p>

@@ -132,8 +132,8 @@ export function DistributorDashboard() {
     const fetchData = async () => {
       setDataLoading(true);
       const [{ data: o, error: oErr }, { data: i, error: iErr }, { data: a, error: aErr }] = await Promise.all([
-        supabase.from('orders').select('id, po_number, items, total, status, created_at, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total)').eq('user_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('invoices').select('id, invoice_number, order_id, amount, status, date, due_date, orders:order_id(po_number, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total))').eq('user_id', user.id).order('date', { ascending: false }),
+        supabase.from('orders').select('id, po_number, items, total, status, notes, created_at, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total)').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('invoices').select('id, invoice_number, order_id, amount, status, date, due_date, orders:order_id(po_number, notes, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total))').eq('user_id', user.id).order('date', { ascending: false }),
         supabase.from('agreements').select('id, title, type, version, sent_date, signed_date, expires_date, status, signed_by, document_url').eq('user_id', user.id).order('sent_date', { ascending: false }),
       ]);
       if (oErr) console.error('[DistributorDashboard] orders error:', oErr);
@@ -671,6 +671,11 @@ export function DistributorDashboard() {
                                     <span className="text-right text-white">${item.line_total.toLocaleString()}</span>
                                   </div>
                                 ))}
+                              </div>
+                            ) : invoice.orders?.notes ? (
+                              <div className="space-y-2">
+                                <p className="text-xs font-medium text-gray-400 mb-2">Invoice Details (from Order {invoice.orders.po_number}):</p>
+                                <p className="text-sm text-white">{invoice.orders.notes}</p>
                               </div>
                             ) : (
                               <p className="text-sm text-gray-500">No detailed invoice items available.</p>

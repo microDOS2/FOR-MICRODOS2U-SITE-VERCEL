@@ -571,30 +571,7 @@ export function WholesalerDashboard() { // test
         </CardContent>
       </Card>
 
-      {/* Pending Agreements Alert */}
-      {pendingAgreementsCount > 0 && (
-        <Card className="bg-psy-neonPurple/10 border-psy-neonPurple/30">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-psy-neonPurple/20 flex items-center justify-center">
-                  <FileSignature className="w-6 h-6 text-psy-neonPurple" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-white">Action Required: Pending Agreements</h3>
-                  <p className="text-sm text-gray-400">You have {pendingAgreementsCount} agreement(s) awaiting your signature</p>
-                </div>
-              </div>
-              <Button
-                className="btn-primary-gradient"
-                onClick={() => setActiveTab('agreements')}
-              >
-                Review & Sign
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Pending Agreements Alert — hidden */}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

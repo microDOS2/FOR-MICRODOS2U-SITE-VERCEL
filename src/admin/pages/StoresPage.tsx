@@ -193,7 +193,7 @@ export function StoresPage() {
           lat: s.lat,
           lng: s.lng,
           user_id: ownerId || null,
-          source: 'admin_csv',
+          source: 'admin',
         })
         if (error) { failed++; } else { inserted++; }
       }

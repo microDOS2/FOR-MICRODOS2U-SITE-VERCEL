@@ -466,7 +466,7 @@ export function WholesalerDashboard() {
           zip: s.zip || null, phone: s.phone || null, email: s.email || null,
           website: s.website || null, stock: s.stock || 'In Stock',
           is_primary: s.is_primary || false, is_active: true,
-          lat: s.lat, lng: s.lng, user_id: user.id, source: 'wholesaler_csv',
+          lat: s.lat, lng: s.lng, user_id: user.id, source: 'admin',
         });
         if (error) { failed++; } else { inserted++; }
       }

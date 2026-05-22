@@ -218,7 +218,7 @@ export function DistributorDashboard() {
           .from('wholesaler_store_locations')
           .select('*')
           .eq('user_id', user.id)
-          .or('source.eq.distributor_csv,source.eq.distributor_upload')
+          .is('source', null)
           .order('created_at', { ascending: false });
         if (error) console.error(error);
         setMyStores(data || []);
@@ -255,7 +255,7 @@ export function DistributorDashboard() {
           website: s.website || null, stock: s.stock || 'In Stock',
           is_primary: s.is_primary || false, is_active: true,
           lat: s.lat, lng: s.lng, user_id: user.id,
-          source: 'distributor_upload',
+          source: null,
         });
         if (error) { console.error(error); failed++; } else { inserted++; }
       }
@@ -265,7 +265,7 @@ export function DistributorDashboard() {
       toast.success(`Imported: ${parts.join(', ')}`);
       setShowStoreUploadModal(false);
       // Refresh
-      const { data } = await supabase.from('wholesaler_store_locations').select('*').eq('user_id', user.id).or('source.eq.distributor_csv,source.eq.distributor_upload').order('created_at', { ascending: false });
+      const { data } = await supabase.from('wholesaler_store_locations').select('*').eq('user_id', user.id).is('source', null).order('created_at', { ascending: false });
       setMyStores(data || []);
     } catch (err: any) {
       toast.error(err?.message || 'Import failed');

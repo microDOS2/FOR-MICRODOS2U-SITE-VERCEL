@@ -65,6 +65,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { CheckoutModal } from '@/components/payment/CheckoutModal';
 import { ExportDropdown } from '@/components/ExportDropdown';
 import { EmptyState } from '@/components/EmptyState';
+import { AccountRepCard } from '@/components/AccountRepCard';
 import { exportData, storeColumns } from '@/lib/exportUtils';
 import { StoreUploadModal } from '@/components/StoreUploadModal';
 import { Pagination } from '@/components/Pagination';
@@ -524,6 +525,9 @@ export function WholesalerDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Your Sales Rep & Manager */}
+      {user && <AccountRepCard accountId={user.id} />}
 
       {/* Recent Orders */}
       <Card className="bg-brand-800 border-brand-700">

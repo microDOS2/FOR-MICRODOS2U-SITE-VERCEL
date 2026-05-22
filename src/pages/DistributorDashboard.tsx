@@ -54,6 +54,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { CheckoutModal } from '@/components/payment/CheckoutModal';
 import { ExportDropdown } from '@/components/ExportDropdown';
 import { EmptyState } from '@/components/EmptyState';
+import { AccountRepCard } from '@/components/AccountRepCard';
 import { Pagination } from '@/components/Pagination';
 import { orderColumns, invoiceColumns, exportData, storeColumns } from '@/lib/exportUtils';
 import { StoreUploadModal } from '@/components/StoreUploadModal';
@@ -436,6 +437,9 @@ export function DistributorDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Your Sales Rep & Manager */}
+      {user && <AccountRepCard accountId={user.id} />}
 
       {/* Pending Agreements Alert — hidden */}
 

@@ -62,3 +62,68 @@ export const invoiceColumns: ExportColumn[] = [
   { header: 'Date', key: 'date', formatter: (v) => (v ? new Date(v).toLocaleDateString() : '') },
   { header: 'Due Date', key: 'due_date', formatter: (v) => (v ? new Date(v).toLocaleDateString() : '') },
 ];
+
+export const storeColumns: ExportColumn[] = [
+  { header: 'Store Name', key: 'name' },
+  { header: 'Address', key: 'address' },
+  { header: 'City', key: 'city' },
+  { header: 'State', key: 'state' },
+  { header: 'ZIP', key: 'zip' },
+  { header: 'Phone', key: 'phone' },
+  { header: 'Email', key: 'email' },
+  { header: 'Website', key: 'website' },
+  { header: 'Stock', key: 'stock' },
+  { header: 'Is Primary', key: 'is_primary', formatter: (v) => v ? 'Yes' : 'No' },
+  { header: 'Is Active', key: 'is_active', formatter: (v) => v ? 'Yes' : 'No' },
+];
+
+export const storeAdminColumns: ExportColumn[] = [
+  ...storeColumns,
+  { header: 'Owner Email', key: 'owner_email' },
+  { header: 'Lat', key: 'lat' },
+  { header: 'Lng', key: 'lng' },
+];
+
+// Parse CSV string into array of objects
+export function parseCSV(csvText: string): Record<string, string>[] {
+  const lines = csvText.trim().split('\n').filter(l => l.trim());
+  if (lines.length < 2) return [];
+
+  const headers = parseCSVLine(lines[0]);
+  const rows: Record<string, string>[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i]);
+    const row: Record<string, string> = {};
+    headers.forEach((h, idx) => { row[h.trim()] = (values[idx] || '').trim(); });
+    rows.push(row);
+  }
+  return rows;
+}
+
+// Parse a single CSV line respecting quotes
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result;
+}
+

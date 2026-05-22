@@ -3,8 +3,10 @@ import { supabase } from '@/lib/supabase'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Search, Pencil, Trash2, X, ChevronLeft, ChevronRight, Store, MapPin, Phone, Loader2, PauseCircle, PlayCircle, Users, UserMinus, Check, Shield } from 'lucide-react'
+import { Search, Pencil, Trash2, X, ChevronLeft, ChevronRight, Store, MapPin, Phone, Loader2, PauseCircle, PlayCircle, Users, UserMinus, Check, Shield, Download, Upload } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { exportData, storeAdminColumns } from '@/lib/exportUtils'
+import { StoreUploadModal } from '@/components/StoreUploadModal'
 import { toast } from 'sonner'
 
 // ─── Audit Log Helper ───
@@ -59,6 +61,7 @@ export function StoresPage() {
   const [saving, setSaving] = useState<string | null>(null)
   const [repHasManager, setRepHasManager] = useState<Map<string, boolean>>(new Map())
   const [formData, setFormData] = useState({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '' })
+  const [showUploadModal, setShowUploadModal] = useState(false)
   const pageSize = 10
 
   const parseStoreNumber = (name: string): { number: string; cleanName: string } => {
@@ -163,11 +166,54 @@ export function StoresPage() {
 
   const totalPages = Math.ceil(totalCount / pageSize)
 
+  const handleImportStores = async (parsedStores: any[]) => {
+    try {
+      // Fetch all approved users to resolve owner emails
+      const { data: usersData } = await supabase.from('users').select('id, email').eq('status', 'approved')
+      const emailToId = new Map<string, string>()
+      ;(usersData || []).forEach((u: any) => emailToId.set(u.email, u.id))
+
+      let inserted = 0
+      let failed = 0
+      for (const s of parsedStores) {
+        const ownerId = s.owner_email ? emailToId.get(s.owner_email) : null
+        if (s.owner_email && !ownerId) { failed++; continue }
+        const { error } = await supabase.from('wholesaler_store_locations').insert({
+          name: s.name,
+          address: s.address,
+          city: s.city,
+          state: s.state,
+          zip: s.zip || null,
+          phone: s.phone || null,
+          email: s.email || null,
+          website: s.website || null,
+          stock: s.stock || 'In Stock',
+          is_primary: s.is_primary || false,
+          is_active: true,
+          lat: s.lat,
+          lng: s.lng,
+          user_id: ownerId || null,
+          source: 'admin_csv',
+        })
+        if (error) { failed++; } else { inserted++; }
+      }
+      toast.success(`Imported ${inserted} stores${failed > 0 ? `, ${failed} failed` : ''}`)
+      setShowUploadModal(false)
+      fetchStores()
+    } catch (err: any) {
+      toast.error(err?.message || 'Import failed')
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3 justify-between">
         <div className="relative flex-1 max-w-md"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" /><input type="text" placeholder="Search stores..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(0) }} className="w-full pl-10 pr-4 py-2.5 bg-[#150f24] border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" /></div>
-        <button onClick={() => { setEditingStore(null); setFormData({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '' }); setShowModal(true) }} className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white"><Store className="w-4 h-4" /> Add</button>
+        <div className="flex gap-2">
+          <button onClick={() => exportData('csv', stores, storeAdminColumns, 'microDOS2_stores')} className="flex items-center gap-2 px-4 py-2.5 border border-[#44f80c]/30 text-[#44f80c] hover:bg-[#44f80c]/10 rounded-lg text-sm"><Download className="w-4 h-4" /> Download</button>
+          <button onClick={() => setShowUploadModal(true)} className="flex items-center gap-2 px-4 py-2.5 border border-[#9a02d0]/30 text-[#9a02d0] hover:bg-[#9a02d0]/10 rounded-lg text-sm"><Upload className="w-4 h-4" /> Upload</button>
+          <button onClick={() => { setEditingStore(null); setFormData({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '' }); setShowModal(true) }} className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white"><Store className="w-4 h-4" /> Add</button>
+        </div>
       </div>
       <p className="text-sm text-gray-500">{totalCount} store{totalCount !== 1 ? 's' : ''}</p>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -245,6 +291,7 @@ export function StoresPage() {
         </div>
         <div className="flex justify-end gap-3 p-5 border-t border-white/10"><button onClick={() => setShowModal(false)} className="px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 rounded-lg text-sm text-gray-300">Cancel</button><button onClick={handleSave} disabled={!formData.name || !formData.address} className="px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white disabled:opacity-50">{editingStore ? 'Update' : 'Create'}</button></div>
       </div></div>}
+      {showUploadModal && <StoreUploadModal onClose={() => setShowUploadModal(false)} onImport={handleImportStores} isAdmin />}
     </div>
   )
 }

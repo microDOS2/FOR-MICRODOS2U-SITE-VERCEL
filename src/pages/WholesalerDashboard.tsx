@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -27,6 +28,8 @@ import {
   Building2,
   Save,
   CreditCard,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -62,6 +65,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { CheckoutModal } from '@/components/payment/CheckoutModal';
 import { ExportDropdown } from '@/components/ExportDropdown';
 import { EmptyState } from '@/components/EmptyState';
+import { exportData, storeColumns } from '@/lib/exportUtils';
+import { StoreUploadModal } from '@/components/StoreUploadModal';
 import { Pagination } from '@/components/Pagination';
 import { orderColumns, invoiceColumns } from '@/lib/exportUtils';
 
@@ -239,6 +244,7 @@ export function WholesalerDashboard() {
   const [stores, setStores] = useState<StoreLocation[]>([]);
   const [storesLoading, setStoresLoading] = useState(false);
   const [storeDialogOpen, setStoreDialogOpen] = useState(false);
+  const [showStoreUploadModal, setShowStoreUploadModal] = useState(false);
   const [editingStore, setEditingStore] = useState<StoreLocation | null>(null);
   const [storeForm, setStoreForm] = useState({
     name: '',
@@ -445,6 +451,28 @@ export function WholesalerDashboard() {
     } catch {
       setStores((prev) => prev.filter((s) => s.id !== storeId));
       localStorage.setItem('wholesaler_stores', JSON.stringify(stores.filter((s) => s.id !== storeId)));
+    }
+  };
+
+  const handleImportStores = async (parsedStores: any[]) => {
+    if (!user) return;
+    try {
+      let inserted = 0;
+      let failed = 0;
+      for (const s of parsedStores) {
+        const { error } = await supabase.from('wholesaler_store_locations').insert({
+          name: s.name, address: s.address, city: s.city, state: s.state,
+          zip: s.zip || null, phone: s.phone || null, email: s.email || null,
+          website: s.website || null, stock: s.stock || 'In Stock',
+          is_primary: s.is_primary || false, is_active: true,
+          lat: s.lat, lng: s.lng, user_id: user.id, source: 'wholesaler_csv',
+        });
+        if (error) { failed++; } else { inserted++; }
+      }
+      toast.success(`Imported ${inserted} stores${failed > 0 ? `, ${failed} failed` : ''}`);
+      setShowStoreUploadModal(false);
+    } catch (err: any) {
+      toast.error(err?.message || 'Import failed');
     }
   };
 
@@ -892,10 +920,20 @@ export function WholesalerDashboard() {
             Manage your retail store locations
           </p>
         </div>
-        <Button onClick={() => openStoreDialog()} className="btn-primary-gradient">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Store
-        </Button>
+        <div className="flex gap-2">
+          {stores.length > 0 && (
+            <Button variant="outline" onClick={() => exportData('csv', stores, storeColumns, 'my-stores')} className="border-[#44f80c]/30 text-[#44f80c] hover:bg-[#44f80c]/10 hover:text-[#44f80c]">
+              <Download className="w-4 h-4 mr-2" /> Download
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => setShowStoreUploadModal(true)} className="border-[#9a02d0]/30 text-[#9a02d0] hover:bg-[#9a02d0]/10 hover:text-[#9a02d0]">
+            <Upload className="w-4 h-4 mr-2" /> Upload
+          </Button>
+          <Button onClick={() => openStoreDialog()} className="btn-primary-gradient">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Store
+          </Button>
+        </div>
       </div>
 
       {storesLoading ? (
@@ -1544,6 +1582,9 @@ export function WholesalerDashboard() {
             console.error('Payment error:', error);
           }}
         />
+      )}
+      {showStoreUploadModal && (
+        <StoreUploadModal onClose={() => setShowStoreUploadModal(false)} onImport={handleImportStores} />
       )}
     </main>
   );

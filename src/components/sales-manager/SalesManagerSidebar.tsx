@@ -7,6 +7,7 @@ import {
   TrendingUp,
   Settings,
   LogOut,
+  DollarSign,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -23,6 +24,7 @@ const navItems: NavItem[] = [
   { label: 'Accounts', path: '/sales-manager-accounts', icon: Store },
   { label: 'Store Locations', path: '/sales-manager-stores', icon: MapPin },
   { label: 'Performance', path: '/sales-manager-performance', icon: TrendingUp },
+  { label: 'Commissions', path: '/sales-manager-commissions', icon: DollarSign },
   { label: 'Settings', path: '/sales-manager-settings', icon: Settings },
 ];
 

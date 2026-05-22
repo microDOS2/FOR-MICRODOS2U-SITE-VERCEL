@@ -24,7 +24,8 @@ import {
   LogOut,
   Shield,
   Loader2,
-  Truck
+  Truck,
+  DollarSign,
 } from 'lucide-react'
 
 const navItems = [
@@ -37,6 +38,7 @@ const navItems = [
   { name: 'Agreements', path: '/admin/agreements', icon: FileSignature },
   { name: 'Orders & Invoices', path: '/admin/orders-invoices', icon: Truck },
   { name: 'Stores', path: '/admin/stores', icon: Store },
+  { name: 'Commissions', path: '/admin/commissions', icon: DollarSign },
   { name: 'Approvals', path: '/admin/approvals', icon: ClipboardCheck },
   { name: 'Config', path: '/admin/config', icon: Settings },
   { name: 'Audit Log', path: '/admin/audit-log', icon: ScrollText },

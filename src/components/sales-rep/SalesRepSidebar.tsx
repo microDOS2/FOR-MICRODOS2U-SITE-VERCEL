@@ -10,6 +10,7 @@ import {
   Bell,
   Settings,
   LogOut,
+  DollarSign,
 } from 'lucide-react'
 
 const navItems = [
@@ -17,6 +18,7 @@ const navItems = [
   { name: 'My Accounts', path: '/sales-rep-accounts', icon: Building2 },
   { name: 'My Stores', path: '/sales-rep-stores', icon: Store },
   { name: 'My Orders', path: '/sales-rep-orders', icon: ShoppingCart },
+  { name: 'Commissions', path: '/sales-rep-commissions', icon: DollarSign },
   { name: 'Notifications', path: '/sales-rep-notifications', icon: Bell },
   { name: 'Settings', path: '/sales-rep-settings', icon: Settings },
 ]

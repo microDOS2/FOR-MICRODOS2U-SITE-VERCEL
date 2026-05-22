@@ -13,6 +13,7 @@ import { SalesManagerTeam } from './pages/SalesManagerTeam';
 import { SalesManagerAccounts } from './pages/SalesManagerAccounts';
 import { SalesManagerPerformance } from './pages/SalesManagerPerformance';
 import { SalesManagerSettings } from './pages/SalesManagerSettings';
+import { SalesManagerCommissions } from './pages/SalesManagerCommissions';
 import { SalesManagerStores } from './pages/SalesManagerStores';
 import { SalesRepPortal } from './pages/SalesRepPortal';
 import { SalesRepDashboard } from './pages/SalesRepDashboard';
@@ -21,6 +22,7 @@ import { SalesRepStores } from './pages/SalesRepStores';
 import { SalesRepOrders } from './pages/SalesRepOrders';
 import { SalesRepNotifications } from './pages/SalesRepNotifications';
 import { SalesRepSettings } from './pages/SalesRepSettings';
+import { SalesRepCommissions } from './pages/SalesRepCommissions';
 import { AdminPortal } from './pages/AdminPortal';
 import { Products } from './pages/Products';
 import { ShippingPortal } from './pages/ShippingPortal';
@@ -43,6 +45,7 @@ import { ProductsPage } from './admin/pages/ProductsPage';
 import { VideosPage } from './admin/pages/VideosPage';
 import { AgreementsPage } from './admin/pages/AgreementsPage';
 import { StoresPage } from './admin/pages/StoresPage';
+import { CommissionsPage } from './admin/pages/CommissionsPage';
 import { ApprovalsPage } from './admin/pages/ApprovalsPage';
 import { ConfigPage } from './admin/pages/ConfigPage';
 import { AuditLogPage } from './admin/pages/AuditLogPage';
@@ -72,6 +75,7 @@ function AppContent() {
     '/sales-rep-accounts',
     '/sales-rep-stores',
     '/sales-rep-orders',
+    '/sales-rep-commissions',
     '/sales-rep-notifications',
     '/sales-rep-settings',
     '/admin-portal',
@@ -116,6 +120,7 @@ function AppContent() {
           <Route path="/sales-manager-team" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerTeam /></RequireAuth>} />
           <Route path="/sales-manager-accounts" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerAccounts /></RequireAuth>} />
           <Route path="/sales-manager-performance" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerPerformance /></RequireAuth>} />
+          <Route path="/sales-manager-commissions" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerCommissions /></RequireAuth>} />
           <Route path="/sales-manager-stores" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerStores /></RequireAuth>} />
           <Route path="/sales-manager-settings" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerSettings /></RequireAuth>} />
           <Route path="/sales-rep-portal" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepPortal /></RequireAuth>} />
@@ -123,6 +128,7 @@ function AppContent() {
           <Route path="/sales-rep-accounts" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepAccounts /></RequireAuth>} />
           <Route path="/sales-rep-stores" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepStores /></RequireAuth>} />
           <Route path="/sales-rep-orders" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepOrders /></RequireAuth>} />
+          <Route path="/sales-rep-commissions" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepCommissions /></RequireAuth>} />
           <Route path="/sales-rep-notifications" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepNotifications /></RequireAuth>} />
           <Route path="/sales-rep-settings" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepSettings /></RequireAuth>} />
           <Route path="/admin-portal" element={<AdminPortal />} />
@@ -143,6 +149,7 @@ function AppContent() {
             <Route path="orders-invoices" element={<OrdersInvoicesPage />} />
             <Route path="fulfillment" element={<Navigate to="/admin/orders-invoices" replace />} />
             <Route path="stores" element={<StoresPage />} />
+            <Route path="commissions" element={<CommissionsPage />} />
             <Route path="approvals" element={<ApprovalsPage />} />
             <Route path="config" element={<ConfigPage />} />
             <Route path="audit-log" element={<AuditLogPage />} />
@@ -169,3 +176,4 @@ function App() {
 }
 
 export default App;
+

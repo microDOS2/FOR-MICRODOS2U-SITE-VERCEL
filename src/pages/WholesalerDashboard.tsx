@@ -767,6 +767,7 @@ export function WholesalerDashboard() {
     </div>
   );
 
+  </div>
   const renderInvoices = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">

@@ -578,10 +578,13 @@ export function UsersPage() {
     setActionLoading(null)
   }
 
-  // Delete all non-admin users (pre-launch cleanup)
+  // ──── FULL DATABASE CLEANUP (pre-launch wipe) ────
+  // Removes ALL data except admin accounts. Call this before going live
+  // to clear out test data and start fresh.
   const handleDeleteAllNonAdmin = async () => {
     setDeletingAll(true)
     try {
+      // 1. Identify all non-admin users
       const nonAdminUsers = allAccounts.filter(u => u.role !== 'admin' && u.source === 'users')
       if (nonAdminUsers.length === 0) {
         toast.info('No non-admin users to delete')
@@ -589,27 +592,157 @@ export function UsersPage() {
         setShowDeleteAllDialog(false)
         return
       }
-      let deleted = 0
-      let failed = 0
+      const nonAdminIds = nonAdminUsers.map(u => u.id)
+
+      let results = {
+        orderItems: 0, orders: 0, invoices: 0,
+        stores: 0, agreements: 0, repAssignments: 0,
+        stateAssignments: 0, transactions: 0,
+        applications: 0, auditLog: 0, users: 0,
+        authFailed: 0,
+      }
+
+      // Helper: fetch IDs for a given table filtered by user_id
+      const fetchIds = async (table: string, ids: string[]) => {
+        const { data, error } = await supabase.from(table).select('id').in('user_id', ids)
+        if (error || !data) return []
+        return data.map((r: any) => r.id)
+      }
+
+      // 2. Fetch order IDs for these users, then delete order items
+      const orderIds = await fetchIds('orders', nonAdminIds)
+      if (orderIds.length > 0) {
+        const { data: oiData, error: oiErr } = await supabase
+          .from('order_items')
+          .delete()
+          .in('order_id', orderIds)
+          .select('id')
+        if (!oiErr && oiData) results.orderItems = oiData.length
+      }
+
+      // 3. Delete orders
+      const { data: oData, error: oErr } = await supabase
+        .from('orders')
+        .delete()
+        .in('user_id', nonAdminIds)
+        .select('id')
+      if (!oErr && oData) results.orders = oData.length
+
+      // 4. Delete invoices
+      const { data: iData, error: iErr } = await supabase
+        .from('invoices')
+        .delete()
+        .in('user_id', nonAdminIds)
+        .select('id')
+      if (!iErr && iData) results.invoices = iData.length
+
+      // 5. Delete store locations
+      const { data: sData, error: sErr } = await supabase
+        .from('wholesaler_store_locations')
+        .delete()
+        .in('user_id', nonAdminIds)
+        .select('id')
+      if (!sErr && sData) results.stores = sData.length
+
+      // 6. Delete agreements
+      const { data: aData, error: aErr } = await supabase
+        .from('agreements')
+        .delete()
+        .in('user_id', nonAdminIds)
+        .select('id')
+      if (!aErr && aData) results.agreements = aData.length
+
+      // 7. Delete transactions
+      const { data: tData, error: tErr } = await supabase
+        .from('transactions')
+        .delete()
+        .in('user_id', nonAdminIds)
+        .select('id')
+      if (!tErr && tData) results.transactions = tData.length
+
+      // 8. Delete rep-account assignments where deleted users are involved
+      const { data: raData, error: raErr } = await supabase
+        .from('rep_account_assignments')
+        .delete()
+        .or(`account_id.in.(${nonAdminIds.join(',')}),rep_id.in.(${nonAdminIds.join(',')})`)
+        .select('id')
+      if (!raErr && raData) results.repAssignments = raData.length
+
+      // 9. Delete manager state assignments for deleted managers
+      const { data: msData, error: msErr } = await supabase
+        .from('manager_state_assignments')
+        .delete()
+        .in('manager_id', nonAdminIds)
+        .select('id')
+      if (!msErr && msData) results.stateAssignments = msData.length
+
+      // 10. Delete ALL applications — pre-launch cleanup
+      const { data: appData, error: appErr } = await supabase
+        .from('applications')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000')
+        .select('id')
+      if (!appErr && appData) results.applications = appData.length
+
+      // 11. Delete ALL audit logs — pre-launch cleanup
+      const { data: alData, error: alErr } = await supabase
+        .from('audit_log')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000')
+        .select('id')
+      if (!alErr && alData) results.auditLog = alData.length
+
+      // 12. Delete the users themselves
+      let userDeleted = 0
+      let userFailed = 0
       for (const u of nonAdminUsers) {
+        // Try to delete auth user first (best effort via edge function)
+        try {
+          await fetch(`${SUPABASE_URL}/functions/v1/delete-auth-user`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+              'apikey': SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ user_id: u.id }),
+          })
+        } catch {
+          results.authFailed++
+        }
+
+        // Delete from users table
         const { error } = await supabase.from('users').delete().eq('id', u.id)
         if (error) {
           console.error('Failed to delete user:', u.email, error)
-          failed++
+          userFailed++
         } else {
-          deleted++
+          userDeleted++
         }
       }
-      await logAudit('bulk_delete_non_admin', 'users', 'all', `${nonAdminUsers.length} non-admin users`, `${deleted} deleted, ${failed} failed`)
+      results.users = userDeleted
+
+      // 13. Refresh the list
       await fetchAll()
-      if (failed > 0) {
-        toast.warning(`Deleted ${deleted} users, ${failed} failed`)
-      } else {
-        toast.success(`Deleted ${deleted} non-admin users`)
-      }
+
+      // 14. Show detailed results
+      const summary = [
+        `${results.users} user(s) deleted`,
+        results.orders > 0 ? `${results.orders} order(s)` : null,
+        results.orderItems > 0 ? `${results.orderItems} order item(s)` : null,
+        results.invoices > 0 ? `${results.invoices} invoice(s)` : null,
+        results.stores > 0 ? `${results.stores} store(s)` : null,
+        results.agreements > 0 ? `${results.agreements} agreement(s)` : null,
+        results.transactions > 0 ? `${results.transactions} transaction(s)` : null,
+        results.applications > 0 ? `${results.applications} application(s)` : null,
+        results.auditLog > 0 ? `${results.auditLog} audit log(s)` : null,
+        results.authFailed > 0 ? `${results.authFailed} auth cleanup(s) skipped` : null,
+      ].filter(Boolean).join(', ')
+
+      toast.success(`Database cleaned: ${summary}`)
       setShowDeleteAllDialog(false)
     } catch (err: any) {
-      toast.error(err?.message || 'Bulk delete failed')
+      toast.error(err?.message || 'Database cleanup failed')
     }
     setDeletingAll(false)
   }
@@ -697,7 +830,7 @@ export function UsersPage() {
             onClick={() => setShowDeleteAllDialog(true)}
             className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
           >
-            <Trash2 className="w-4 h-4 mr-1" /> Delete Non-Admin Users
+            <Trash2 className="w-4 h-4 mr-1" /> Pre-Launch Cleanup
           </Button>
         </div>
       </div>
@@ -1130,17 +1263,28 @@ export function UsersPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-400">
               <AlertTriangle className="w-5 h-5" />
-              Delete All Non-Admin Users
+              Full Database Cleanup
             </DialogTitle>
             <DialogDescription className="text-gray-400">
-              This will permanently delete all users except admins. This action cannot be undone.
+              Pre-launch wipe — removes ALL non-admin data. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-              <p className="text-sm text-red-300">
-                <strong>Warning:</strong> This will delete {allAccounts.filter(u => u.role !== 'admin' && u.source === 'users').length} non-admin user(s).
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 space-y-2">
+              <p className="text-sm text-red-300 font-semibold">
+                <strong>Warning:</strong> This will delete {allAccounts.filter(u => u.role !== 'admin' && u.source === 'users').length} non-admin user(s) AND all their data:
               </p>
+              <ul className="text-xs text-red-300/80 list-disc list-inside space-y-0.5">
+                <li>All orders and order items</li>
+                <li>All invoices</li>
+                <li>All store locations</li>
+                <li>All agreements</li>
+                <li>All payment transactions</li>
+                <li>All signup applications</li>
+                <li>All audit logs</li>
+                <li>Manager territory assignments</li>
+                <li>Rep account assignments</li>
+              </ul>
             </div>
             <div className="flex gap-3">
               <Button

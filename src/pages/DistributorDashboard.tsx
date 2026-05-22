@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -20,6 +21,12 @@ import {
   Save,
   Loader2,
   CreditCard,
+  Download,
+  Upload,
+  MapPin,
+  Phone,
+  Store,
+  Globe,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,7 +55,8 @@ import { CheckoutModal } from '@/components/payment/CheckoutModal';
 import { ExportDropdown } from '@/components/ExportDropdown';
 import { EmptyState } from '@/components/EmptyState';
 import { Pagination } from '@/components/Pagination';
-import { orderColumns, invoiceColumns } from '@/lib/exportUtils';
+import { orderColumns, invoiceColumns, exportData, storeColumns } from '@/lib/exportUtils';
+import { StoreUploadModal } from '@/components/StoreUploadModal';
 
 // Types
 type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
@@ -70,7 +78,7 @@ export function DistributorDashboard() {
   }, [authLoading, user, navigate]);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'my-stores' | 'settings'>('overview');
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
 
@@ -194,6 +202,75 @@ export function DistributorDashboard() {
   }, [activeTab, user?.id]);
 
   // Stats
+
+  // ──── MY STORES (Customer Locations) ────
+  const [myStores, setMyStores] = useState<any[]>([]);
+  const [myStoresLoading, setMyStoresLoading] = useState(false);
+  const [showStoreUploadModal, setShowStoreUploadModal] = useState(false);
+
+  useEffect(() => {
+    if (!user || activeTab !== 'my-stores') return;
+    const fetchMyStores = async () => {
+      setMyStoresLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('wholesaler_store_locations')
+          .select('*')
+          .eq('user_id', user.id)
+          .or('source.eq.distributor_csv,source.eq.distributor_upload')
+          .order('created_at', { ascending: false });
+        if (error) console.error(error);
+        setMyStores(data || []);
+      } catch (e) { console.error(e); }
+      setMyStoresLoading(false);
+    };
+    fetchMyStores();
+  }, [user, activeTab]);
+
+  const handleImportStores = async (parsedStores: any[]) => {
+    if (!user) return;
+    try {
+      let inserted = 0;
+      let linked = 0;
+      let failed = 0;
+      for (const s of parsedStores) {
+        // Check if this store already exists at this address
+        const { data: existing } = await supabase
+          .from('wholesaler_store_locations')
+          .select('id,name')
+          .ilike('address', s.address)
+          .ilike('city', s.city || '')
+          .eq('state', s.state || '')
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          // Store exists - link it to this distributor
+          linked++;
+        }
+
+        const { error } = await supabase.from('wholesaler_store_locations').insert({
+          name: s.name, address: s.address, city: s.city, state: s.state,
+          zip: s.zip || null, phone: s.phone || null, email: s.email || null,
+          website: s.website || null, stock: s.stock || 'In Stock',
+          is_primary: s.is_primary || false, is_active: true,
+          lat: s.lat, lng: s.lng, user_id: user.id,
+          source: 'distributor_upload',
+        });
+        if (error) { console.error(error); failed++; } else { inserted++; }
+      }
+      const parts = [`${inserted} new`];
+      if (linked > 0) parts.push(`${linked} linked`);
+      if (failed > 0) parts.push(`${failed} failed`);
+      toast.success(`Imported: ${parts.join(', ')}`);
+      setShowStoreUploadModal(false);
+      // Refresh
+      const { data } = await supabase.from('wholesaler_store_locations').select('*').eq('user_id', user.id).or('source.eq.distributor_csv,source.eq.distributor_upload').order('created_at', { ascending: false });
+      setMyStores(data || []);
+    } catch (err: any) {
+      toast.error(err?.message || 'Import failed');
+    }
+  };
+
   const stats = {
     totalOrders: orders.length,
     totalSpent: orders.reduce((sum, o) => sum + (o.total || 0), 0),
@@ -722,6 +799,88 @@ export function DistributorDashboard() {
   );
 
   // Agreements tab hidden - function preserved but unused
+  const renderMyStores = () => (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold text-white">My Customer Stores</h2>
+          <p className="text-gray-400 text-sm">
+            Retail locations you distribute to ({myStores.length} stores)
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {myStores.length > 0 && (
+            <Button variant="outline" onClick={() => exportData('csv', myStores, storeColumns, 'my-customer-stores')} className="border-[#44f80c]/30 text-[#44f80c] hover:bg-[#44f80c]/10 hover:text-[#44f80c]">
+              <Download className="w-4 h-4 mr-2" /> Download
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => setShowStoreUploadModal(true)} className="border-[#9a02d0]/30 text-[#9a02d0] hover:bg-[#9a02d0]/10 hover:text-[#9a02d0]">
+            <Upload className="w-4 h-4 mr-2" /> Upload CSV
+          </Button>
+        </div>
+      </div>
+
+      {myStoresLoading ? (
+        <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin text-psy-neonPurple mx-auto" /></div>
+      ) : myStores.length === 0 ? (
+        <Card className="bg-brand-800 border-brand-700">
+          <CardContent className="p-12 text-center">
+            <Store className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">No Customer Stores Yet</h3>
+            <p className="text-gray-400 mb-6 max-w-md mx-auto">
+              Upload a CSV file with your retail customer locations to manage your distribution network.
+            </p>
+            <Button onClick={() => setShowStoreUploadModal(true)} className="btn-primary-gradient">
+              <Upload className="w-4 h-4 mr-2" />
+              Upload Store List
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {myStores.map((store) => (
+            <Card key={store.id} className="bg-brand-800 border-brand-700">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#ff66c4]/20 flex items-center justify-center">
+                      <MapPin className="w-5 h-5 text-[#ff66c4]" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white">{store.name || 'Unnamed Store'}</h3>
+                      <p className="text-sm text-gray-400">{store.address}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2 text-gray-300">
+                    <MapPin className="w-3.5 h-3.5 text-gray-500" />
+                    <span>{store.city}, {store.state} {store.zip}</span>
+                  </div>
+                  {store.phone && (
+                    <div className="flex items-center gap-2 text-gray-300">
+                      <Phone className="w-3.5 h-3.5 text-gray-500" />
+                      <span>{store.phone}</span>
+                    </div>
+                  )}
+                  {store.email && (
+                    <div className="flex items-center gap-2 text-gray-300">
+                      <Globe className="w-3.5 h-3.5 text-gray-500" />
+                      <span>{store.email}</span>
+                    </div>
+                  )}
+                  {store.lat && store.lng && (
+                    <span className="text-xs text-gray-600">Lat: {store.lat}, Lng: {store.lng}</span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   const renderSettings = () => {
     if (!user) {
       return (
@@ -879,7 +1038,7 @@ export function DistributorDashboard() {
             { tab: 'overview' as const, icon: LayoutDashboard, label: 'Overview' },
             { tab: 'orders' as const, icon: ShoppingCart, label: 'Orders' },
             { tab: 'invoices' as const, icon: FileText, label: 'Invoices' },
-            /* { tab: 'agreements' as const, icon: FileSignature, label: 'Agreements' }, */
+            { tab: 'my-stores' as const, icon: Store, label: 'My Stores' },
             { tab: 'settings' as const, icon: SettingsIcon, label: 'Settings' },
           ].map(({ tab, icon: Icon, label }) => (
             <button
@@ -917,6 +1076,7 @@ export function DistributorDashboard() {
             { tab: 'overview' as const, icon: LayoutDashboard, label: 'Overview' },
             { tab: 'orders' as const, icon: ShoppingCart, label: 'Orders', count: orders.length },
             { tab: 'invoices' as const, icon: FileText, label: 'Invoices', count: stats.pendingInvoices },
+            { tab: 'my-stores' as const, icon: Store, label: 'My Stores', count: myStores.length },
             /* { tab: 'agreements' as const, icon: FileSignature, label: 'Agreements', count: _pendingAgreementsCount }, */
           ].map(({ tab, icon: Icon, label, count }) => (
             <button
@@ -980,6 +1140,7 @@ export function DistributorDashboard() {
               {activeTab === 'overview' && 'Dashboard'}
               {activeTab === 'orders' && 'Orders'}
               {activeTab === 'invoices' && 'Invoices'}
+              {activeTab === 'my-stores' && 'My Customer Stores'}
               {activeTab === 'settings' && 'Settings'}
             </h1>
             <Link to="/products">
@@ -992,6 +1153,7 @@ export function DistributorDashboard() {
           {activeTab === 'overview' && renderOverview()}
           {activeTab === 'orders' && renderOrders()}
           {activeTab === 'invoices' && renderInvoices()}
+          {activeTab === 'my-stores' && renderMyStores()}
           {activeTab === 'settings' && renderSettings()}
         </div>
       </div>
@@ -1030,6 +1192,9 @@ export function DistributorDashboard() {
             console.error('Payment error:', error);
           }}
         />
+      )}
+      {showStoreUploadModal && (
+        <StoreUploadModal onClose={() => setShowStoreUploadModal(false)} onImport={handleImportStores} />
       )}
     </div>
   );

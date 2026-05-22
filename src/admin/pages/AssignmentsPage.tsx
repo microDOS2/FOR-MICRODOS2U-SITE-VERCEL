@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase'
+import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Users, Loader2, Check, UserPlus, ChevronDown, ChevronRight, Store, MapPin, UserMinus, Shield, Download, Upload, FileUp, X, AlertCircle } from 'lucide-react'
+import { Users, Loader2, Check, UserPlus, ChevronDown, ChevronRight, Store, MapPin, UserMinus, Shield, Download, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -70,112 +70,25 @@ const roleBadge: Record<string, string> = {
 function escapeCsv(val: string | null | undefined): string {
   if (val == null) return ''
   const s = String(val)
-  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-    return `"${s.replace(/"/g, '""')}"`
-  }
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`
   return s
 }
-
 function buildAccountsCsv(accounts: AccountItem[]): string {
   const headers = ['Account #', 'Business Name', 'Email', 'Phone', 'Role', 'City', 'State', 'Assigned Rep', 'Manager', 'Store Count']
-  const rows = accounts.map(a => [
-    a.account_number, a.business_name, a.email, a.phone || '', a.role,
-    a.city || '', a.state || '', a.assigned_rep_name || '', a.manager_name || '',
-    String(a.stores.length),
-  ])
-  return [headers, ...rows].map(r => r.map(escapeCsv).join(',')).join('\n')
+  return [headers, ...accounts.map(a => [a.account_number, a.business_name, a.email, a.phone || '', a.role, a.city || '', a.state || '', a.assigned_rep_name || '', a.manager_name || '', String(a.stores.length)])].map(r => r.map(escapeCsv).join(',')).join('\n')
 }
-
 function buildStoresCsv(accounts: AccountItem[]): string {
   const headers = ['Account #', 'Business Name', 'Store #', 'Store Name', 'Address', 'City', 'State', 'Store Rep']
-  const rows: (string | null)[][] = []
-  accounts.forEach(a => {
-    a.stores.forEach(s => {
-      rows.push([a.account_number, a.business_name, s.store_number, s.name, s.address, s.city, s.state, s.assigned_rep_name || ''])
-    })
-  })
+  const rows: string[][] = []
+  accounts.forEach(a => a.stores.forEach(s => rows.push([a.account_number, a.business_name, s.store_number, s.name, s.address, s.city, s.state, s.assigned_rep_name || ''])))
   return [headers, ...rows].map(r => r.map(escapeCsv).join(',')).join('\n')
 }
-
 function downloadCsv(filename: string, content: string) {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
   const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
+  link.href = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8;' }))
   link.download = filename
   link.click()
   URL.revokeObjectURL(link.href)
-}
-
-interface CsvUploadRow {
-  business_name: string
-  email: string
-  phone: string
-  role: string
-  city: string
-  state: string
-  _valid: boolean
-  _error?: string
-}
-
-function parseCsv(text: string): CsvUploadRow[] {
-  const lines = text.split(/\r?\n/).filter(l => l.trim())
-  if (lines.length < 2) return []
-
-  // Parse header
-  const header = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase())
-  const nameIdx = header.indexOf('business_name')
-  const emailIdx = header.indexOf('email')
-  const phoneIdx = header.indexOf('phone')
-  const roleIdx = header.indexOf('role')
-  const cityIdx = header.indexOf('city')
-  const stateIdx = header.indexOf('state')
-
-  // Try alternate headers
-  const altNameIdx = nameIdx >= 0 ? nameIdx : header.indexOf('business name')
-  const finalNameIdx = altNameIdx >= 0 ? altNameIdx : header.indexOf('name')
-
-  const rows: CsvUploadRow[] = []
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseCsvLine(lines[i])
-    const business_name = finalNameIdx >= 0 ? cols[finalNameIdx]?.trim() || '' : ''
-    const email = emailIdx >= 0 ? cols[emailIdx]?.trim() || '' : ''
-    const phone = phoneIdx >= 0 ? (cols[phoneIdx]?.trim() || '') : ''
-    const role = roleIdx >= 0 ? (cols[roleIdx]?.trim() || 'wholesaler') : 'wholesaler'
-    const city = cityIdx >= 0 ? (cols[cityIdx]?.trim() || '') : ''
-    const state = stateIdx >= 0 ? (cols[stateIdx]?.trim() || '') : ''
-
-    const valid = business_name.length > 0 && email.length > 0 && email.includes('@')
-    rows.push({
-      business_name, email, phone, role, city, state,
-      _valid: valid,
-      _error: valid ? undefined : !business_name ? 'Missing business_name' : !email ? 'Missing email' : 'Invalid email',
-    })
-  }
-  return rows
-}
-
-function parseCsvLine(line: string): string[] {
-  const result: string[] = []
-  let current = ''
-  let inQuotes = false
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i]
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"'
-        i++
-      } else {
-        inQuotes = !inQuotes
-      }
-    } else if (char === ',' && !inQuotes) {
-      result.push(current.trim())
-      current = ''
-    } else {
-      current += char
-    }
-  }
-  result.push(current.trim())
-  return result
 }
 
 export function AccountsPage() {
@@ -191,13 +104,6 @@ export function AccountsPage() {
   const [savingStore, setSavingStore] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [repManagerMap, setRepManagerMap] = useState<Map<string, string | null>>(new Map())
-
-  // CSV Upload state
-  const [showUploadModal, setShowUploadModal] = useState(false)
-  const [csvPreview, setCsvPreview] = useState<CsvUploadRow[]>([])
-  const [importing, setImporting] = useState(false)
-  const [importResult, setImportResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const parseStoreNumber = (name: string): { number: string; cleanName: string } => {
     const m = name.match(/^(\d+[a-z])\s*-\s*(.+)$/)
@@ -269,118 +175,6 @@ export function AccountsPage() {
   }, [])
 
   useEffect(() => { fetchAll() }, [fetchAll])
-
-  // ─── CSV Download ───
-  const handleDownloadAccounts = () => {
-    const csv = buildAccountsCsv(accounts)
-    const date = new Date().toISOString().slice(0, 10)
-    downloadCsv(`accounts-${date}.csv`, csv)
-    toast.success(`Downloaded ${accounts.length} accounts`)
-  }
-
-  const handleDownloadStores = () => {
-    const csv = buildStoresCsv(accounts)
-    const storeCount = accounts.reduce((s, a) => s + a.stores.length, 0)
-    const date = new Date().toISOString().slice(0, 10)
-    downloadCsv(`stores-${date}.csv`, csv)
-    toast.success(`Downloaded ${storeCount} stores`)
-  }
-
-  // ─── CSV Upload ───
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const text = String(ev.target?.result || '')
-      const parsed = parseCsv(text)
-      setCsvPreview(parsed)
-      setImportResult(null)
-    }
-    reader.readAsText(file)
-  }
-
-  const handleImport = async () => {
-    const validRows = csvPreview.filter(r => r._valid)
-    if (validRows.length === 0) {
-      toast.error('No valid rows to import')
-      return
-    }
-    setImporting(true)
-    setImportResult(null)
-    let success = 0
-    let failed = 0
-    const errors: string[] = []
-
-    for (const row of validRows) {
-      try {
-        // Step 1: Create auth user via edge function
-        const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-auth-user`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            email: row.email,
-            password: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2),
-            business_name: row.business_name,
-            role: row.role === 'distributor' ? 'distributor' : 'wholesaler',
-            site_url: window.location.origin,
-          }),
-        })
-
-        let userId: string
-        if (!resp.ok) {
-          const errData = await resp.json().catch(() => ({}))
-          // If already exists, find the user
-          if (errData.error?.includes('already') || errData.error?.includes('exists')) {
-            // Try to get user by email
-            const { data: existing } = await supabase.from('users').select('id').eq('email', row.email).single()
-            if (existing) {
-              userId = existing.id
-            } else {
-              throw new Error(errData.error || 'User exists but not found')
-            }
-          } else {
-            throw new Error(errData.error || 'Failed to create auth user')
-          }
-        } else {
-          const result = await resp.json()
-          userId = result.user?.id
-        }
-
-        // Step 2: Insert into users table via RPC
-        const { error: insertErr } = await supabase.rpc('insert_user', {
-          p_id: userId,
-          p_email: row.email,
-          p_business_name: row.business_name,
-          p_role: row.role === 'distributor' ? 'distributor' : 'wholesaler',
-          p_status: 'approved',
-          p_phone: row.phone || null,
-          p_city: row.city || null,
-          p_state: row.state || null,
-        })
-
-        if (insertErr) throw new Error(insertErr.message)
-        success++
-      } catch (err: any) {
-        failed++
-        errors.push(`${row.email}: ${err.message}`)
-      }
-    }
-
-    setImportResult({ success, failed, errors })
-    setImporting(false)
-    if (success > 0) {
-      toast.success(`Imported ${success} accounts`)
-      fetchAll()
-    }
-    if (failed > 0) {
-      toast.error(`${failed} accounts failed`)
-    }
-  }
 
   const handleAssignAccount = async (accountId: string) => {
     const repId = selectedRep[accountId]; if (!repId) { toast.error('Select a Sales Rep'); return }
@@ -463,141 +257,37 @@ export function AccountsPage() {
   const assignedCount = accounts.filter(a => a.assigned_rep_id).length
   const totalStores = accounts.reduce((s, a) => s + a.stores.length, 0)
 
+  // CSV download handlers
+  const handleDownloadAccounts = () => {
+    const csv = buildAccountsCsv(accounts)
+    const date = new Date().toISOString().slice(0, 10)
+    downloadCsv(`accounts-${date}.csv`, csv)
+    toast.success(`Downloaded ${accounts.length} accounts`)
+  }
+  const handleDownloadStores = () => {
+    const csv = buildStoresCsv(accounts)
+    const storeCount = accounts.reduce((s, a) => s + a.stores.length, 0)
+    const date = new Date().toISOString().slice(0, 10)
+    downloadCsv(`stores-${date}.csv`, csv)
+    toast.success(`Downloaded ${storeCount} stores`)
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white mb-1">Accounts</h2>
           <p className="text-gray-400">{accounts.length} accounts, {totalStores} stores</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={handleDownloadAccounts} className="border-white/10 text-white hover:bg-white/5">
             <Download className="w-4 h-4 mr-1.5" />Accounts CSV
           </Button>
           <Button size="sm" variant="outline" onClick={handleDownloadStores} className="border-white/10 text-white hover:bg-white/5">
             <Download className="w-4 h-4 mr-1.5" />Stores CSV
           </Button>
-          <Button size="sm" onClick={() => { setShowUploadModal(true); setCsvPreview([]); setImportResult(null) }} className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">
-            <Upload className="w-4 h-4 mr-1.5" />Upload CSV
-          </Button>
         </div>
       </div>
-
-      {/* Upload Modal */}
-      {showUploadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-[#150f24] border border-white/10 rounded-xl w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between p-5 border-b border-white/10">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <FileUp className="w-5 h-5 text-[#9a02d0]" /> Upload Accounts CSV
-              </h3>
-              <button onClick={() => setShowUploadModal(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-5 overflow-y-auto flex-1">
-              {/* File Input */}
-              {csvPreview.length === 0 && !importResult && (
-                <div className="space-y-4">
-                  <div className="border-2 border-dashed border-white/10 rounded-lg p-8 text-center hover:border-[#9a02d0]/50 transition-colors">
-                    <Upload className="w-10 h-10 text-gray-500 mx-auto mb-3" />
-                    <p className="text-gray-300 mb-1">Drop a CSV file here or click to browse</p>
-                    <p className="text-gray-500 text-sm mb-4">Required columns: business_name, email<br />Optional: phone, role, city, state</p>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".csv"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                    />
-                    <Button onClick={() => fileInputRef.current?.click()} className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">
-                      Select CSV File
-                    </Button>
-                  </div>
-                  <div className="bg-[#0a0514] rounded-lg p-4 border border-white/5">
-                    <p className="text-sm text-gray-400 mb-2"><strong className="text-white">CSV Template:</strong></p>
-                    <code className="text-xs text-[#44f80c] font-mono block">
-                      business_name,email,phone,role,city,state
-                    </code>
-                  </div>
-                </div>
-              )}
-
-              {/* Preview */}
-              {csvPreview.length > 0 && !importResult && (
-                <div className="space-y-4">
-                  <p className="text-gray-300">{csvPreview.length} rows found ({csvPreview.filter(r => r._valid).length} valid, {csvPreview.filter(r => !r._valid).length} invalid)</p>
-                  <div className="overflow-x-auto rounded-lg border border-white/10">
-                    <table className="w-full text-sm">
-                      <thead className="bg-[#0a0514]">
-                        <tr>
-                          <th className="text-left px-3 py-2 text-gray-400 font-medium">Status</th>
-                          <th className="text-left px-3 py-2 text-gray-400 font-medium">Business Name</th>
-                          <th className="text-left px-3 py-2 text-gray-400 font-medium">Email</th>
-                          <th className="text-left px-3 py-2 text-gray-400 font-medium">Phone</th>
-                          <th className="text-left px-3 py-2 text-gray-400 font-medium">Role</th>
-                          <th className="text-left px-3 py-2 text-gray-400 font-medium">City</th>
-                          <th className="text-left px-3 py-2 text-gray-400 font-medium">State</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {csvPreview.map((row, i) => (
-                          <tr key={i} className={row._valid ? 'border-t border-white/5' : 'border-t border-red-500/20 bg-red-500/5'}>
-                            <td className="px-3 py-2">
-                              {row._valid ? <Check className="w-4 h-4 text-[#44f80c]" /> : <AlertCircle className="w-4 h-4 text-red-400" title={row._error} />}
-                            </td>
-                            <td className="px-3 py-2 text-white">{row.business_name}</td>
-                            <td className="px-3 py-2 text-gray-300">{row.email}</td>
-                            <td className="px-3 py-2 text-gray-400">{row.phone}</td>
-                            <td className="px-3 py-2 text-gray-400">{row.role}</td>
-                            <td className="px-3 py-2 text-gray-400">{row.city}</td>
-                            <td className="px-3 py-2 text-gray-400">{row.state}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="outline" onClick={() => { setCsvPreview([]); setImportResult(null) }} className="border-white/10 text-white hover:bg-white/5">
-                      Choose Different File
-                    </Button>
-                    <Button
-                      onClick={handleImport}
-                      disabled={importing || csvPreview.filter(r => r._valid).length === 0}
-                      className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white"
-                    >
-                      {importing ? <><Loader2 className="w-4 h-4 animate-spin mr-1.5" />Importing...</> : <><Upload className="w-4 h-4 mr-1.5" />Import {csvPreview.filter(r => r._valid).length} Accounts</>}
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Result */}
-              {importResult && (
-                <div className="space-y-4">
-                  <div className={`rounded-lg p-4 border ${importResult.failed === 0 ? 'bg-green-500/10 border-green-500/30' : importResult.success > 0 ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
-                    <p className="text-white font-medium mb-1">
-                      {importResult.success} imported successfully{importResult.failed > 0 ? `, ${importResult.failed} failed` : ''}
-                    </p>
-                    {importResult.errors.length > 0 && (
-                      <div className="mt-2 max-h-40 overflow-y-auto">
-                        {importResult.errors.map((err, i) => (
-                          <p key={i} className="text-red-400 text-sm">{err}</p>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex justify-end">
-                    <Button onClick={() => { setShowUploadModal(false); setCsvPreview([]); setImportResult(null) }} className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">
-                      Done
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       <Card className="bg-[#150f24] border-white/10">
         <CardHeader><CardTitle className="text-white flex items-center gap-2"><Users className="w-5 h-5 text-[#9a02d0]" />Accounts ({assignedCount} assigned, {accounts.length - assignedCount} unassigned)</CardTitle></CardHeader>
         <CardContent>

@@ -1361,7 +1361,7 @@ export function WholesalerDashboard() { // test
                 <Package className="w-5 h-5" />
                 Products
               </Link>
-              <button
+              {/* <button
                 onClick={() => setActiveTab('agreements')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   activeTab === 'agreements'
@@ -1376,7 +1376,7 @@ export function WholesalerDashboard() { // test
                     {pendingAgreementsCount}
                   </span>
                 )}
-              </button>
+              </button> */}
               <button
                 onClick={() => setActiveTab('store-locations')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
@@ -1453,7 +1453,7 @@ export function WholesalerDashboard() { // test
               <Package className="w-5 h-5" />
               <span className="text-xs mt-1">Products</span>
             </Link>
-            <button
+            {/* <button
               onClick={() => setActiveTab('agreements')}
               className={`flex flex-col items-center p-2 rounded-lg relative ${
                 activeTab === 'agreements' ? 'text-psy-neonPurple' : 'text-gray-400'
@@ -1466,7 +1466,7 @@ export function WholesalerDashboard() { // test
                   {pendingAgreementsCount}
                 </span>
               )}
-            </button>
+            </button> */}
             <button
               onClick={() => setActiveTab('store-locations')}
               className={`flex flex-col items-center p-2 rounded-lg relative ${

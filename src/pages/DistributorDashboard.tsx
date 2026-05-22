@@ -77,7 +77,7 @@ export function DistributorDashboard() {
   }, [authLoading, user, navigate]);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'agreements' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'settings'>('overview');
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
 
@@ -359,25 +359,7 @@ export function DistributorDashboard() {
         </Card>
       </div>
 
-      {/* Pending Agreements Alert */}
-      {pendingAgreementsCount > 0 && (
-        <Card className="bg-yellow-500/5 border-yellow-500/20">
-          <CardContent className="p-4 flex items-start gap-4">
-            <AlertCircle className="w-5 h-5 text-yellow-400 mt-0.5 shrink-0" />
-            <div>
-              <h3 className="font-bold text-white">Action Required: Pending Agreements</h3>
-              <p className="text-sm text-gray-400">You have {pendingAgreementsCount} agreement(s) awaiting your signature</p>
-              <Button
-                variant="link"
-                className="text-yellow-400 p-0 h-auto mt-1"
-                onClick={() => setActiveTab('agreements')}
-              >
-                Review Now <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Pending Agreements Alert — hidden */}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -923,7 +905,7 @@ export function DistributorDashboard() {
             { tab: 'overview' as const, icon: LayoutDashboard, label: 'Overview' },
             { tab: 'orders' as const, icon: ShoppingCart, label: 'Orders' },
             { tab: 'invoices' as const, icon: FileText, label: 'Invoices' },
-            { tab: 'agreements' as const, icon: FileSignature, label: 'Agreements' },
+            /* { tab: 'agreements' as const, icon: FileSignature, label: 'Agreements' }, */
             { tab: 'settings' as const, icon: SettingsIcon, label: 'Settings' },
           ].map(({ tab, icon: Icon, label }) => (
             <button
@@ -961,7 +943,7 @@ export function DistributorDashboard() {
             { tab: 'overview' as const, icon: LayoutDashboard, label: 'Overview' },
             { tab: 'orders' as const, icon: ShoppingCart, label: 'Orders', count: orders.length },
             { tab: 'invoices' as const, icon: FileText, label: 'Invoices', count: stats.pendingInvoices },
-            { tab: 'agreements' as const, icon: FileSignature, label: 'Agreements', count: pendingAgreementsCount },
+            /* { tab: 'agreements' as const, icon: FileSignature, label: 'Agreements', count: pendingAgreementsCount }, */
           ].map(({ tab, icon: Icon, label, count }) => (
             <button
               key={tab}
@@ -1024,7 +1006,6 @@ export function DistributorDashboard() {
               {activeTab === 'overview' && 'Dashboard'}
               {activeTab === 'orders' && 'Orders'}
               {activeTab === 'invoices' && 'Invoices'}
-              {activeTab === 'agreements' && 'Agreements'}
               {activeTab === 'settings' && 'Settings'}
             </h1>
             <Link to="/products">
@@ -1037,7 +1018,6 @@ export function DistributorDashboard() {
           {activeTab === 'overview' && renderOverview()}
           {activeTab === 'orders' && renderOrders()}
           {activeTab === 'invoices' && renderInvoices()}
-          {activeTab === 'agreements' && renderAgreements()}
           {activeTab === 'settings' && renderSettings()}
         </div>
       </div>

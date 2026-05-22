@@ -748,7 +748,7 @@ export function WholesalerDashboard() {
                             ) : order.notes ? (
                               <div className="space-y-2">
                                 <p className="text-xs font-medium text-gray-400 mb-2">Order Details (from notes):</p>
-                                <p className="text-sm text-white">{order.notes}</p>
+                                <pre className="text-sm text-white whitespace-pre-wrap font-sans">{order.notes.replace(/;\s*/g, "\n")}</pre>
                               </div>
                             ) : (
                               <p className="text-sm text-gray-500">No detailed order information available.</p>
@@ -866,7 +866,7 @@ export function WholesalerDashboard() {
                             ) : invoice.orders?.notes ? (
                               <div className="space-y-2">
                                 <p className="text-xs font-medium text-gray-400 mb-2">Invoice Details (from Order {invoice.orders.po_number}):</p>
-                                <p className="text-sm text-white">{invoice.orders.notes}</p>
+                                <pre className="text-sm text-white whitespace-pre-wrap font-sans">{invoice.orders!.notes.replace(/;\s*/g, "\n")}</pre>
                               </div>
                             ) : (
                               <p className="text-sm text-gray-500">No detailed invoice items available.</p>

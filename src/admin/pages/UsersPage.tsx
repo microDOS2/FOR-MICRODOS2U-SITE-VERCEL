@@ -21,7 +21,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import {
-  Users, Plus, Search, Check, Store, UserPlus, Loader2, X, Info, Pencil, Trash2, AlertTriangle
+  Users, Plus, Search, Check, Store, UserPlus, Loader2, X, Info, Pencil, Trash2, AlertTriangle, Download
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DBUser } from '@/lib/supabase'
@@ -747,6 +747,101 @@ export function UsersPage() {
     setDeletingAll(false)
   }
 
+  // ──── EXPORT ALL USERS TO CSV (snapshot backup) ────
+  const handleExportAll = () => {
+    if (allAccounts.length === 0) {
+      toast.info('No users to export')
+      return
+    }
+
+    // CSV headers — all user fields + relationship columns
+    const headers = [
+      'id', 'business_name', 'email', 'phone', 'role', 'status',
+      'address', 'city', 'state', 'zip', 'license_number', 'ein', 'website',
+      'manager_id', 'manager_email', 'manager_name',
+      'territory_states', 'assigned_reps', 'store_count',
+      'created_at',
+    ]
+
+    // Helper to safely escape CSV values
+    const escapeCSV = (val: any) => {
+      const str = val == null ? '' : String(val)
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`
+      }
+      return str
+    }
+
+    // Build rows
+    const rows = allAccounts.map((account) => {
+      // Resolve manager info
+      const managerId = account.raw?.manager_id || ''
+      const manager = managerId ? allAccounts.find(u => u.id === managerId) : null
+      const managerEmail = manager?.email || ''
+      const managerName = manager?.business_name || ''
+
+      // Resolve territory states (for managers)
+      const territoryStates = account.role === 'sales_manager'
+        ? (managerStateMap.get(account.id) || []).join('; ')
+        : ''
+
+      // Resolve assigned reps (for business accounts)
+      const assignedReps = (account.role === 'wholesaler' || account.role === 'distributor')
+        ? allAccounts
+            .filter(u => u.role === 'sales_rep' && u.raw?.manager_id === account.id)
+            .map(r => r.business_name || r.email)
+            .join('; ')
+        : ''
+
+      // Store count
+      const storeCount = storeCountMap.get(account.id) || 0
+
+      return [
+        account.id,
+        account.business_name,
+        account.email,
+        account.phone || '',
+        account.role || '',
+        account.status,
+        account.address || '',
+        account.city || '',
+        account.state || '',
+        account.zip || '',
+        account.license_number || '',
+        account.ein || '',
+        account.website || '',
+        managerId,
+        managerEmail,
+        managerName,
+        territoryStates,
+        assignedReps,
+        storeCount,
+        account.raw?.created_at || '',
+      ].map(escapeCSV).join(',')
+    })
+
+    // Assemble CSV
+    const csv = [headers.join(','), ...rows].join('\n')
+
+    // Create download blob
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+
+    // Filename with timestamp
+    const now = new Date()
+    const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`
+    link.download = `microDOS2_users_snapshot_${timestamp}.csv`
+
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    toast.success(`Exported ${allAccounts.length} user(s) to CSV`)
+  }
+
   // ──── TERRITORY STATE MANAGEMENT ────
   const handleAddState = async (managerId: string, state: string) => {
     setSavingStates(managerId)
@@ -824,6 +919,13 @@ export function UsersPage() {
           </Button>
           <Button onClick={() => setShowCreateModal(true)} className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">
             <Plus className="w-4 h-4 mr-1" /> Create User
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleExportAll}
+            className="border-[#44f80c]/30 text-[#44f80c] hover:bg-[#44f80c]/10 hover:text-[#44f80c]"
+          >
+            <Download className="w-4 h-4 mr-1" /> Download Snapshot
           </Button>
           <Button
             variant="outline"

@@ -1,3 +1,403 @@
+      setDataLoading(false);
+    };
+
+    fetchData();
+  }, [user]);
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'store-locations' | 'settings'>('overview');
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderFilter, setOrderFilter] = useState('all');
+
+  // Real data from Supabase
+  const [orders, setOrders] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [dataLoading, setDataLoading] = useState(false);
+
+  // Settings state
+  const [settingsForm, setSettingsForm] = useState({
+    business_name: '', phone: '', address: '',
+    city: '', state: '', zip: '', website: '', license_number: '',
+  });
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
+  const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+
+  // Payment modal state
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState<{ id: string; amount: number; invoiceNumber: string } | null>(null);
+
+  const toggleOrderExpand = (orderId: string) => {
+    setExpandedOrders(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
+      return next;
+    });
+  };
+
+  const toggleInvoiceExpand = (invoiceId: string) => {
+    setExpandedInvoices(prev => {
+      const next = new Set(prev);
+      if (next.has(invoiceId)) next.delete(invoiceId);
+      else next.add(invoiceId);
+      return next;
+    });
+  };
+  useEffect(() => {
+    if (user) {
+      setSettingsForm({
+        business_name: user.business_name || '',
+        phone: user.phone || '',
+        address: user.address || '',
+        city: user.city || '',
+        state: user.state || '',
+        zip: user.zip || '',
+        website: user.website || '',
+        license_number: user.license_number || '',
+      });
+    }
+  }, [user]);
+
+  // Re-fetch fresh profile data from Supabase whenever Settings tab opens
+  useEffect(() => {
+    if (activeTab !== 'settings' || !user?.id) return;
+    async function refreshProfile() {
+      const { data, error } = await supabase
+        .from('users')
+        .select('business_name, phone, address, city, state, zip, website, license_number')
+        .eq('id', user!.id)
+        .maybeSingle();
+      if (error) {
+        console.error('[Settings] refreshProfile error:', error);
+        return;
+      }
+      if (data) {
+        setSettingsForm({
+          business_name: data.business_name || '',
+          phone: data.phone || '',
+          address: data.address || '',
+          city: data.city || '',
+          state: data.state || '',
+          zip: data.zip || '',
+          website: data.website || '',
+          license_number: data.license_number || '',
+        });
+      }
+    }
+    refreshProfile();
+  }, [activeTab, user?.id]);
+
+  const [stores, setStores] = useState<StoreLocation[]>([]);
+  const [storesLoading, setStoresLoading] = useState(false);
+  const [storeDialogOpen, setStoreDialogOpen] = useState(false);
+  const [editingStore, setEditingStore] = useState<StoreLocation | null>(null);
+  const [storeForm, setStoreForm] = useState({
+    name: '',
+    address: '',
+    city: '',
+    state: '',
+    zip: '',
+    phone: '',
+    email: '',
+    license_number: '',
+    is_primary: false,
+  });
+
+  const getStatusBadge = (status: OrderStatus) => {
+    const styles = {
+      pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+      processing: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+      shipped: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+      delivered: 'bg-green-500/10 text-green-400 border-green-500/20',
+      cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
+    };
+    return styles[status];
+  };
+
+  const getInvoiceStatusBadge = (status: InvoiceStatus) => {
+    const styles: Record<InvoiceStatus, string> = {
+      paid: 'bg-green-500/10 text-green-400 border-green-500/20',
+      pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+      overdue: 'bg-red-500/10 text-red-400 border-red-500/20',
+      cancelled: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+    };
+    return styles[status];
+  };
+
+    return styles[status];
+  };
+
+    return labels[type];
+  };
+
+  const getStatusIcon = (status: OrderStatus) => {
+    const icons = {
+      pending: Clock,
+      processing: Package,
+      shipped: Truck,
+      delivered: CheckCircle,
+      cancelled: AlertCircle,
+    };
+    return icons[status];
+  };
+
+  const filteredOrders = orders.filter((order) => {
+    const matchesSearch = order.po_number.toLowerCase().includes(orderSearch.toLowerCase());
+    const matchesFilter = orderFilter === 'all' || order.status === orderFilter;
+    return matchesSearch && matchesFilter;
+  });
+
+
+  // Fetch store locations for the logged-in wholesaler
+  useEffect(() => {
+    const fetchStores = async () => {
+      setStoresLoading(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          // Fallback: load from localStorage for demo
+          const saved = localStorage.getItem('wholesaler_stores');
+          if (saved) {
+            try { setStores(JSON.parse(saved)); } catch { setStores([]); }
+          }
+          setStoresLoading(false);
+          return;
+        }
+        const { data, error } = await supabase
+          .from('wholesaler_store_locations')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('is_primary', { ascending: false });
+        if (error) {
+          // Fallback to localStorage on error
+          const saved = localStorage.getItem('wholesaler_stores');
+          if (saved) {
+            try { setStores(JSON.parse(saved)); } catch { setStores([]); }
+          }
+        } else if (data) {
+          setStores(data as StoreLocation[]);
+          localStorage.setItem('wholesaler_stores', JSON.stringify(data));
+        }
+      } catch {
+        const saved = localStorage.getItem('wholesaler_stores');
+        if (saved) {
+          try { setStores(JSON.parse(saved)); } catch { setStores([]); }
+        }
+      }
+      setStoresLoading(false);
+    };
+    if (activeTab === 'store-locations') {
+      fetchStores();
+    }
+  }, [activeTab]);
+
+  const openStoreDialog = (store?: StoreLocation) => {
+    if (store) {
+      setEditingStore(store);
+      setStoreForm({
+        name: store.name || '',
+        address: store.address || '',
+        city: store.city || '',
+        state: store.state || '',
+        zip: store.zip || '',
+        phone: store.phone || '',
+        email: store.email || '',
+        license_number: store.license_number || '',
+        is_primary: store.is_primary || false,
+      });
+    } else {
+      setEditingStore(null);
+      setStoreForm({ name: '', address: '', city: '', state: '', zip: '', phone: '', email: '', license_number: '', is_primary: false });
+    }
+    setStoreDialogOpen(true);
+  };
+
+  const saveStore = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || 'demo-user';
+      const payload = {
+        user_id: userId,
+        name: storeForm.name,
+        address: storeForm.address,
+        city: storeForm.city,
+        state: storeForm.state,
+        zip: storeForm.zip,
+        phone: storeForm.phone || null,
+        email: storeForm.email || null,
+        license_number: storeForm.license_number || null,
+        is_primary: storeForm.is_primary,
+        is_active: true,
+      };
+      if (editingStore) {
+        const { data, error } = await supabase
+          .from('wholesaler_store_locations')
+          .update(payload)
+          .eq('id', editingStore.id)
+          .select()
+          .single();
+        if (!error && data) {
+          setStores((prev) => prev.map((s) => (s.id === editingStore.id ? data as StoreLocation : s)));
+        } else {
+          // Local fallback
+          const updated: StoreLocation = { ...editingStore, ...payload, created_at: editingStore.created_at };
+          setStores((prev) => prev.map((s) => (s.id === editingStore.id ? updated : s)));
+          localStorage.setItem('wholesaler_stores', JSON.stringify(stores.map((s) => (s.id === editingStore.id ? updated : s))));
+        }
+      } else {
+        const { data, error } = await supabase
+          .from('wholesaler_store_locations')
+          .insert({ ...payload, lat: null, lng: null })
+          .select()
+          .single();
+        if (!error && data) {
+          setStores((prev) => [...prev, data as StoreLocation]);
+        } else {
+          // Local fallback
+          const newStore: StoreLocation = { ...payload, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+          setStores((prev) => [...prev, newStore]);
+          localStorage.setItem('wholesaler_stores', JSON.stringify([...stores, newStore]));
+        }
+      }
+      setStoreDialogOpen(false);
+    } catch {
+      // Local fallback
+      if (editingStore) {
+        const updated: StoreLocation = { ...editingStore, name: storeForm.name, address: storeForm.address, city: storeForm.city, state: storeForm.state, zip: storeForm.zip, phone: storeForm.phone || null, email: storeForm.email || null, license_number: storeForm.license_number || null, is_primary: storeForm.is_primary };
+        setStores((prev) => prev.map((s) => (s.id === editingStore.id ? updated : s)));
+        localStorage.setItem('wholesaler_stores', JSON.stringify(stores.map((s) => (s.id === editingStore.id ? updated : s))));
+      } else {
+        const newStore: StoreLocation = { user_id: 'demo-user', name: storeForm.name, address: storeForm.address, city: storeForm.city, state: storeForm.state, zip: storeForm.zip, phone: storeForm.phone || null, email: storeForm.email || null, license_number: storeForm.license_number || null, is_primary: storeForm.is_primary, is_active: true, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+        setStores((prev) => [...prev, newStore]);
+        localStorage.setItem('wholesaler_stores', JSON.stringify([...stores, newStore]));
+      }
+      setStoreDialogOpen(false);
+    }
+  };
+
+  const deleteStore = async (storeId: string) => {
+    if (!confirm('Delete this store location?')) return;
+    try {
+      const { error } = await supabase.from('wholesaler_store_locations').delete().eq('id', storeId);
+      if (!error) {
+        setStores((prev) => prev.filter((s) => s.id !== storeId));
+      } else {
+        setStores((prev) => prev.filter((s) => s.id !== storeId));
+        localStorage.setItem('wholesaler_stores', JSON.stringify(stores.filter((s) => s.id !== storeId)));
+      }
+    } catch {
+      setStores((prev) => prev.filter((s) => s.id !== storeId));
+      localStorage.setItem('wholesaler_stores', JSON.stringify(stores.filter((s) => s.id !== storeId)));
+    }
+  };
+
+  const stats = {
+    totalOrders: orders.length,
+    totalSpent: orders.reduce((acc, order) => acc + order.total, 0),
+    pendingInvoices: invoices.filter((inv) => inv.status === 'pending').length,
+    overdueAmount: invoices.filter((inv) => inv.status === 'overdue').reduce((acc, inv) => acc + inv.amount, 0),
+  };
+
+  const renderOverview = () => (
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="bg-brand-800 border-brand-700">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-400">Total Orders</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-white">{stats.totalOrders}</div>
+            <p className="text-xs text-gray-500 mt-1">All time</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-brand-800 border-brand-700">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-400">Total Spent</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-white">${stats.totalSpent.toLocaleString()}</div>
+            <p className="text-xs text-gray-500 mt-1">Lifetime purchases</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-brand-800 border-brand-700">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-400">Pending Invoices</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-yellow-400">{stats.pendingInvoices}</div>
+            <p className="text-xs text-gray-500 mt-1">Awaiting payment</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-brand-800 border-brand-700">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-400">Overdue</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-red-400">${stats.overdueAmount.toLocaleString()}</div>
+            <p className="text-xs text-gray-500 mt-1">Action required</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-brand-800 border-brand-700 cursor-pointer hover:bg-brand-700/50 transition-colors" style={{display:'none'}}>
+          <CardHeader className="pb-2">
+      {/* Recent Orders */}
+      <Card className="bg-brand-800 border-brand-700">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-white">Recent Orders</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveTab('orders')}
+              className="text-brand-accent hover:text-white"
+            >
+              View All <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow className="border-brand-700">
+                <TableHead className="text-gray-400">PO Number</TableHead>
+                <TableHead className="text-gray-400">Date</TableHead>
+                <TableHead className="text-gray-400">Items</TableHead>
+                <TableHead className="text-gray-400">Total</TableHead>
+                <TableHead className="text-gray-400">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {orders.length === 0 ? (
+                <TableRow><TableCell colSpan={5} className="text-center text-gray-500 py-8">No orders yet</TableCell></TableRow>
+              ) : (
+                orders.slice(0, 3).map((order) => (
+                  <TableRow key={order.id} className="border-brand-700">
+                    <TableCell className="font-medium text-white">{order.po_number}</TableCell>
+                    <TableCell className="text-gray-300">{order.created_at?.slice(0, 10) || '—'}</TableCell>
+                    <TableCell className="text-gray-300">{order.items}</TableCell>
+                    <TableCell className="text-gray-300">${order.total.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={getStatusBadge(order.status)}>
+                        {order.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -150,7 +550,7 @@
                               </div>
                             ) : order.notes ? (
                               <div className="space-y-2">
-                                <p className="text-xs font-medium text-gray-400 mb-2">Order Details:</p>
+                                <p className="text-xs font-medium text-gray-400 mb-2">Order Details (from notes):</p>
                                 {(() => {
                                   const parsed = parseNotesToItems(order.notes);
                                   return parsed.length > 0 ? (
@@ -418,6 +818,13 @@
     </div>
   );
 
+        <div className="bg-brand-800 border border-brand-700 rounded-lg p-4">
+          <div className="text-sm text-gray-400 mb-1">Compliance</div>
+          <div className="text-xs text-gray-500">Regulatory certifications</div>
+        </div>
+      </div>
+    </div>
+  );
 
   // Save profile to Supabase
   const handleSaveSettings = async () => {
@@ -567,32 +974,6 @@
             </Button>
           </CardContent>
         </Card>
-
-        <Card className="bg-brand-800 border-brand-700">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <KeyRound className="w-5 h-5 text-psy-neonPurple" />
-              <CardTitle className="text-white">Password Reset</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-gray-400">
-              Forgot your current password? Send a password reset email to <strong className="text-white">{user?.email}</strong>.
-            </p>
-            <Button
-              onClick={async () => {
-                if (!user?.email) return;
-                const { error } = await supabase.auth.resetPasswordForEmail(user.email, { redirectTo: `${window.location.origin}/#/reset-password` });
-                if (error) toast.error(error.message);
-                else toast.success('Password reset email sent! Check your inbox.');
-              }}
-              variant="outline"
-              className="border-psy-neonPurple text-psy-neonPurple hover:bg-psy-neonPurple/10"
-            >
-              <KeyRound className="w-4 h-4 mr-2" /> Send Password Reset Email
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     );
   };
@@ -657,7 +1038,9 @@
                 Products
               </Link>
               <button
-                
+                style={{display:'none'}}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              </button>
               <button
                 onClick={() => setActiveTab('store-locations')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
@@ -735,6 +1118,10 @@
               <span className="text-xs mt-1">Products</span>
             </Link>
             <button
+              style={{display:'none'}}
+              className={`flex flex-col items-center p-2 rounded-lg relative ${
+            </button>
+            <button
               onClick={() => setActiveTab('store-locations')}
               className={`flex flex-col items-center p-2 rounded-lg relative ${
                 activeTab === 'store-locations' ? 'text-psy-neonPurple' : 'text-gray-400'
@@ -769,8 +1156,7 @@
                 {activeTab === 'overview' && 'Dashboard'}
                 {activeTab === 'orders' && 'Orders'}
                 {activeTab === 'invoices' && 'Invoices'}
-      
-                {activeTab === 'store-locations' && 'Store Locations'}
+                      {activeTab === 'store-locations' && 'Store Locations'}
                 {activeTab === 'settings' && 'Settings'}
               </h1>
               <Link to="/products">
@@ -783,7 +1169,6 @@
             {activeTab === 'overview' && renderOverview()}
             {activeTab === 'orders' && renderOrders()}
             {activeTab === 'invoices' && renderInvoices()}
-
             {activeTab === 'store-locations' && renderStoreLocations()}
             {activeTab === 'settings' && renderSettings()}
           </div>

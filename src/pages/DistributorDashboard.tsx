@@ -15,6 +15,7 @@ import {
   Truck,
   AlertCircle,
   PenTool,
+  FileSignature,
   Send,
   Settings as SettingsIcon,
   Lock,
@@ -24,6 +25,18 @@ import {
   CreditCard,
   KeyRound,
 } from 'lucide-react';
+
+// Parse order notes string into structured items for display
+function parseNotesToItems(notes: string): Array<{ qty: string; product: string; variant: string; sku: string; price: string }> {
+  if (!notes) return [];
+  return notes.split(/;\s*/).map(chunk => {
+    const match = chunk.match(/^(\d+)x\s+(.+?)\s+\((.+?)\)\s*[-–—]\s*SKU:\s*(.+?)\s*[-–—]\s*\$?(.+)$/);
+    if (match) {
+      return { qty: match[1], product: match[2].trim(), variant: match[3].trim(), sku: match[4].trim(), price: match[5].trim() };
+    }
+    return { qty: '', product: chunk.trim(), variant: '', sku: '', price: '' };
+  }).filter(i => i.product);
+}
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -42,27 +55,106 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { CheckoutModal } from '@/components/payment/CheckoutModal';
 
-// Parse order notes string into structured items for display
-function parseNotesToItems(notes: string): Array<{ qty: string; product: string; variant: string; sku: string; price: string }> {
-  if (!notes) return [];
-  return notes.split(/;\s*/).map(chunk => {
-    const match = chunk.match(/^(\d+)x\s+(.+?)\s+\((.+?)\)\s*[-–—]\s*SKU:\s*(.+?)\s*[-–—]\s*\$?(.+)$/);
-    if (match) {
-      return { qty: match[1], product: match[2].trim(), variant: match[3].trim(), sku: match[4].trim(), price: match[5].trim() };
-    }
-    return { qty: '', product: chunk.trim(), variant: '', sku: '', price: '' };
-  }).filter(i => i.product);
-}
-
-
 // Types
 type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 type InvoiceStatus = 'pending' | 'paid' | 'overdue' | 'cancelled';
+type AgreementStatus = 'pending' | 'sent' | 'signed' | 'active' | 'expired';
 type AgreementType = 'wholesale' | 'terms' | 'nda' | 'compliance';
 
+interface AgreementRow {
+  id: string;
+  title: string;
+  type: AgreementType;
+  version: string;
+  sent_date: string;
+  signed_date: string | null;
+  expires_date: string | null;
+  status: AgreementStatus;
+  signed_by: string | null;
+  document_url: string | null;
+}
 
 export function DistributorDashboard() {
   const navigate = useNavigate();
+  const { user, loading: authLoading, signOut } = useAuth();
+
+  // Auth guard
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      const timer = setTimeout(() => {
+        navigate('/distributor-portal');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [authLoading, user, navigate]);
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'agreements' | 'settings'>('overview');
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
+
+  const toggleOrderExpand = (orderId: string) => {
+    setExpandedOrders(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
+      return next;
+    });
+  };
+
+  const toggleInvoiceExpand = (invoiceId: string) => {
+    setExpandedInvoices(prev => {
+      const next = new Set(prev);
+      if (next.has(invoiceId)) next.delete(invoiceId);
+      else next.add(invoiceId);
+      return next;
+    });
+  };
+
+  // Data state
+  const [orders, setOrders] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [agreements, setAgreements] = useState<AgreementRow[]>([]);
+  const [dataLoading, setDataLoading] = useState(false);
+
+  // Orders filter state
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderFilter, setOrderFilter] = useState('all');
+
+  // Settings state
+  const [settingsForm, setSettingsForm] = useState({
+    business_name: '', phone: '', address: '',
+    city: '', state: '', zip: '', website: '', license_number: '',
+  });
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
+
+  // Password state
+  const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+
+  // Payment modal state
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState<{ id: string; amount: number; invoiceNumber: string } | null>(null);
+
+  // Fetch data
+  useEffect(() => {
+    if (!user) return;
+    const fetchData = async () => {
+      setDataLoading(true);
+      const [{ data: o, error: oErr }, { data: i, error: iErr }, { data: a, error: aErr }] = await Promise.all([
+        supabase.from('orders').select('id, po_number, items, total, status, notes, created_at, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total)').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('invoices').select('id, invoice_number, order_id, amount, status, date, due_date, orders:order_id(po_number, notes, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total))').eq('user_id', user.id).order('date', { ascending: false }),
+        supabase.from('agreements').select('id, title, type, version, sent_date, signed_date, expires_date, status, signed_by, document_url').eq('user_id', user.id).order('sent_date', { ascending: false }),
+      ]);
+      if (oErr) console.error('[DistributorDashboard] orders error:', oErr);
+      if (iErr) console.error('[DistributorDashboard] invoices error:', iErr);
+      if (aErr) console.error('[DistributorDashboard] agreements error:', aErr);
+      setOrders((o as any[]) || []);
+      setInvoices((i as any[]) || []);
+      setAgreements((a as AgreementRow[]) || []);
       setDataLoading(false);
     };
     fetchData();
@@ -115,6 +207,7 @@ export function DistributorDashboard() {
     totalSpent: orders.reduce((sum, o) => sum + (o.total || 0), 0),
     pendingInvoices: invoices.filter((inv) => inv.status === 'pending').length,
     overdueAmount: invoices.filter((inv) => inv.status === 'overdue').reduce((sum, inv) => sum + (inv.amount || 0), 0),
+    pendingAgreements: agreements.filter((a) => a.status === 'pending' || a.status === 'sent').length,
   };
 
   // Filtered orders
@@ -124,6 +217,7 @@ export function DistributorDashboard() {
     return matchesSearch && matchesFilter;
   });
 
+  const pendingAgreementsCount = agreements.filter((a) => a.status === 'pending' || a.status === 'sent').length;
 
   // Status helpers
   const getStatusBadge = (status: OrderStatus) => {
@@ -147,6 +241,14 @@ export function DistributorDashboard() {
     return styles[status];
   };
 
+  const getAgreementStatusBadge = (status: AgreementStatus) => {
+    const styles: Record<AgreementStatus, string> = {
+      pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+      sent: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+      signed: 'bg-green-500/10 text-green-400 border-green-500/20',
+      active: 'bg-green-500/10 text-green-400 border-green-500/20',
+      expired: 'bg-red-500/10 text-red-400 border-red-500/20',
+    };
     return styles[status];
   };
 
@@ -255,6 +357,40 @@ export function DistributorDashboard() {
             <CardTitle className="text-sm font-medium text-gray-400">Overdue</CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="text-3xl font-bold text-red-400">${stats.overdueAmount.toLocaleString()}</div>
+            <p className="text-xs text-gray-500 mt-1">Past due</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-brand-800 border-brand-700">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-400">Pending Agreements</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-psy-neonPurple">{stats.pendingAgreements}</div>
+            <p className="text-xs text-gray-500 mt-1">Awaiting signature</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Pending Agreements Alert */}
+      {pendingAgreementsCount > 0 && (
+        <Card className="bg-yellow-500/5 border-yellow-500/20">
+          <CardContent className="p-4 flex items-start gap-4">
+            <AlertCircle className="w-5 h-5 text-yellow-400 mt-0.5 shrink-0" />
+            <div>
+              <h3 className="font-bold text-white">Action Required: Pending Agreements</h3>
+              <p className="text-sm text-gray-400">You have {pendingAgreementsCount} agreement(s) awaiting your signature</p>
+              <Button
+                variant="link"
+                className="text-yellow-400 p-0 h-auto mt-1"
+                onClick={() => setActiveTab('agreements')}
+              >
+                Review Now <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -449,7 +585,7 @@ export function DistributorDashboard() {
                                           <span className="text-gray-300">{item.variant}</span>
                                           <span className="text-gray-400 font-mono">{item.sku}</span>
                                           <span className="text-center text-gray-300">{item.qty}</span>
-                                          <span className="text-right text-white">{item.price ? `\${item.price}` : '—'}</span>
+                                          <span className="text-right text-white">{item.price ? `$${item.price}` : '—'}</span>
                                         </div>
                                       ))}
                                     </>
@@ -589,6 +725,99 @@ export function DistributorDashboard() {
     </div>
   );
 
+  const renderAgreements = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div className="flex gap-2">
+          <Button variant="outline" className="border-brand-700 text-gray-300 hover:text-white hover:bg-brand-700">
+            <Download className="w-4 h-4 mr-2" />
+            Export History
+          </Button>
+        </div>
+      </div>
+
+      {/* Info Card */}
+      <Card className="bg-brand-800 border-brand-700">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-lg bg-[#9a02d0]/10 flex items-center justify-center shrink-0">
+              <PenTool className="w-5 h-5 text-[#9a02d0]" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white mb-1">E-Signature Integration</h3>
+              <p className="text-sm text-gray-400">
+                Agreements are sent via DocuSign for electronic signature. Once signed, they will be automatically marked as completed.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Agreements Table */}
+      <Card className="bg-brand-800 border-brand-700">
+        <CardContent className="p-0">
+          {dataLoading ? (
+            <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto text-psy-neonPurple" /></div>
+          ) : agreements.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <FileSignature className="w-12 h-12 mx-auto mb-3 text-gray-600" />
+              <p>No agreements found</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-brand-700 hover:bg-transparent">
+                  <TableHead className="text-gray-400">Title</TableHead>
+                  <TableHead className="text-gray-400">Type</TableHead>
+                  <TableHead className="text-gray-400">Version</TableHead>
+                  <TableHead className="text-gray-400">Sent Date</TableHead>
+                  <TableHead className="text-gray-400">Signed</TableHead>
+                  <TableHead className="text-gray-400">Expires</TableHead>
+                  <TableHead className="text-gray-400">Status</TableHead>
+                  <TableHead className="text-gray-400 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {agreements.map((agreement) => (
+                  <TableRow key={agreement.id} className="border-brand-700 hover:bg-brand-700/50">
+                    <TableCell className="text-white font-medium">{agreement.title}</TableCell>
+                    <TableCell className="text-gray-400">{getAgreementTypeLabel(agreement.type)}</TableCell>
+                    <TableCell className="text-gray-400">{agreement.version}</TableCell>
+                    <TableCell className="text-gray-400">{new Date(agreement.sent_date).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-gray-400">
+                      {agreement.signed_date ? new Date(agreement.signed_date).toLocaleDateString() : 'Not signed'}
+                    </TableCell>
+                    <TableCell className="text-gray-400">
+                      {agreement.expires_date ? new Date(agreement.expires_date).toLocaleDateString() : 'No expiry'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={getAgreementStatusBadge(agreement.status)}>{agreement.status}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        {agreement.document_url && (
+                          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" asChild>
+                            <a href={agreement.document_url} target="_blank" rel="noopener noreferrer">
+                              <Eye className="w-4 h-4" />
+                            </a>
+                          </Button>
+                        )}
+                        {(agreement.status === 'pending' || agreement.status === 'sent') && (
+                          <Button variant="ghost" size="sm" className="text-[#44f80c] hover:text-[#44f80c]/80">
+                            <Send className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   const renderSettings = () => {
     if (!user) {
@@ -751,7 +980,7 @@ export function DistributorDashboard() {
             { tab: 'overview' as const, icon: LayoutDashboard, label: 'Overview' },
             { tab: 'orders' as const, icon: ShoppingCart, label: 'Orders' },
             { tab: 'invoices' as const, icon: FileText, label: 'Invoices' },
-
+            { tab: 'agreements' as const, icon: FileSignature, label: 'Agreements' },
             { tab: 'settings' as const, icon: SettingsIcon, label: 'Settings' },
           ].map(({ tab, icon: Icon, label }) => (
             <button
@@ -789,7 +1018,7 @@ export function DistributorDashboard() {
             { tab: 'overview' as const, icon: LayoutDashboard, label: 'Overview' },
             { tab: 'orders' as const, icon: ShoppingCart, label: 'Orders', count: orders.length },
             { tab: 'invoices' as const, icon: FileText, label: 'Invoices', count: stats.pendingInvoices },
-
+            { tab: 'agreements' as const, icon: FileSignature, label: 'Agreements', count: pendingAgreementsCount },
           ].map(({ tab, icon: Icon, label, count }) => (
             <button
               key={tab}
@@ -852,6 +1081,7 @@ export function DistributorDashboard() {
               {activeTab === 'overview' && 'Dashboard'}
               {activeTab === 'orders' && 'Orders'}
               {activeTab === 'invoices' && 'Invoices'}
+              {activeTab === 'agreements' && 'Agreements'}
               {activeTab === 'settings' && 'Settings'}
             </h1>
             <Link to="/products">
@@ -864,6 +1094,7 @@ export function DistributorDashboard() {
           {activeTab === 'overview' && renderOverview()}
           {activeTab === 'orders' && renderOrders()}
           {activeTab === 'invoices' && renderInvoices()}
+          {activeTab === 'agreements' && renderAgreements()}
           {activeTab === 'settings' && renderSettings()}
         </div>
       </div>

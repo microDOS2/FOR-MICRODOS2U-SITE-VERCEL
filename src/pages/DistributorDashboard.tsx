@@ -23,6 +23,7 @@ import {
   Save,
   Loader2,
   CreditCard,
+  KeyRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -559,7 +560,7 @@ export function DistributorDashboard() {
                             ) : order.notes ? (
                               <div className="space-y-2">
                                 <p className="text-xs font-medium text-gray-400 mb-2">Order Details (from notes):</p>
-                                <p className="text-sm text-white">{order.notes}</p>
+                                <pre className="text-sm text-white whitespace-pre-wrap font-sans">{order.notes.replace(/;\s*/g, "\n")}</pre>
                               </div>
                             ) : (
                               <p className="text-sm text-gray-500">No detailed order information available.</p>
@@ -899,6 +900,32 @@ export function DistributorDashboard() {
             )}
             <Button onClick={handleChangePassword} disabled={passwordSaving} className="btn-primary-gradient">
               {passwordSaving ? 'Updating...' : 'Update Password'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-brand-800 border-brand-700">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <KeyRound className="w-5 h-5 text-psy-neonPurple" />
+              <CardTitle className="text-white">Password Reset</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-400">
+              Forgot your current password? Send a password reset email to <strong className="text-white">{user?.email}</strong>.
+            </p>
+            <Button
+              onClick={async () => {
+                if (!user?.email) return;
+                const { error } = await supabase.auth.resetPasswordForEmail(user.email, { redirectTo: `${window.location.origin}/#/reset-password` });
+                if (error) toast.error(error.message);
+                else toast.success('Password reset email sent! Check your inbox.');
+              }}
+              variant="outline"
+              className="border-psy-neonPurple text-psy-neonPurple hover:bg-psy-neonPurple/10"
+            >
+              <KeyRound className="w-4 h-4 mr-2" /> Send Password Reset Email
             </Button>
           </CardContent>
         </Card>

@@ -15,7 +15,6 @@ import {
   Truck,
   AlertCircle,
   PenTool,
-  FileSignature,
   Send,
   Settings as SettingsIcon,
   Lock,
@@ -23,6 +22,7 @@ import {
   Save,
   Loader2,
   CreditCard,
+  KeyRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

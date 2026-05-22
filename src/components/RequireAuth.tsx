@@ -12,6 +12,7 @@ interface RequireAuthProps {
 export function RequireAuth({ children, allowedRoles, fallback }: RequireAuthProps) {
   const [session, setSession] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [alsoRep, setAlsoRep] = useState(false);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
 
@@ -24,10 +25,13 @@ export function RequireAuth({ children, allowedRoles, fallback }: RequireAuthPro
       if (s?.user?.id) {
         const { data: userData } = await supabase
           .from('users')
-          .select('role')
+          .select('role,also_rep')
           .eq('id', s.user.id)
           .single();
-        if (mounted) setUserRole(userData?.role || null);
+        if (mounted) {
+          setUserRole(userData?.role || null);
+          setAlsoRep(userData?.also_rep || false);
+        }
       }
       if (mounted) setLoading(false);
     }
@@ -48,7 +52,13 @@ export function RequireAuth({ children, allowedRoles, fallback }: RequireAuthPro
     return <Navigate to="/" state={{ from: location.pathname }} replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(userRole || '')) {
+  // Dual-role: sales_manager with also_rep=true gets access to both manager and rep routes
+  const effectiveRoles = [...(userRole ? [userRole] : [])];
+  if (userRole === 'sales_manager' && alsoRep) {
+    effectiveRoles.push('sales_rep');
+  }
+
+  if (allowedRoles && !effectiveRoles.some(r => allowedRoles.includes(r))) {
     return <Navigate to="/products" replace />;
   }
 

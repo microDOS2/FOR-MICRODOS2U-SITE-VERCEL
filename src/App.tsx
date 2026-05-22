@@ -15,6 +15,7 @@ import { SalesManagerPerformance } from './pages/SalesManagerPerformance';
 import { SalesManagerSettings } from './pages/SalesManagerSettings';
 import { SalesManagerCommissions } from './pages/SalesManagerCommissions';
 import { SalesManagerStores } from './pages/SalesManagerStores';
+import { SalesManagerRepDashboard } from './pages/SalesManagerRepDashboard';
 import { SalesRepPortal } from './pages/SalesRepPortal';
 import { SalesRepDashboard } from './pages/SalesRepDashboard';
 import { SalesRepAccounts } from './pages/SalesRepAccounts';
@@ -70,6 +71,7 @@ function AppContent() {
     '/sales-manager-performance',
     '/sales-manager-stores',
     '/sales-manager-settings',
+    '/sales-manager-rep-dashboard',
     '/sales-rep-portal',
     '/sales-rep-dashboard',
     '/sales-rep-accounts',
@@ -123,6 +125,7 @@ function AppContent() {
           <Route path="/sales-manager-commissions" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerCommissions /></RequireAuth>} />
           <Route path="/sales-manager-stores" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerStores /></RequireAuth>} />
           <Route path="/sales-manager-settings" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerSettings /></RequireAuth>} />
+          <Route path="/sales-manager-rep-dashboard" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerRepDashboard /></RequireAuth>} />
           <Route path="/sales-rep-portal" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepPortal /></RequireAuth>} />
           <Route path="/sales-rep-dashboard" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepDashboard /></RequireAuth>} />
           <Route path="/sales-rep-accounts" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepAccounts /></RequireAuth>} />

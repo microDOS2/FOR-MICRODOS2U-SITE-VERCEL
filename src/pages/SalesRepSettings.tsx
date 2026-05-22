@@ -52,11 +52,11 @@ export function SalesRepSettings() {
     // Get my profile
     const { data: me } = await supabase
       .from('users')
-      .select('id, business_name, email, phone, role, manager_id, created_at')
+      .select('id, business_name, email, phone, role, also_rep, manager_id, created_at')
       .eq('id', repId)
       .single()
 
-    if (!me || me.role !== 'sales_rep') {
+    if (!me || me.role !== 'sales_rep' && !(me.role === 'sales_manager' && me.also_rep)) {
       toast.error('Access denied')
       navigate('/')
       return

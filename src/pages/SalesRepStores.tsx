@@ -45,8 +45,8 @@ export function SalesRepStores() {
     }
     const repId = session.user.id
 
-    const { data: me } = await supabase.from('users').select('role').eq('id', repId).single()
-    if (me?.role !== 'sales_rep') {
+    const { data: me } = await supabase.from('users').select('role,also_rep').eq('id', repId).single()
+    if (me?.role !== 'sales_rep' && !(me?.role === 'sales_manager' && me?.also_rep)) {
       toast.error('Access denied')
       navigate('/')
       return

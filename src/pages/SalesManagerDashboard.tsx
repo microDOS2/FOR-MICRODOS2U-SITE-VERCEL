@@ -30,7 +30,10 @@ import {
   ChevronRight,
   AlertTriangle,
   X,
+  UserCog,
+  ArrowRight,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
 import type { DBUser } from '@/lib/supabase';
@@ -82,6 +85,7 @@ export function SalesManagerDashboard() {
   const [resolvingTransfer, setResolvingTransfer] = useState<string | null>(null);
   const [expandedAccounts, setExpandedAccounts] = useState<Record<string, boolean>>({});
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [isDualRole, setIsDualRole] = useState(false);
 
   // Auth guard + data fetch
   useEffect(() => {
@@ -109,6 +113,7 @@ export function SalesManagerDashboard() {
       }
 
       setManager(userData);
+      setIsDualRole(userData?.also_rep || false);
 
       // Fetch manager territory states from dedicated table
       const { data: statesData } = await supabase
@@ -424,6 +429,29 @@ export function SalesManagerDashboard() {
               </div>
             </div>
           </div>
+
+          {/* Dual Role Banner */}
+          {isDualRole && (
+            <div className="mb-6">
+              <Link
+                to="/sales-manager-rep-dashboard"
+                className="flex items-center gap-3 px-4 py-3 rounded-lg bg-gradient-to-r from-[#9a02d0]/15 to-[#44f80c]/15 border border-[#44f80c]/20 hover:border-[#44f80c]/40 transition-colors group"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#9a02d0]/30 to-[#44f80c]/30 flex items-center justify-center flex-shrink-0">
+                  <UserCog className="w-4 h-4 text-[#44f80c]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white group-hover:text-[#44f80c] transition-colors">
+                    You have dual-role access (Manager + Sales Rep)
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Click to open your unified dashboard with all functions
+                  </p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-gray-500 group-hover:text-[#44f80c] group-hover:translate-x-1 transition-all" />
+              </Link>
+            </div>
+          )}
 
           {/* Stats */}
           <div className="mb-8">

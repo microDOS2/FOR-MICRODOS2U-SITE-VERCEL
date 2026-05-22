@@ -44,7 +44,7 @@ export function SalesManagerPortal() {
         // Verify the user has the sales_manager role
         const { data: userData, error: userError } = await supabase
           .from('users')
-          .select('role')
+          .select('role,also_rep')
           .eq('id', data.session.user.id)
           .single();
 
@@ -64,10 +64,18 @@ export function SalesManagerPortal() {
           return;
         }
 
-        toast.success('Welcome back!', {
-          description: 'Redirecting to your dashboard...',
-        });
-        navigate('/sales-manager-dashboard');
+        // Check if dual-role manager (also a sales rep)
+        if (userData?.also_rep) {
+          toast.success('Welcome back, Dual-Role Manager!', {
+            description: 'Redirecting to your unified dashboard...',
+          });
+          navigate('/sales-manager-rep-dashboard');
+        } else {
+          toast.success('Welcome back!', {
+            description: 'Redirecting to your dashboard...',
+          });
+          navigate('/sales-manager-dashboard');
+        }
       }
     } catch (err: any) {
       toast.error(err?.message || 'Login failed');

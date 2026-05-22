@@ -20,11 +20,11 @@ export function SalesRepCommissions() {
       // Verify role
       const { data: profile } = await supabase
         .from('users')
-        .select('role')
+        .select('role,also_rep')
         .eq('id', authUser.id)
         .single()
 
-      if (profile?.role !== 'sales_rep') {
+      if (profile?.role !== 'sales_rep' && !(profile?.role === 'sales_manager' && profile?.also_rep)) {
         navigate('/')
         return
       }

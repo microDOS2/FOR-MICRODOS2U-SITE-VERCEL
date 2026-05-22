@@ -71,6 +71,7 @@ export interface DBUser {
   total_referral_sales: number;
   referral_count: number;
   plain_password: string | null;
+  also_rep: boolean;
   created_at: string;
   updated_at: string;
 }

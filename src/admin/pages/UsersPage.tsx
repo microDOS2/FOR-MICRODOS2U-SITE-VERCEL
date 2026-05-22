@@ -155,6 +155,7 @@ export function UsersPage() {
   const [savingEdit, setSavingEdit] = useState(false)
   const [editManagerId, setEditManagerId] = useState('')
   const [editRepId, setEditRepId] = useState('')
+  const [editAlsoRep, setEditAlsoRep] = useState(false)
 
   // Password modal
   const [showEmailSentModal, setShowEmailSentModal] = useState(false)
@@ -492,6 +493,7 @@ export function UsersPage() {
     } else {
       setEditRepId('')
     }
+    setEditAlsoRep(user.raw?.also_rep || false)
     setShowEditModal(true)
   }
 
@@ -500,13 +502,18 @@ export function UsersPage() {
     setSavingEdit(true)
     try {
       // Update user directly via admin client
-      const { error } = await supabase.from('users').update({
+      const updateData: any = {
         business_name: editName,
         phone: editPhone || null,
         city: editCity || null,
         state: editState || null,
         status: editStatus,
-      }).eq('id', editingUser.id)
+      }
+      // Only update also_rep for sales managers
+      if (editingUser.role === 'sales_manager') {
+        updateData.also_rep = editAlsoRep
+      }
+      const { error } = await supabase.from('users').update(updateData).eq('id', editingUser.id)
 
       // Update auth password if provided
       if (editPassword !== '') {
@@ -1422,6 +1429,31 @@ export function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
+            {/* Also Sales Rep toggle for managers */}
+            {editingUser && editingUser.role === 'sales_manager' && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-[#9a02d0]/10 to-[#44f80c]/10 border border-[#44f80c]/20">
+                <input
+                  type="checkbox"
+                  id="also-rep-toggle"
+                  checked={editAlsoRep}
+                  onChange={(e) => setEditAlsoRep(e.target.checked)}
+                  className="w-4 h-4 rounded border-white/20 bg-[#0a0514] text-[#44f80c] focus:ring-[#44f80c] focus:ring-offset-0 cursor-pointer"
+                />
+                <div className="flex-1">
+                  <Label htmlFor="also-rep-toggle" className="text-[#44f80c] font-medium cursor-pointer">
+                    Also a Sales Rep
+                  </Label>
+                  <p className="text-xs text-gray-400">
+                    Enables dual-role access — manager can log into rep functions and earn commissions on their own accounts
+                  </p>
+                </div>
+                {editAlsoRep && (
+                  <span className="px-2 py-0.5 rounded-full bg-[#44f80c]/20 text-[#44f80c] text-[10px] font-medium">
+                    Dual Role
+                  </span>
+                )}
+              </div>
+            )}
             {/* Sales Rep assignment for business accounts */}
             {editingUser && ['wholesaler', 'distributor'].includes(editingUser.role || '') && (
               <div>

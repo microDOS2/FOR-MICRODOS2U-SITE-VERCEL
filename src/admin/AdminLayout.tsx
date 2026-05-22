@@ -21,6 +21,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  ChevronDown,
   LogOut,
   Shield,
   Loader2,
@@ -28,29 +29,63 @@ import {
   DollarSign,
 } from 'lucide-react'
 
-const navItems = [
-  { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
-  { name: 'Users', path: '/admin/users', icon: Users },
-  { name: 'Signup Applications', path: '/admin/applications', icon: ClipboardList },
-  { name: 'Sales Rep Assignments', path: '/admin/accounts', icon: UserCog },
-  { name: 'Products', path: '/admin/products', icon: Package },
-  { name: 'Videos', path: '/admin/videos', icon: Play },
-  { name: 'Agreements', path: '/admin/agreements', icon: FileSignature },
-  { name: 'Orders & Invoices', path: '/admin/orders-invoices', icon: Truck },
-  { name: 'Stores', path: '/admin/stores', icon: Store },
-  { name: 'Commissions', path: '/admin/commissions', icon: DollarSign },
-  { name: 'Active Accounts Directory', path: '/admin/approvals', icon: ClipboardCheck },
-  { name: 'Config', path: '/admin/config', icon: Settings },
-  { name: 'Audit Log', path: '/admin/audit-log', icon: ScrollText },
-  { name: 'Transfer History', path: '/admin/transfers', icon: ArrowRightLeft },
-  { name: 'Territory Transfer', path: '/admin/territory-transfer', icon: Building2 },
+interface NavItem {
+  name: string
+  path: string
+  icon: React.ElementType
+}
+
+interface NavSection {
+  label: string
+  items: NavItem[]
+}
+
+const navSections: NavSection[] = [
+  {
+    label: 'Primary Operations',
+    items: [
+      { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
+      { name: 'Users', path: '/admin/users', icon: Users },
+      { name: 'Signup Applications', path: '/admin/applications', icon: ClipboardList },
+      { name: 'Orders & Invoices', path: '/admin/orders-invoices', icon: Truck },
+      { name: 'Sales Rep Assignments', path: '/admin/accounts', icon: UserCog },
+      { name: 'Stores', path: '/admin/stores', icon: Store },
+      { name: 'Products', path: '/admin/products', icon: Package },
+      { name: 'Commissions', path: '/admin/commissions', icon: DollarSign },
+    ],
+  },
+  {
+    label: 'Account Management',
+    items: [
+      { name: 'Active Accounts Directory', path: '/admin/approvals', icon: ClipboardCheck },
+      { name: 'Territory Transfer', path: '/admin/territory-transfer', icon: Building2 },
+      { name: 'Transfer History', path: '/admin/transfers', icon: ArrowRightLeft },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      { name: 'Agreements', path: '/admin/agreements', icon: FileSignature },
+      { name: 'Videos', path: '/admin/videos', icon: Play },
+      { name: 'Audit Log', path: '/admin/audit-log', icon: ScrollText },
+      { name: 'Config', path: '/admin/config', icon: Settings },
+    ],
+  },
 ]
+
+// Flat list for page title lookup
+const allNavItems = navSections.flatMap(s => s.items)
 
 export function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [adminName, setAdminName] = useState('Admin')
   const [adminEmail, setAdminEmail] = useState('admin@microdos2.com')
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    'Primary Operations': true,
+    'Account Management': true,
+    'System': true,
+  })
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -70,13 +105,11 @@ export function AdminLayout() {
         navigate('/admin-portal')
         return
       }
-      // Role-based redirect
       if (data.role === 'admin') {
         setAdminName(data.business_name || 'Admin')
         setAdminEmail(data.email || 'admin@microdos2.com')
         setIsAuthorized(true)
       } else {
-        // Not an admin — show access denied instead of redirecting
         setIsAuthorized(false)
       }
     }
@@ -94,7 +127,10 @@ export function AdminLayout() {
     return location.pathname.startsWith(path)
   }
 
-  // Show loading spinner while checking role
+  const toggleSection = (label: string) => {
+    setExpandedSections(prev => ({ ...prev, [label]: !prev[label] }))
+  }
+
   if (isAuthorized === null) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#0a0514]">
@@ -103,7 +139,6 @@ export function AdminLayout() {
     )
   }
 
-  // Non-admin users — show access denied with logout option
   if (!isAuthorized) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-[#0a0514] text-white p-4">
@@ -149,33 +184,61 @@ export function AdminLayout() {
             </button>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const active = isActiveRoute(item.path)
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  end={item.path === '/admin'}
+          {/* Navigation — Grouped */}
+          <nav className="flex-1 px-3 py-4 overflow-y-auto">
+            {navSections.map((section, sectionIndex) => (
+              <div key={section.label} className={cn(sectionIndex > 0 && 'mt-4 pt-4 border-t border-white/10')}>
+                {/* Section Header */}
+                <button
+                  onClick={() => toggleSection(section.label)}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group',
-                    active
-                      ? 'bg-gradient-to-r from-[#9a02d0]/20 to-[#44f80c]/20 text-white border-l-[3px] border-[#9a02d0]'
-                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    'flex items-center justify-between w-full px-3 py-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider hover:text-gray-400 transition-colors',
+                    !sidebarOpen ? 'lg:hidden' : ''
                   )}
                 >
-                  <Icon className={cn('w-5 h-5 shrink-0', active ? 'text-[#44f80c]' : '')} />
-                  <span className={cn('transition-opacity', !sidebarOpen ? 'lg:hidden lg:opacity-0' : '')}>
-                    {item.name}
-                  </span>
-                  {active && (
-                    <ChevronRight className={cn('w-4 h-4 ml-auto text-[#9a02d0]', !sidebarOpen ? 'lg:hidden' : '')} />
-                  )}
-                </NavLink>
-              )
-            })}
+                  <span>{section.label}</span>
+                  <ChevronDown
+                    className={cn(
+                      'w-3 h-3 transition-transform duration-200',
+                      !expandedSections[section.label] && '-rotate-90'
+                    )}
+                  />
+                </button>
+
+                {/* Section Items */}
+                <div className={cn(
+                  'space-y-0.5 transition-all duration-200 overflow-hidden',
+                  !sidebarOpen ? 'lg:space-y-1' : '',
+                  expandedSections[section.label] ? 'max-h-[500px] opacity-100 mt-1' : 'max-h-0 opacity-0'
+                )}>
+                  {section.items.map((item) => {
+                    const Icon = item.icon
+                    const active = isActiveRoute(item.path)
+                    return (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        end={item.path === '/admin'}
+                        className={cn(
+                          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group',
+                          active
+                            ? 'bg-gradient-to-r from-[#9a02d0]/20 to-[#44f80c]/20 text-white border-l-[3px] border-[#9a02d0]'
+                            : 'text-gray-400 hover:text-white hover:bg-white/5'
+                        )}
+                      >
+                        <Icon className={cn('w-5 h-5 shrink-0', active ? 'text-[#44f80c]' : '')} />
+                        <span className={cn('transition-opacity', !sidebarOpen ? 'lg:hidden lg:opacity-0' : '')}>
+                          {item.name}
+                        </span>
+                        {active && (
+                          <ChevronRight className={cn('w-4 h-4 ml-auto text-[#9a02d0]', !sidebarOpen ? 'lg:hidden' : '')} />
+                        )}
+                      </NavLink>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
 
           {/* Footer — Logout */}
@@ -221,7 +284,7 @@ export function AdminLayout() {
               <Menu className="w-5 h-5 text-gray-400" />
             </button>
             <h1 className="text-lg font-semibold text-white">
-              {navItems.find(item => item.path === location.pathname || location.pathname.startsWith(item.path + '/'))?.name || 'Admin'}
+              {allNavItems.find(item => item.path === location.pathname || location.pathname.startsWith(item.path + '/'))?.name || 'Admin'}
             </h1>
           </div>
           <div className="flex items-center gap-3">

@@ -31,15 +31,15 @@ import {
 const navItems = [
   { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
   { name: 'Users', path: '/admin/users', icon: Users },
-  { name: 'Pending Applications', path: '/admin/applications', icon: ClipboardList },
-  { name: 'Accounts', path: '/admin/accounts', icon: UserCog },
+  { name: 'Signup Applications', path: '/admin/applications', icon: ClipboardList },
+  { name: 'Sales Rep Assignments', path: '/admin/accounts', icon: UserCog },
   { name: 'Products', path: '/admin/products', icon: Package },
   { name: 'Videos', path: '/admin/videos', icon: Play },
   { name: 'Agreements', path: '/admin/agreements', icon: FileSignature },
   { name: 'Orders & Invoices', path: '/admin/orders-invoices', icon: Truck },
   { name: 'Stores', path: '/admin/stores', icon: Store },
   { name: 'Commissions', path: '/admin/commissions', icon: DollarSign },
-  { name: 'Approvals', path: '/admin/approvals', icon: ClipboardCheck },
+  { name: 'Active Accounts Directory', path: '/admin/approvals', icon: ClipboardCheck },
   { name: 'Config', path: '/admin/config', icon: Settings },
   { name: 'Audit Log', path: '/admin/audit-log', icon: ScrollText },
   { name: 'Transfer History', path: '/admin/transfers', icon: ArrowRightLeft },
@@ -245,6 +245,4 @@ export function AdminLayout() {
           onClick={() => setSidebarOpen(false)}
         />
       )}
-    </div>
-  )
-}
+    <

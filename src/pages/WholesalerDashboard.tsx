@@ -153,7 +153,7 @@ export function WholesalerDashboard() { // test
     fetchData();
   }, [user]);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'agreements' | 'store-locations' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'agreements' | 'store-locations' | 'settings'>('orders');
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
   const [orderSearch, setOrderSearch] = useState('');

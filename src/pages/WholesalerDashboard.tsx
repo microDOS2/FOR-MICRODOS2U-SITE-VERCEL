@@ -30,7 +30,6 @@ import {
   Building2,
   Save,
   CreditCard,
-  KeyRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -749,7 +748,7 @@ export function WholesalerDashboard() {
                             ) : order.notes ? (
                               <div className="space-y-2">
                                 <p className="text-xs font-medium text-gray-400 mb-2">Order Details (from notes):</p>
-                                <div className="text-sm text-white space-y-1">{order.notes.split(/;\s*/).map((line, i) => <p key={i} className="text-sm text-white">{line}</p>)}</div>
+                                <p className="text-sm text-white">{order.notes}</p>
                               </div>
                             ) : (
                               <p className="text-sm text-gray-500">No detailed order information available.</p>
@@ -867,7 +866,7 @@ export function WholesalerDashboard() {
                             ) : invoice.orders?.notes ? (
                               <div className="space-y-2">
                                 <p className="text-xs font-medium text-gray-400 mb-2">Invoice Details (from Order {invoice.orders.po_number}):</p>
-                                <div className="text-sm text-white space-y-1">{invoice.orders!.notes.split(/;\s*/).map((line, i) => <p key={i} className="text-sm text-white">{line}</p>)}</div>
+                                <p className="text-sm text-white">{invoice.orders.notes}</p>
                               </div>
                             ) : (
                               <p className="text-sm text-gray-500">No detailed invoice items available.</p>

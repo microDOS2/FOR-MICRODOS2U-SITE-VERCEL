@@ -487,7 +487,7 @@ export function AccountsPage() {
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-[#150f24] border border-white/10 rounded-xl w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col">
+          <div className="bg-[#150f24] border border-white/10 rounded-xl w-full max-w-2xll mx-4 max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-white/10">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <FileUp className="w-5 h-5 text-[#9a02d0]" /> Upload Accounts CSV

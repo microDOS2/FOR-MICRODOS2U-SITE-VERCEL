@@ -178,11 +178,12 @@ export function UsersPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
   // Toggle filter state
-  type FilterMode = 'all' | 'employees' | 'business'
+  type FilterMode = 'all' | 'employees' | 'business' | 'unassigned'
   const [filterMode, setFilterMode] = useState<FilterMode>('all')
 
   const employeeRoles = ['admin', 'sales_manager', 'sales_rep', 'shipping_fulfillment']
   const businessRoles = ['wholesaler', 'distributor']
+  const allKnownRoles = [...employeeRoles, ...businessRoles]
 
   // Inline manager assignment
   const [savingManager, setSavingManager] = useState<string | null>(null)
@@ -294,6 +295,7 @@ export function UsersPage() {
 
     if (filterMode === 'employees') return employeeRoles.includes(a.role || '')
     if (filterMode === 'business') return businessRoles.includes(a.role || '')
+    if (filterMode === 'unassigned') return !a.role || !allKnownRoles.includes(a.role)
     return true
   })
 
@@ -910,7 +912,7 @@ export function UsersPage() {
         <div>
           <h2 className="text-2xl font-bold text-white mb-1">User Management</h2>
           <p className="text-gray-400">
-            {filteredCount} {filterMode === 'employees' ? 'employees' : filterMode === 'business' ? 'business users' : 'approved users'}
+            {filteredCount} {filterMode === 'employees' ? 'employees' : filterMode === 'business' ? 'business users' : filterMode === 'unassigned' ? 'unassigned' : 'approved users'}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -950,7 +952,7 @@ export function UsersPage() {
           />
         </div>
         <div className="flex gap-1.5">
-          {(['all', 'employees', 'business'] as FilterMode[]).map((mode) => (
+          {(['all', 'employees', 'business', 'unassigned'] as FilterMode[]).map((mode) => (
             <button
               key={mode}
               onClick={() => setFilterMode(mode)}
@@ -963,6 +965,7 @@ export function UsersPage() {
               {mode === 'all' && 'Show All'}
               {mode === 'employees' && 'Employees'}
               {mode === 'business' && 'Business Users'}
+              {mode === 'unassigned' && 'Unassigned'}
             </button>
           ))}
         </div>

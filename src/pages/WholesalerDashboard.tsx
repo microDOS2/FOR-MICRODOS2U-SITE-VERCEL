@@ -1,600 +1,3 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  ShoppingCart,
-  FileText,
-  Package,
-  LogOut,
-  ChevronRight,
-  Search,
-  Filter,
-  Download,
-  Eye,
-  CheckCircle,
-  Clock,
-  Truck,
-  AlertCircle,
-  PenTool,
-  FileSignature,
-  Send,
-  Store,
-  Plus,
-  MapPin,
-  Phone,
-  Mail,
-  Pencil,
-  Trash2,
-  Settings as SettingsIcon,
-  Lock,
-  Building2,
-  Save,
-  CreditCard,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { PasswordInput } from '@/components/ui/password-input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/hooks/useAuth';
-import { CheckoutModal } from '@/components/payment/CheckoutModal';
-
-
-interface StoreLocation {
-  id: string;
-  user_id: string;
-  name: string;
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
-  phone: string | null;
-  email: string | null;
-  license_number: string | null;
-  is_primary: boolean;
-  is_active: boolean;
-  created_at: string;
-}
-
-// Types matching Supabase schema
-type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-type InvoiceStatus = 'pending' | 'paid' | 'overdue' | 'cancelled';
-type AgreementStatus = 'pending' | 'sent' | 'signed' | 'active' | 'expired';
-type AgreementType = 'wholesale' | 'terms' | 'nda' | 'compliance';
-
-interface AgreementRow {
-  id: string;
-  title: string;
-  type: AgreementType;
-  version: string;
-  sent_date: string;
-  signed_date: string | null;
-  expires_date: string | null;
-  status: AgreementStatus;
-  signed_by: string | null;
-  document_url: string | null;
-}
-
-export function WholesalerDashboard() {
-  const navigate = useNavigate();
-  const { user, loading: authLoading, signOut } = useAuth();
-
-  // Auth guard: redirect to portal if not authenticated (with 3s grace period)
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      const timer = setTimeout(() => {
-        // Double-check after 3s — only redirect if still no user
-        navigate('/wholesaler-portal');
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [authLoading, user, navigate]);
-
-  // Fetch real orders, invoices, agreements from Supabase
-  useEffect(() => {
-    if (!user) return;
-
-    const fetchData = async () => {
-      setDataLoading(true);
-
-      const [{ data: o, error: oErr }, { data: i, error: iErr }, { data: a, error: aErr }] = await Promise.all([
-        supabase
-          .from('orders')
-          .select('id, po_number, items, total, status, notes, created_at, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total)')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('invoices')
-          .select('id, invoice_number, order_id, amount, status, date, due_date, orders:order_id(po_number, notes, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total))')
-          .eq('user_id', user.id)
-          .order('date', { ascending: false }),
-        supabase
-          .from('agreements')
-          .select('id, title, type, version, sent_date, signed_date, expires_date, status, signed_by, document_url')
-          .eq('user_id', user.id)
-          .order('sent_date', { ascending: false }),
-      ]);
-
-      if (oErr) console.error('[WholesalerDashboard] orders error:', oErr);
-      if (iErr) console.error('[WholesalerDashboard] invoices error:', iErr);
-      if (aErr) console.error('[WholesalerDashboard] agreements error:', aErr);
-
-      setOrders((o as any[]) || []);
-      setInvoices((i as any[]) || []);
-      setAgreements((a as AgreementRow[]) || []);
-      setDataLoading(false);
-    };
-
-    fetchData();
-  }, [user]);
-
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'agreements' | 'store-locations' | 'settings'>('overview');
-  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
-  const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
-  const [orderSearch, setOrderSearch] = useState('');
-  const [orderFilter, setOrderFilter] = useState('all');
-
-  // Real data from Supabase
-  const [orders, setOrders] = useState<any[]>([]);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [agreements, setAgreements] = useState<AgreementRow[]>([]);
-  const [dataLoading, setDataLoading] = useState(false);
-
-  // Settings state
-  const [settingsForm, setSettingsForm] = useState({
-    business_name: '', phone: '', address: '',
-    city: '', state: '', zip: '', website: '', license_number: '',
-  });
-  const [settingsSaving, setSettingsSaving] = useState(false);
-  const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
-  const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
-
-  // Payment modal state
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [paymentInvoice, setPaymentInvoice] = useState<{ id: string; amount: number; invoiceNumber: string } | null>(null);
-
-  const toggleOrderExpand = (orderId: string) => {
-    setExpandedOrders(prev => {
-      const next = new Set(prev);
-      if (next.has(orderId)) next.delete(orderId);
-      else next.add(orderId);
-      return next;
-    });
-  };
-
-  const toggleInvoiceExpand = (invoiceId: string) => {
-    setExpandedInvoices(prev => {
-      const next = new Set(prev);
-      if (next.has(invoiceId)) next.delete(invoiceId);
-      else next.add(invoiceId);
-      return next;
-    });
-  };
-  useEffect(() => {
-    if (user) {
-      setSettingsForm({
-        business_name: user.business_name || '',
-        phone: user.phone || '',
-        address: user.address || '',
-        city: user.city || '',
-        state: user.state || '',
-        zip: user.zip || '',
-        website: user.website || '',
-        license_number: user.license_number || '',
-      });
-    }
-  }, [user]);
-
-  // Re-fetch fresh profile data from Supabase whenever Settings tab opens
-  useEffect(() => {
-    if (activeTab !== 'settings' || !user?.id) return;
-    async function refreshProfile() {
-      const { data, error } = await supabase
-        .from('users')
-        .select('business_name, phone, address, city, state, zip, website, license_number')
-        .eq('id', user!.id)
-        .maybeSingle();
-      if (error) {
-        console.error('[Settings] refreshProfile error:', error);
-        return;
-      }
-      if (data) {
-        setSettingsForm({
-          business_name: data.business_name || '',
-          phone: data.phone || '',
-          address: data.address || '',
-          city: data.city || '',
-          state: data.state || '',
-          zip: data.zip || '',
-          website: data.website || '',
-          license_number: data.license_number || '',
-        });
-      }
-    }
-    refreshProfile();
-  }, [activeTab, user?.id]);
-
-  const [stores, setStores] = useState<StoreLocation[]>([]);
-  const [storesLoading, setStoresLoading] = useState(false);
-  const [storeDialogOpen, setStoreDialogOpen] = useState(false);
-  const [editingStore, setEditingStore] = useState<StoreLocation | null>(null);
-  const [storeForm, setStoreForm] = useState({
-    name: '',
-    address: '',
-    city: '',
-    state: '',
-    zip: '',
-    phone: '',
-    email: '',
-    license_number: '',
-    is_primary: false,
-  });
-
-  const getStatusBadge = (status: OrderStatus) => {
-    const styles = {
-      pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-      processing: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-      shipped: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-      delivered: 'bg-green-500/10 text-green-400 border-green-500/20',
-      cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
-    };
-    return styles[status];
-  };
-
-  const getInvoiceStatusBadge = (status: InvoiceStatus) => {
-    const styles: Record<InvoiceStatus, string> = {
-      paid: 'bg-green-500/10 text-green-400 border-green-500/20',
-      pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-      overdue: 'bg-red-500/10 text-red-400 border-red-500/20',
-      cancelled: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
-    };
-    return styles[status];
-  };
-
-  const getAgreementStatusBadge = (status: AgreementStatus) => {
-    const styles: Record<AgreementStatus, string> = {
-      pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-      sent: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-      signed: 'bg-green-500/10 text-green-400 border-green-500/20',
-      active: 'bg-green-500/10 text-green-400 border-green-500/20',
-      expired: 'bg-red-500/10 text-red-400 border-red-500/20',
-    };
-    return styles[status];
-  };
-
-  const getAgreementTypeLabel = (type: AgreementType) => {
-    const labels = {
-      wholesale: 'Wholesale',
-      terms: 'Terms of Service',
-      nda: 'NDA',
-      compliance: 'Compliance',
-    };
-    return labels[type];
-  };
-
-  const getStatusIcon = (status: OrderStatus) => {
-    const icons = {
-      pending: Clock,
-      processing: Package,
-      shipped: Truck,
-      delivered: CheckCircle,
-      cancelled: AlertCircle,
-    };
-    return icons[status];
-  };
-
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch = order.po_number.toLowerCase().includes(orderSearch.toLowerCase());
-    const matchesFilter = orderFilter === 'all' || order.status === orderFilter;
-    return matchesSearch && matchesFilter;
-  });
-
-  const pendingAgreementsCount = agreements.filter((a) => a.status === 'pending' || a.status === 'sent').length;
-
-  // Fetch store locations for the logged-in wholesaler
-  useEffect(() => {
-    const fetchStores = async () => {
-      setStoresLoading(true);
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          // Fallback: load from localStorage for demo
-          const saved = localStorage.getItem('wholesaler_stores');
-          if (saved) {
-            try { setStores(JSON.parse(saved)); } catch { setStores([]); }
-          }
-          setStoresLoading(false);
-          return;
-        }
-        const { data, error } = await supabase
-          .from('wholesaler_store_locations')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('is_primary', { ascending: false });
-        if (error) {
-          // Fallback to localStorage on error
-          const saved = localStorage.getItem('wholesaler_stores');
-          if (saved) {
-            try { setStores(JSON.parse(saved)); } catch { setStores([]); }
-          }
-        } else if (data) {
-          setStores(data as StoreLocation[]);
-          localStorage.setItem('wholesaler_stores', JSON.stringify(data));
-        }
-      } catch {
-        const saved = localStorage.getItem('wholesaler_stores');
-        if (saved) {
-          try { setStores(JSON.parse(saved)); } catch { setStores([]); }
-        }
-      }
-      setStoresLoading(false);
-    };
-    if (activeTab === 'store-locations') {
-      fetchStores();
-    }
-  }, [activeTab]);
-
-  const openStoreDialog = (store?: StoreLocation) => {
-    if (store) {
-      setEditingStore(store);
-      setStoreForm({
-        name: store.name || '',
-        address: store.address || '',
-        city: store.city || '',
-        state: store.state || '',
-        zip: store.zip || '',
-        phone: store.phone || '',
-        email: store.email || '',
-        license_number: store.license_number || '',
-        is_primary: store.is_primary || false,
-      });
-    } else {
-      setEditingStore(null);
-      setStoreForm({ name: '', address: '', city: '', state: '', zip: '', phone: '', email: '', license_number: '', is_primary: false });
-    }
-    setStoreDialogOpen(true);
-  };
-
-  const saveStore = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id || 'demo-user';
-      const payload = {
-        user_id: userId,
-        name: storeForm.name,
-        address: storeForm.address,
-        city: storeForm.city,
-        state: storeForm.state,
-        zip: storeForm.zip,
-        phone: storeForm.phone || null,
-        email: storeForm.email || null,
-        license_number: storeForm.license_number || null,
-        is_primary: storeForm.is_primary,
-        is_active: true,
-      };
-      if (editingStore) {
-        const { data, error } = await supabase
-          .from('wholesaler_store_locations')
-          .update(payload)
-          .eq('id', editingStore.id)
-          .select()
-          .single();
-        if (!error && data) {
-          setStores((prev) => prev.map((s) => (s.id === editingStore.id ? data as StoreLocation : s)));
-        } else {
-          // Local fallback
-          const updated: StoreLocation = { ...editingStore, ...payload, created_at: editingStore.created_at };
-          setStores((prev) => prev.map((s) => (s.id === editingStore.id ? updated : s)));
-          localStorage.setItem('wholesaler_stores', JSON.stringify(stores.map((s) => (s.id === editingStore.id ? updated : s))));
-        }
-      } else {
-        const { data, error } = await supabase
-          .from('wholesaler_store_locations')
-          .insert({ ...payload, lat: null, lng: null })
-          .select()
-          .single();
-        if (!error && data) {
-          setStores((prev) => [...prev, data as StoreLocation]);
-        } else {
-          // Local fallback
-          const newStore: StoreLocation = { ...payload, id: crypto.randomUUID(), created_at: new Date().toISOString() };
-          setStores((prev) => [...prev, newStore]);
-          localStorage.setItem('wholesaler_stores', JSON.stringify([...stores, newStore]));
-        }
-      }
-      setStoreDialogOpen(false);
-    } catch {
-      // Local fallback
-      if (editingStore) {
-        const updated: StoreLocation = { ...editingStore, name: storeForm.name, address: storeForm.address, city: storeForm.city, state: storeForm.state, zip: storeForm.zip, phone: storeForm.phone || null, email: storeForm.email || null, license_number: storeForm.license_number || null, is_primary: storeForm.is_primary };
-        setStores((prev) => prev.map((s) => (s.id === editingStore.id ? updated : s)));
-        localStorage.setItem('wholesaler_stores', JSON.stringify(stores.map((s) => (s.id === editingStore.id ? updated : s))));
-      } else {
-        const newStore: StoreLocation = { user_id: 'demo-user', name: storeForm.name, address: storeForm.address, city: storeForm.city, state: storeForm.state, zip: storeForm.zip, phone: storeForm.phone || null, email: storeForm.email || null, license_number: storeForm.license_number || null, is_primary: storeForm.is_primary, is_active: true, id: crypto.randomUUID(), created_at: new Date().toISOString() };
-        setStores((prev) => [...prev, newStore]);
-        localStorage.setItem('wholesaler_stores', JSON.stringify([...stores, newStore]));
-      }
-      setStoreDialogOpen(false);
-    }
-  };
-
-  const deleteStore = async (storeId: string) => {
-    if (!confirm('Delete this store location?')) return;
-    try {
-      const { error } = await supabase.from('wholesaler_store_locations').delete().eq('id', storeId);
-      if (!error) {
-        setStores((prev) => prev.filter((s) => s.id !== storeId));
-      } else {
-        setStores((prev) => prev.filter((s) => s.id !== storeId));
-        localStorage.setItem('wholesaler_stores', JSON.stringify(stores.filter((s) => s.id !== storeId)));
-      }
-    } catch {
-      setStores((prev) => prev.filter((s) => s.id !== storeId));
-      localStorage.setItem('wholesaler_stores', JSON.stringify(stores.filter((s) => s.id !== storeId)));
-    }
-  };
-
-  const stats = {
-    totalOrders: orders.length,
-    totalSpent: orders.reduce((acc, order) => acc + order.total, 0),
-    pendingInvoices: invoices.filter((inv) => inv.status === 'pending').length,
-    overdueAmount: invoices.filter((inv) => inv.status === 'overdue').reduce((acc, inv) => acc + inv.amount, 0),
-    pendingAgreements: pendingAgreementsCount,
-  };
-
-  const renderOverview = () => (
-    <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="bg-brand-800 border-brand-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400">Total Orders</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-white">{stats.totalOrders}</div>
-            <p className="text-xs text-gray-500 mt-1">All time</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-brand-800 border-brand-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400">Total Spent</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-white">${stats.totalSpent.toLocaleString()}</div>
-            <p className="text-xs text-gray-500 mt-1">Lifetime purchases</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-brand-800 border-brand-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400">Pending Invoices</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-yellow-400">{stats.pendingInvoices}</div>
-            <p className="text-xs text-gray-500 mt-1">Awaiting payment</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-brand-800 border-brand-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400">Overdue</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-red-400">${stats.overdueAmount.toLocaleString()}</div>
-            <p className="text-xs text-gray-500 mt-1">Action required</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-brand-800 border-brand-700 cursor-pointer hover:bg-brand-700/50 transition-colors" onClick={() => setActiveTab('agreements')}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400">Pending Agreements</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-psy-neonPurple">{stats.pendingAgreements}</div>
-            <p className="text-xs text-gray-500 mt-1">Awaiting signature</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Orders */}
-      <Card className="bg-brand-800 border-brand-700">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-white">Recent Orders</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveTab('orders')}
-              className="text-brand-accent hover:text-white"
-            >
-              View All <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow className="border-brand-700">
-                <TableHead className="text-gray-400">PO Number</TableHead>
-                <TableHead className="text-gray-400">Date</TableHead>
-                <TableHead className="text-gray-400">Items</TableHead>
-                <TableHead className="text-gray-400">Total</TableHead>
-                <TableHead className="text-gray-400">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center text-gray-500 py-8">No orders yet</TableCell></TableRow>
-              ) : (
-                orders.slice(0, 3).map((order) => (
-                  <TableRow key={order.id} className="border-brand-700">
-                    <TableCell className="font-medium text-white">{order.po_number}</TableCell>
-                    <TableCell className="text-gray-300">{order.created_at?.slice(0, 10) || '—'}</TableCell>
-                    <TableCell className="text-gray-300">{order.items}</TableCell>
-                    <TableCell className="text-gray-300">${order.total.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={getStatusBadge(order.status)}>
-                        {order.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Pending Agreements Alert */}
-      {pendingAgreementsCount > 0 && (
-        <Card className="bg-psy-neonPurple/10 border-psy-neonPurple/30">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-psy-neonPurple/20 flex items-center justify-center">
-                  <FileSignature className="w-6 h-6 text-psy-neonPurple" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-white">Action Required: Pending Agreements</h3>
-                  <p className="text-sm text-gray-400">You have {pendingAgreementsCount} agreement(s) awaiting your signature</p>
-                </div>
-              </div>
-              <Button
-                className="btn-primary-gradient"
-                onClick={() => setActiveTab('agreements')}
-              >
-                Review & Sign
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -747,8 +150,26 @@ export function WholesalerDashboard() {
                               </div>
                             ) : order.notes ? (
                               <div className="space-y-2">
-                                <p className="text-xs font-medium text-gray-400 mb-2">Order Details (from notes):</p>
-                                <p className="text-sm text-white">{order.notes}</p>
+                                <p className="text-xs font-medium text-gray-400 mb-2">Order Details:</p>
+                                {(() => {
+                                  const parsed = parseNotesToItems(order.notes);
+                                  return parsed.length > 0 ? (
+                                    <>
+                                      <div className="grid grid-cols-5 gap-2 text-xs text-gray-400 mb-1">
+                                        <span>Product</span><span>Package</span><span>SKU</span><span className="text-center">Qty</span><span className="text-right">Line Total</span>
+                                      </div>
+                                      {parsed.map((item, idx) => (
+                                        <div key={idx} className="grid grid-cols-5 gap-2 text-sm">
+                                          <span className="text-white">{item.product}</span>
+                                          <span className="text-gray-300">{item.variant}</span>
+                                          <span className="text-gray-400 font-mono">{item.sku}</span>
+                                          <span className="text-center text-gray-300">{item.qty}</span>
+                                          <span className="text-right text-white">{item.price ? `$${item.price}` : '—'}</span>
+                                        </div>
+                                      ))}
+                                    </>
+                                  ) : <p className="text-sm text-white">{order.notes}</p>;
+                                })()}
                               </div>
                             ) : (
                               <p className="text-sm text-gray-500">No detailed order information available.</p>
@@ -866,7 +287,25 @@ export function WholesalerDashboard() {
                             ) : invoice.orders?.notes ? (
                               <div className="space-y-2">
                                 <p className="text-xs font-medium text-gray-400 mb-2">Invoice Details (from Order {invoice.orders.po_number}):</p>
-                                <p className="text-sm text-white">{invoice.orders.notes}</p>
+                                {(() => {
+                                  const parsed = parseNotesToItems(invoice.orders!.notes);
+                                  return parsed.length > 0 ? (
+                                    <>
+                                      <div className="grid grid-cols-5 gap-2 text-xs text-gray-400 mb-1">
+                                        <span>Product</span><span>Package</span><span>SKU</span><span className="text-center">Qty</span><span className="text-right">Line Total</span>
+                                      </div>
+                                      {parsed.map((item, idx) => (
+                                        <div key={idx} className="grid grid-cols-5 gap-2 text-sm">
+                                          <span className="text-white">{item.product}</span>
+                                          <span className="text-gray-300">{item.variant}</span>
+                                          <span className="text-gray-400 font-mono">{item.sku}</span>
+                                          <span className="text-center text-gray-300">{item.qty}</span>
+                                          <span className="text-right text-white">{item.price ? `$${item.price}` : '—'}</span>
+                                        </div>
+                                      ))}
+                                    </>
+                                  ) : <p className="text-sm text-white">{invoice.orders!.notes}</p>;
+                                })()}
                               </div>
                             ) : (
                               <p className="text-sm text-gray-500">No detailed invoice items available.</p>
@@ -979,176 +418,6 @@ export function WholesalerDashboard() {
     </div>
   );
 
-  const renderAgreements = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-white">Agreements & Contracts</h2>
-        <div className="flex gap-2">
-          <Button variant="outline" className="border-brand-700 text-gray-300 hover:text-white hover:bg-brand-700">
-            <Download className="w-4 h-4 mr-2" />
-            Export History
-          </Button>
-        </div>
-      </div>
-
-      {/* Info Card */}
-      <Card className="bg-brand-800 border-brand-700">
-        <CardContent className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-lg bg-psy-neonPurple/20 flex items-center justify-center shrink-0">
-              <PenTool className="w-5 h-5 text-psy-neonPurple" />
-            </div>
-            <div>
-              <h3 className="font-bold text-white mb-1">E-Signature Integration</h3>
-              <p className="text-sm text-gray-400">
-                All agreements are sent via our secure e-signature platform. You'll receive an email notification 
-                when a new agreement is ready for your signature. Click "Review & Sign" to open the document 
-                in our signing portal.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Agreements Table */}
-      <Card className="bg-brand-800 border-brand-700">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-brand-700">
-                <TableHead className="text-gray-400">Document</TableHead>
-                <TableHead className="text-gray-400">Type</TableHead>
-                <TableHead className="text-gray-400">Version</TableHead>
-                <TableHead className="text-gray-400">Sent Date</TableHead>
-                <TableHead className="text-gray-400">Status</TableHead>
-                <TableHead className="text-gray-400">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {dataLoading ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-gray-500 py-8">Loading agreements...</TableCell></TableRow>
-              ) : agreements.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-gray-500 py-8">No agreements found</TableCell></TableRow>
-              ) : (
-                agreements.map((agreement) => (
-                  <TableRow key={agreement.id} className="border-brand-700">
-                    <TableCell>
-                      <div className="font-medium text-white">{agreement.title}</div>
-                      {agreement.signed_by && (
-                        <div className="text-xs text-gray-500">Signed by: {agreement.signed_by}</div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="bg-brand-900 text-gray-300 border-brand-700">
-                        {getAgreementTypeLabel(agreement.type)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-gray-300">{agreement.version}</TableCell>
-                    <TableCell className="text-gray-300">{agreement.sent_date?.slice(0, 10) || '—'}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={getAgreementStatusBadge(agreement.status === 'sent' ? 'pending' : agreement.status)}>
-                        {agreement.status === 'signed' && <CheckCircle className="w-3 h-3 mr-1" />}
-                        {(agreement.status === 'pending' || agreement.status === 'sent') && <Clock className="w-3 h-3 mr-1" />}
-                        {agreement.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        {agreement.status === 'pending' || agreement.status === 'sent' ? (
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                className="btn-primary-gradient"
-                              >
-                                <FileSignature className="w-4 h-4 mr-1" />
-                                Review & Sign
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="bg-[#150f24] border border-white/10 text-white max-w-2xl max-h-[80vh] overflow-y-auto !z-[9999]">
-                              <DialogHeader>
-                                <DialogTitle className="text-xl">{agreement.title}</DialogTitle>
-                                <DialogDescription className="text-gray-400">
-                                  Version {agreement.version} • Sent on {agreement.sent_date?.slice(0, 10) || '—'}
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4 mt-4">
-                                <div className="bg-[#0a0514] border border-white/10 rounded-lg p-6">
-                                  <h4 className="font-bold text-white mb-4">Document Preview</h4>
-                                  <div className="space-y-4 text-sm text-gray-300">
-                                    <p>
-                                      This is a preview of the agreement document. In a production environment,
-                                      this would display the actual PDF document with the full terms and conditions.
-                                    </p>
-                                    <div className="border-t border-white/10 pt-4">
-                                      <h5 className="font-semibold text-white mb-2">Key Terms:</h5>
-                                      <ul className="space-y-2 list-disc list-inside">
-                                        <li>Minimum order quantities apply</li>
-                                        <li>Net 30 payment terms</li>
-                                        <li>Authorized reseller status required</li>
-                                        <li>Compliance with state regulations mandatory</li>
-                                        <li>Product returns subject to approval</li>
-                                      </ul>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-                                  <p className="text-sm text-yellow-400">
-                                    <strong>Important:</strong> By signing this agreement, you acknowledge that you have
-                                    read and agree to all terms and conditions. This is a legally binding document.
-                                  </p>
-                                </div>
-                                <div className="flex gap-3">
-                                  <Button className="flex-1 bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white font-semibold">
-                                    <Send className="w-4 h-4 mr-2" />
-                                    Proceed to Sign
-                                  </Button>
-                                  <Button variant="outline" className="border-white/10 text-gray-300 hover:bg-white/5">
-                                    Download PDF
-                                  </Button>
-                                </div>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                        ) : (
-                          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                          <Download className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Agreement Types Legend */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-brand-800 border border-brand-700 rounded-lg p-4">
-          <div className="text-sm text-gray-400 mb-1">Wholesale</div>
-          <div className="text-xs text-gray-500">Distribution partnership terms</div>
-        </div>
-        <div className="bg-brand-800 border border-brand-700 rounded-lg p-4">
-          <div className="text-sm text-gray-400 mb-1">Terms of Service</div>
-          <div className="text-xs text-gray-500">Platform usage policies</div>
-        </div>
-        <div className="bg-brand-800 border border-brand-700 rounded-lg p-4">
-          <div className="text-sm text-gray-400 mb-1">NDA</div>
-          <div className="text-xs text-gray-500">Confidentiality agreements</div>
-        </div>
-        <div className="bg-brand-800 border border-brand-700 rounded-lg p-4">
-          <div className="text-sm text-gray-400 mb-1">Compliance</div>
-          <div className="text-xs text-gray-500">Regulatory certifications</div>
-        </div>
-      </div>
-    </div>
-  );
 
   // Save profile to Supabase
   const handleSaveSettings = async () => {
@@ -1298,6 +567,32 @@ export function WholesalerDashboard() {
             </Button>
           </CardContent>
         </Card>
+
+        <Card className="bg-brand-800 border-brand-700">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <KeyRound className="w-5 h-5 text-psy-neonPurple" />
+              <CardTitle className="text-white">Password Reset</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-400">
+              Forgot your current password? Send a password reset email to <strong className="text-white">{user?.email}</strong>.
+            </p>
+            <Button
+              onClick={async () => {
+                if (!user?.email) return;
+                const { error } = await supabase.auth.resetPasswordForEmail(user.email, { redirectTo: `${window.location.origin}/#/reset-password` });
+                if (error) toast.error(error.message);
+                else toast.success('Password reset email sent! Check your inbox.');
+              }}
+              variant="outline"
+              className="border-psy-neonPurple text-psy-neonPurple hover:bg-psy-neonPurple/10"
+            >
+              <KeyRound className="w-4 h-4 mr-2" /> Send Password Reset Email
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   };
@@ -1362,21 +657,7 @@ export function WholesalerDashboard() {
                 Products
               </Link>
               <button
-                onClick={() => setActiveTab('agreements')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  activeTab === 'agreements'
-                    ? 'bg-psy-neonPurple/20 text-psy-neonPurple'
-                    : 'text-gray-400 hover:text-white hover:bg-brand-700'
-                }`}
-              >
-                <FileSignature className="w-5 h-5" />
-                Agreements
-                {pendingAgreementsCount > 0 && (
-                  <span className="ml-auto bg-psy-neonPurple text-white text-xs px-2 py-0.5 rounded-full">
-                    {pendingAgreementsCount}
-                  </span>
-                )}
-              </button>
+                
               <button
                 onClick={() => setActiveTab('store-locations')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
@@ -1454,20 +735,6 @@ export function WholesalerDashboard() {
               <span className="text-xs mt-1">Products</span>
             </Link>
             <button
-              onClick={() => setActiveTab('agreements')}
-              className={`flex flex-col items-center p-2 rounded-lg relative ${
-                activeTab === 'agreements' ? 'text-psy-neonPurple' : 'text-gray-400'
-              }`}
-            >
-              <FileSignature className="w-5 h-5" />
-              <span className="text-xs mt-1">Agreements</span>
-              {pendingAgreementsCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-psy-neonPurple text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
-                  {pendingAgreementsCount}
-                </span>
-              )}
-            </button>
-            <button
               onClick={() => setActiveTab('store-locations')}
               className={`flex flex-col items-center p-2 rounded-lg relative ${
                 activeTab === 'store-locations' ? 'text-psy-neonPurple' : 'text-gray-400'
@@ -1502,7 +769,7 @@ export function WholesalerDashboard() {
                 {activeTab === 'overview' && 'Dashboard'}
                 {activeTab === 'orders' && 'Orders'}
                 {activeTab === 'invoices' && 'Invoices'}
-                {activeTab === 'agreements' && 'Agreements'}
+      
                 {activeTab === 'store-locations' && 'Store Locations'}
                 {activeTab === 'settings' && 'Settings'}
               </h1>
@@ -1516,7 +783,7 @@ export function WholesalerDashboard() {
             {activeTab === 'overview' && renderOverview()}
             {activeTab === 'orders' && renderOrders()}
             {activeTab === 'invoices' && renderInvoices()}
-            {activeTab === 'agreements' && renderAgreements()}
+
             {activeTab === 'store-locations' && renderStoreLocations()}
             {activeTab === 'settings' && renderSettings()}
           </div>

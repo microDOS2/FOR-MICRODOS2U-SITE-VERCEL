@@ -23,20 +23,7 @@ import {
   Save,
   Loader2,
   CreditCard,
-  KeyRound,
 } from 'lucide-react';
-
-// Parse order notes string into structured items for display
-function parseNotesToItems(notes: string): Array<{ qty: string; product: string; variant: string; sku: string; price: string }> {
-  if (!notes) return [];
-  return notes.split(/;\s*/).map(chunk => {
-    const match = chunk.match(/^(\d+)x\s+(.+?)\s+\((.+?)\)\s*[-–—]\s*SKU:\s*(.+?)\s*[-–—]\s*\$?(.+)$/);
-    if (match) {
-      return { qty: match[1], product: match[2].trim(), variant: match[3].trim(), sku: match[4].trim(), price: match[5].trim() };
-    }
-    return { qty: '', product: chunk.trim(), variant: '', sku: '', price: '' };
-  }).filter(i => i.product);
-}
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -572,25 +559,7 @@ export function DistributorDashboard() {
                             ) : order.notes ? (
                               <div className="space-y-2">
                                 <p className="text-xs font-medium text-gray-400 mb-2">Order Details (from notes):</p>
-                                {(() => {
-                                  const parsed = parseNotesToItems(order.notes);
-                                  return parsed.length > 0 ? (
-                                    <>
-                                      <div className="grid grid-cols-5 gap-2 text-xs text-gray-400 mb-1">
-                                        <span>Product</span><span>Package</span><span>SKU</span><span className="text-center">Qty</span><span className="text-right">Line Total</span>
-                                      </div>
-                                      {parsed.map((item, idx) => (
-                                        <div key={idx} className="grid grid-cols-5 gap-2 text-sm">
-                                          <span className="text-white">{item.product}</span>
-                                          <span className="text-gray-300">{item.variant}</span>
-                                          <span className="text-gray-400 font-mono">{item.sku}</span>
-                                          <span className="text-center text-gray-300">{item.qty}</span>
-                                          <span className="text-right text-white">{item.price ? `$${item.price}` : '—'}</span>
-                                        </div>
-                                      ))}
-                                    </>
-                                  ) : <p className="text-sm text-white">{order.notes}</p>;
-                                })()}
+                                <p className="text-sm text-white">{order.notes}</p>
                               </div>
                             ) : (
                               <p className="text-sm text-gray-500">No detailed order information available.</p>
@@ -930,32 +899,6 @@ export function DistributorDashboard() {
             )}
             <Button onClick={handleChangePassword} disabled={passwordSaving} className="btn-primary-gradient">
               {passwordSaving ? 'Updating...' : 'Update Password'}
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-brand-800 border-brand-700">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <KeyRound className="w-5 h-5 text-psy-neonPurple" />
-              <CardTitle className="text-white">Password Reset</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-gray-400">
-              Forgot your current password? Send a password reset email to <strong className="text-white">{user?.email}</strong>.
-            </p>
-            <Button
-              onClick={async () => {
-                if (!user?.email) return;
-                const { error } = await supabase.auth.resetPasswordForEmail(user.email, { redirectTo: `${window.location.origin}/#/reset-password` });
-                if (error) toast.error(error.message);
-                else toast.success('Password reset email sent! Check your inbox.');
-              }}
-              variant="outline"
-              className="border-psy-neonPurple text-psy-neonPurple hover:bg-psy-neonPurple/10"
-            >
-              <KeyRound className="w-4 h-4 mr-2" /> Send Password Reset Email
             </Button>
           </CardContent>
         </Card>

@@ -30,7 +30,6 @@ import {
   Building2,
   Save,
   CreditCard,
-  KeyRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -749,25 +748,7 @@ export function WholesalerDashboard() {
                             ) : order.notes ? (
                               <div className="space-y-2">
                                 <p className="text-xs font-medium text-gray-400 mb-2">Order Details (from notes):</p>
-                                {(() => {
-                                  const parsed = parseNotesToItems(order.notes);
-                                  return parsed.length > 0 ? (
-                                    <>
-                                      <div className="grid grid-cols-5 gap-2 text-xs text-gray-400 mb-1">
-                                        <span>Product</span><span>Package</span><span>SKU</span><span className="text-center">Qty</span><span className="text-right">Line Total</span>
-                                      </div>
-                                      {parsed.map((item, idx) => (
-                                        <div key={idx} className="grid grid-cols-5 gap-2 text-sm">
-                                          <span className="text-white">{item.product}</span>
-                                          <span className="text-gray-300">{item.variant}</span>
-                                          <span className="text-gray-400 font-mono">{item.sku}</span>
-                                          <span className="text-center text-gray-300">{item.qty}</span>
-                                          <span className="text-right text-white">{item.price ? `$${item.price}` : '—'}</span>
-                                        </div>
-                                      ))}
-                                    </>
-                                  ) : <p className="text-sm text-white">{order.notes}</p>;
-                                })()}
+                                <p className="text-sm text-white">{order.notes}</p>
                               </div>
                             ) : (
                               <p className="text-sm text-gray-500">No detailed order information available.</p>
@@ -885,25 +866,7 @@ export function WholesalerDashboard() {
                             ) : invoice.orders?.notes ? (
                               <div className="space-y-2">
                                 <p className="text-xs font-medium text-gray-400 mb-2">Invoice Details (from Order {invoice.orders.po_number}):</p>
-                                {(() => {
-                                  const parsed = parseNotesToItems(invoice.orders!.notes);
-                                  return parsed.length > 0 ? (
-                                    <>
-                                      <div className="grid grid-cols-5 gap-2 text-xs text-gray-400 mb-1">
-                                        <span>Product</span><span>Package</span><span>SKU</span><span className="text-center">Qty</span><span className="text-right">Line Total</span>
-                                      </div>
-                                      {parsed.map((item, idx) => (
-                                        <div key={idx} className="grid grid-cols-5 gap-2 text-sm">
-                                          <span className="text-white">{item.product}</span>
-                                          <span className="text-gray-300">{item.variant}</span>
-                                          <span className="text-gray-400 font-mono">{item.sku}</span>
-                                          <span className="text-center text-gray-300">{item.qty}</span>
-                                          <span className="text-right text-white">{item.price ? `$${item.price}` : '—'}</span>
-                                        </div>
-                                      ))}
-                                    </>
-                                  ) : <p className="text-sm text-white">{invoice.orders!.notes}</p>;
-                                })()}
+                                <p className="text-sm text-white">{invoice.orders.notes}</p>
                               </div>
                             ) : (
                               <p className="text-sm text-gray-500">No detailed invoice items available.</p>

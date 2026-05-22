@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Users, Loader2, Check, UserPlus, ChevronDown, ChevronRight, Store, MapPin, UserMinus, Shield } from 'lucide-react'
+import { Users, Loader2, Check, UserPlus, ChevronDown, ChevronRight, Store, MapPin, UserMinus, Shield, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -64,6 +64,21 @@ interface SalesRep {
 const roleBadge: Record<string, string> = {
   wholesaler: 'bg-[#44f80c]/20 text-[#44f80c]',
   distributor: 'bg-[#ff66c4]/20 text-[#ff66c4]',
+}
+
+// CSV helpers
+function esc(v: string | null | undefined): string {
+  if (v == null) return ''
+  const s = String(v)
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g, '""') + '"'
+  return s
+}
+function dlCsv(name: string, csv: string) {
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+  a.download = name
+  a.click()
+  URL.revokeObjectURL(a.href)
 }
 
 export function AccountsPage() {
@@ -232,9 +247,32 @@ export function AccountsPage() {
   const assignedCount = accounts.filter(a => a.assigned_rep_id).length
   const totalStores = accounts.reduce((s, a) => s + a.stores.length, 0)
 
+  const downloadAccounts = () => {
+    const h = ['Account #', 'Business Name', 'Email', 'Phone', 'Role', 'City', 'State', 'Assigned Rep', 'Manager', 'Store Count']
+    const rows = accounts.map(a => [esc(a.account_number), esc(a.business_name), esc(a.email), esc(a.phone), esc(a.role), esc(a.city), esc(a.state), esc(a.assigned_rep_name), esc(a.manager_name), String(a.stores.length)])
+    dlCsv(`accounts-${new Date().toISOString().slice(0, 10)}.csv`, [h.join(','), ...rows.map(r => r.join(','))].join('\n'))
+    toast.success(`Downloaded ${accounts.length} accounts`)
+  }
+  const downloadStores = () => {
+    const h = ['Account #', 'Business Name', 'Store #', 'Store Name', 'Address', 'City', 'State', 'Store Rep']
+    const rows: string[][] = []
+    accounts.forEach(a => a.stores.forEach(s => rows.push([esc(a.account_number), esc(a.business_name), esc(s.store_number), esc(s.name), esc(s.address), esc(s.city), esc(s.state), esc(s.assigned_rep_name)])))
+    dlCsv(`stores-${new Date().toISOString().slice(0, 10)}.csv`, [h.join(','), ...rows.map(r => r.join(','))].join('\n'))
+    toast.success(`Downloaded ${rows.length} stores`)
+  }
+
   return (
     <div className="space-y-6">
-      <div><h2 className="text-2xl font-bold text-white mb-1">Accounts</h2><p className="text-gray-400">{accounts.length} accounts, {totalStores} stores</p></div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-1">Accounts</h2>
+          <p className="text-gray-400">{accounts.length} accounts, {totalStores} stores</p>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={downloadAccounts} className="border-white/10 text-white hover:bg-white/5"><Download className="w-4 h-4 mr-1.5" />Accounts CSV</Button>
+          <Button size="sm" variant="outline" onClick={downloadStores} className="border-white/10 text-white hover:bg-white/5"><Download className="w-4 h-4 mr-1.5" />Stores CSV</Button>
+        </div>
+      </div>
       <Card className="bg-[#150f24] border-white/10">
         <CardHeader><CardTitle className="text-white flex items-center gap-2"><Users className="w-5 h-5 text-[#9a02d0]" />Accounts ({assignedCount} assigned, {accounts.length - assignedCount} unassigned)</CardTitle></CardHeader>
         <CardContent>

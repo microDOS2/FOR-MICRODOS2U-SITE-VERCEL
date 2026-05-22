@@ -101,7 +101,7 @@ interface AgreementRow {
   document_url: string | null;
 }
 
-export function WholesalerDashboard() {
+export function WholesalerDashboard() { // test
   const navigate = useNavigate();
   const { user, loading: authLoading, signOut } = useAuth();
 

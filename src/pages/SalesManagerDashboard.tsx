@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { SalesManagerSidebar } from '@/components/sales-manager/SalesManagerSidebar';
 import { RegionalStats } from '@/components/sales-manager/RegionalStats';
 import { TeamOverview } from '@/components/sales-manager/TeamOverview';
@@ -31,9 +31,7 @@ import {
   AlertTriangle,
   X,
   UserCog,
-  ArrowRight,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
 import type { DBUser } from '@/lib/supabase';

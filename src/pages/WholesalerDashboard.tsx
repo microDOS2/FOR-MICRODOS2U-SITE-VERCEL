@@ -83,23 +83,8 @@ interface StoreLocation {
 // Types matching Supabase schema
 type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 type InvoiceStatus = 'pending' | 'paid' | 'overdue' | 'cancelled';
-type AgreementStatus = 'pending' | 'sent' | 'signed' | 'active' | 'expired';
-type AgreementType = 'wholesale' | 'terms' | 'nda' | 'compliance';
 
-interface AgreementRow {
-  id: string;
-  title: string;
-  type: AgreementType;
-  version: string;
-  sent_date: string;
-  signed_date: string | null;
-  expires_date: string | null;
-  status: AgreementStatus;
-  signed_by: string | null;
-  document_url: string | null;
-}
-
-export function WholesalerDashboard() { // test
+export function WholesalerDashboard() {
   const navigate = useNavigate();
   const { user, loading: authLoading, signOut } = useAuth();
 
@@ -115,14 +100,14 @@ export function WholesalerDashboard() { // test
     }
   }, [authLoading, user, navigate]);
 
-  // Fetch real orders, invoices, agreements from Supabase
+  // Fetch real orders and invoices from Supabase
   useEffect(() => {
     if (!user) return;
 
     const fetchData = async () => {
       setDataLoading(true);
 
-      const [{ data: o, error: oErr }, { data: i, error: iErr }, { data: a, error: aErr }] = await Promise.all([
+      const [{ data: o, error: oErr }, { data: i, error: iErr }] = await Promise.all([
         supabase
           .from('orders')
           .select('id, po_number, items, total, status, notes, created_at, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total)')
@@ -133,20 +118,13 @@ export function WholesalerDashboard() { // test
           .select('id, invoice_number, order_id, amount, status, date, due_date, orders:order_id(po_number, notes, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total))')
           .eq('user_id', user.id)
           .order('date', { ascending: false }),
-        supabase
-          .from('agreements')
-          .select('id, title, type, version, sent_date, signed_date, expires_date, status, signed_by, document_url')
-          .eq('user_id', user.id)
-          .order('sent_date', { ascending: false }),
       ]);
 
       if (oErr) console.error('[WholesalerDashboard] orders error:', oErr);
       if (iErr) console.error('[WholesalerDashboard] invoices error:', iErr);
-      if (aErr) console.error('[WholesalerDashboard] agreements error:', aErr);
 
       setOrders((o as any[]) || []);
       setInvoices((i as any[]) || []);
-      setAgreements((a as AgreementRow[]) || []);
       setDataLoading(false);
     };
 
@@ -162,7 +140,6 @@ export function WholesalerDashboard() { // test
   // Real data from Supabase
   const [orders, setOrders] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
-  const [agreements, setAgreements] = useState<AgreementRow[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
 
   // Settings state
@@ -298,8 +275,6 @@ export function WholesalerDashboard() { // test
     const matchesFilter = orderFilter === 'all' || order.status === orderFilter;
     return matchesSearch && matchesFilter;
   });
-
-  const pendingAgreementsCount = agreements.filter((a) => a.status === 'pending' || a.status === 'sent').length;
 
   // Fetch store locations for the logged-in wholesaler
   useEffect(() => {
@@ -449,13 +424,12 @@ export function WholesalerDashboard() { // test
     totalSpent: orders.reduce((acc, order) => acc + order.total, 0),
     pendingInvoices: invoices.filter((inv) => inv.status === 'pending').length,
     overdueAmount: invoices.filter((inv) => inv.status === 'overdue').reduce((acc, inv) => acc + inv.amount, 0),
-    pendingAgreements: pendingAgreementsCount,
   };
 
   const renderOverview = () => (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-brand-800 border-brand-700">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-400">Total Orders</CardTitle>
@@ -490,15 +464,6 @@ export function WholesalerDashboard() { // test
           <CardContent>
             <div className="text-3xl font-bold text-red-400">${stats.overdueAmount.toLocaleString()}</div>
             <p className="text-xs text-gray-500 mt-1">Action required</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-brand-800 border-brand-700 ">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400">Agreements</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-psy-neonPurple">{stats.pendingAgreements}</div>
-            <p className="text-xs text-gray-500 mt-1">{agreements.length} total</p>
           </CardContent>
         </Card>
       </div>

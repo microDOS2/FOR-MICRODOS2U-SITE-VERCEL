@@ -35,30 +35,22 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { CheckoutModal } from '@/components/payment/CheckoutModal';
 import { ExportDropdown } from '@/components/ExportDropdown';
-import { invoiceColumns } from '@/lib/exportUtils';
+import { orderColumns, invoiceColumns } from '@/lib/exportUtils';
 
 // Types
 type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 type InvoiceStatus = 'pending' | 'paid' | 'overdue' | 'cancelled';
-type AgreementStatus = 'pending' | 'sent' | 'signed' | 'active' | 'expired';
-type AgreementType = 'wholesale' | 'terms' | 'nda' | 'compliance';
-
-interface AgreementRow {
-  id: string;
-  title: string;
-  type: AgreementType;
-  version: string;
-  sent_date: string;
-  signed_date: string | null;
-  expires_date: string | null;
-  status: AgreementStatus;
-  signed_by: string | null;
-  document_url: string | null;
-}
 
 export function DistributorDashboard() {
   const navigate = useNavigate();
@@ -101,7 +93,6 @@ export function DistributorDashboard() {
   // Data state
   const [orders, setOrders] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
-  const [agreements, setAgreements] = useState<AgreementRow[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
 
   // Orders filter state
@@ -134,17 +125,14 @@ export function DistributorDashboard() {
     if (!user) return;
     const fetchData = async () => {
       setDataLoading(true);
-      const [{ data: o, error: oErr }, { data: i, error: iErr }, { data: a, error: aErr }] = await Promise.all([
+      const [{ data: o, error: oErr }, { data: i, error: iErr }] = await Promise.all([
         supabase.from('orders').select('id, po_number, items, total, status, notes, created_at, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total)').eq('user_id', user.id).order('created_at', { ascending: false }),
         supabase.from('invoices').select('id, invoice_number, order_id, amount, status, date, due_date, orders:order_id(po_number, notes, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total))').eq('user_id', user.id).order('date', { ascending: false }),
-        supabase.from('agreements').select('id, title, type, version, sent_date, signed_date, expires_date, status, signed_by, document_url').eq('user_id', user.id).order('sent_date', { ascending: false }),
       ]);
       if (oErr) console.error('[DistributorDashboard] orders error:', oErr);
       if (iErr) console.error('[DistributorDashboard] invoices error:', iErr);
-      if (aErr) console.error('[DistributorDashboard] agreements error:', aErr);
       setOrders((o as any[]) || []);
       setInvoices((i as any[]) || []);
-      setAgreements((a as AgreementRow[]) || []);
       setDataLoading(false);
     };
     fetchData();
@@ -197,7 +185,6 @@ export function DistributorDashboard() {
     totalSpent: orders.reduce((sum, o) => sum + (o.total || 0), 0),
     pendingInvoices: invoices.filter((inv) => inv.status === 'pending').length,
     overdueAmount: invoices.filter((inv) => inv.status === 'overdue').reduce((sum, inv) => sum + (inv.amount || 0), 0),
-    pendingAgreements: agreements.filter((a) => a.status === 'pending' || a.status === 'sent').length,
   };
 
   // Filtered orders
@@ -305,7 +292,7 @@ export function DistributorDashboard() {
   const renderOverview = () => (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-brand-800 border-brand-700">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-400">Total Orders</CardTitle>
@@ -340,15 +327,6 @@ export function DistributorDashboard() {
           <CardContent>
             <div className="text-3xl font-bold text-red-400">${stats.overdueAmount.toLocaleString()}</div>
             <p className="text-xs text-gray-500 mt-1">Past due</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-brand-800 border-brand-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400">Agreements</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-psy-neonPurple">{stats.pendingAgreements}</div>
-            <p className="text-xs text-gray-500 mt-1">{agreements.length} total</p>
           </CardContent>
         </Card>
       </div>
@@ -450,18 +428,19 @@ export function DistributorDashboard() {
               className="pl-10 bg-brand-900 border-brand-700 text-white w-full sm:w-64"
             />
           </div>
-          <select
-            value={orderFilter}
-            onChange={(e) => setOrderFilter(e.target.value)}
-            className="bg-brand-900 border border-brand-700 text-white rounded-md px-3 py-2 text-sm"
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
-            <option value="shipped">Shipped</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+          <Select value={orderFilter} onValueChange={setOrderFilter}>
+            <SelectTrigger className="w-[140px] bg-brand-900 border-brand-700 text-white">
+              <SelectValue placeholder="Filter" />
+            </SelectTrigger>
+            <SelectContent className="bg-brand-900 border-brand-700">
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="shipped">Shipped</SelectItem>
+              <SelectItem value="delivered">Delivered</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -504,9 +483,21 @@ export function DistributorDashboard() {
                         </TableCell>
                         <TableCell className="text-gray-400">{new Date(order.created_at).toLocaleDateString()}</TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" onClick={() => toggleOrderExpand(order.id)}>
-                            <Eye className="w-4 h-4" />
-                          </Button>
+                          <div className="flex gap-2 justify-end">
+                            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" onClick={() => toggleOrderExpand(order.id)}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <ExportDropdown
+                              data={[order]}
+                              columns={orderColumns}
+                              filename={`order-${order.po_number}`}
+                              title={`Order ${order.po_number}`}
+                              label=""
+                              variant="ghost"
+                              size="icon"
+                              className="text-gray-400 hover:text-white"
+                            />
+                          </div>
                         </TableCell>
                       </TableRow>
                       {isExpanded && (

@@ -561,12 +561,34 @@ export function UsersPage() {
     setActionLoading(user.id + '-delete')
     try {
       if (user.source === 'users') {
-        // Delete user directly via admin client
+        // 1. Clean up related records first (FK constraints)
+        await supabase.from('assignment_transfers').delete().eq('rep_id', user.id)
+        await supabase.from('assignment_transfers').delete().eq('account_id', user.id)
+        await supabase.from('rep_account_assignments').delete().eq('rep_id', user.id)
+        await supabase.from('rep_account_assignments').delete().eq('account_id', user.id)
+        await supabase.from('manager_state_assignments').delete().eq('manager_id', user.id)
+
+        // 2. Delete user
         const { error } = await supabase.from('users').delete().eq('id', user.id)
         if (error) {
           toast.error('Delete failed: ' + error.message)
           setActionLoading(null)
           return
+        }
+
+        // 3. Best-effort: also delete auth user via edge function
+        try {
+          await fetch(`${SUPABASE_URL}/functions/v1/delete-auth-user`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+              'apikey': SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ user_id: user.id }),
+          })
+        } catch {
+          // Auth delete is best-effort — user may not exist in auth
         }
       } else {
         await supabase.from('applications').delete().eq('id', user.id)
@@ -1434,3 +1456,4 @@ export function UsersPage() {
     </div>
   )
 }
+// redeploy bump Fri May 22 23:12:01 CST 2026

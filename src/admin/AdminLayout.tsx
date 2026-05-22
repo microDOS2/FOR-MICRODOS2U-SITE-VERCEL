@@ -245,4 +245,6 @@ export function AdminLayout() {
           onClick={() => setSidebarOpen(false)}
         />
       )}
-    <
+    </div>
+  )
+}

@@ -1300,7 +1300,7 @@ export function WholesalerDashboard() { // test
             <nav className="space-y-2">
               <button
                 onClick={() => setActiveTab('overview')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`hidden w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   activeTab === 'overview'
                     ? 'bg-psy-neonPurple/20 text-psy-neonPurple'
                     : 'text-gray-400 hover:text-white hover:bg-brand-700'
@@ -1398,7 +1398,7 @@ export function WholesalerDashboard() { // test
           <div className="flex justify-around p-2">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`flex flex-col items-center p-2 rounded-lg ${
+              className={`hidden flex flex-col items-center p-2 rounded-lg ${
                 activeTab === 'overview' ? 'text-psy-neonPurple' : 'text-gray-400'
               }`}
             >
@@ -1479,8 +1479,7 @@ export function WholesalerDashboard() { // test
                 {activeTab === 'overview' && 'Dashboard'}
                 {activeTab === 'orders' && 'Orders'}
                 {activeTab === 'invoices' && 'Invoices'}
-                {activeTab === 'agreements' && 'Agreements'}
-                {activeTab === 'store-locations' && 'Store Locations'}
+                                {activeTab === 'store-locations' && 'Store Locations'}
                 {activeTab === 'settings' && 'Settings'}
               </h1>
               <Link to="/products">
@@ -1493,8 +1492,7 @@ export function WholesalerDashboard() { // test
             {activeTab === 'overview' && renderOverview()}
             {activeTab === 'orders' && renderOrders()}
             {activeTab === 'invoices' && renderInvoices()}
-            {activeTab === 'agreements' && renderAgreements()}
-            {activeTab === 'store-locations' && renderStoreLocations()}
+                        {activeTab === 'store-locations' && renderStoreLocations()}
             {activeTab === 'settings' && renderSettings()}
           </div>
         </div>

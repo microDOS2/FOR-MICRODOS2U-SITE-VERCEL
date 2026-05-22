@@ -8,14 +8,11 @@ import {
   LogOut,
   ChevronRight,
   Search,
-  Download,
   Eye,
   CheckCircle,
   Clock,
   Truck,
   AlertCircle,
-  PenTool,
-  FileSignature,
   Send,
   Settings as SettingsIcon,
   Lock,
@@ -42,7 +39,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { CheckoutModal } from '@/components/payment/CheckoutModal';
 import { ExportDropdown } from '@/components/ExportDropdown';
-import { orderColumns, invoiceColumns } from '@/lib/exportUtils';
+import { invoiceColumns } from '@/lib/exportUtils';
 
 // Types
 type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
@@ -210,7 +207,6 @@ export function DistributorDashboard() {
     return matchesSearch && matchesFilter;
   });
 
-  const pendingAgreementsCount = agreements.filter((a) => a.status === 'pending' || a.status === 'sent').length;
 
   // Status helpers
   const getStatusBadge = (status: OrderStatus) => {
@@ -232,27 +228,6 @@ export function DistributorDashboard() {
       cancelled: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
     };
     return styles[status];
-  };
-
-  const getAgreementStatusBadge = (status: AgreementStatus) => {
-    const styles: Record<AgreementStatus, string> = {
-      pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-      sent: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-      signed: 'bg-green-500/10 text-green-400 border-green-500/20',
-      active: 'bg-green-500/10 text-green-400 border-green-500/20',
-      expired: 'bg-red-500/10 text-red-400 border-red-500/20',
-    };
-    return styles[status];
-  };
-
-  const getAgreementTypeLabel = (type: AgreementType) => {
-    const labels: Record<AgreementType, string> = {
-      wholesale: 'Wholesale',
-      terms: 'Terms of Service',
-      nda: 'NDA',
-      compliance: 'Compliance',
-    };
-    return labels[type];
   };
 
   const getStatusIcon = (status: OrderStatus) => {
@@ -700,100 +675,7 @@ export function DistributorDashboard() {
     </div>
   );
 
-  const renderAgreements = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="flex gap-2">
-          <Button variant="outline" className="border-brand-700 text-gray-300 hover:text-white hover:bg-brand-700">
-            <Download className="w-4 h-4 mr-2" />
-            Export History
-          </Button>
-        </div>
-      </div>
-
-      {/* Info Card */}
-      <Card className="bg-brand-800 border-brand-700">
-        <CardContent className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-lg bg-[#9a02d0]/10 flex items-center justify-center shrink-0">
-              <PenTool className="w-5 h-5 text-[#9a02d0]" />
-            </div>
-            <div>
-              <h3 className="font-bold text-white mb-1">E-Signature Integration</h3>
-              <p className="text-sm text-gray-400">
-                Agreements are sent via DocuSign for electronic signature. Once signed, they will be automatically marked as completed.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Agreements Table */}
-      <Card className="bg-brand-800 border-brand-700">
-        <CardContent className="p-0">
-          {dataLoading ? (
-            <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto text-psy-neonPurple" /></div>
-          ) : agreements.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <FileSignature className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-              <p>No agreements found</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="border-brand-700 hover:bg-transparent">
-                  <TableHead className="text-gray-400">Title</TableHead>
-                  <TableHead className="text-gray-400">Type</TableHead>
-                  <TableHead className="text-gray-400">Version</TableHead>
-                  <TableHead className="text-gray-400">Sent Date</TableHead>
-                  <TableHead className="text-gray-400">Signed</TableHead>
-                  <TableHead className="text-gray-400">Expires</TableHead>
-                  <TableHead className="text-gray-400">Status</TableHead>
-                  <TableHead className="text-gray-400 text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {agreements.map((agreement) => (
-                  <TableRow key={agreement.id} className="border-brand-700 hover:bg-brand-700/50">
-                    <TableCell className="text-white font-medium">{agreement.title}</TableCell>
-                    <TableCell className="text-gray-400">{getAgreementTypeLabel(agreement.type)}</TableCell>
-                    <TableCell className="text-gray-400">{agreement.version}</TableCell>
-                    <TableCell className="text-gray-400">{new Date(agreement.sent_date).toLocaleDateString()}</TableCell>
-                    <TableCell className="text-gray-400">
-                      {agreement.signed_date ? new Date(agreement.signed_date).toLocaleDateString() : 'Not signed'}
-                    </TableCell>
-                    <TableCell className="text-gray-400">
-                      {agreement.expires_date ? new Date(agreement.expires_date).toLocaleDateString() : 'No expiry'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={getAgreementStatusBadge(agreement.status)}>{agreement.status}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        {agreement.document_url && (
-                          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" asChild>
-                            <a href={agreement.document_url} target="_blank" rel="noopener noreferrer">
-                              <Eye className="w-4 h-4" />
-                            </a>
-                          </Button>
-                        )}
-                        {(agreement.status === 'pending' || agreement.status === 'sent') && (
-                          <Button variant="ghost" size="sm" className="text-[#44f80c] hover:text-[#44f80c]/80">
-                            <Send className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-
+  // Agreements tab hidden - function preserved but unused
   const renderSettings = () => {
     if (!user) {
       return (
@@ -989,7 +871,7 @@ export function DistributorDashboard() {
             { tab: 'overview' as const, icon: LayoutDashboard, label: 'Overview' },
             { tab: 'orders' as const, icon: ShoppingCart, label: 'Orders', count: orders.length },
             { tab: 'invoices' as const, icon: FileText, label: 'Invoices', count: stats.pendingInvoices },
-            /* { tab: 'agreements' as const, icon: FileSignature, label: 'Agreements', count: pendingAgreementsCount }, */
+            /* { tab: 'agreements' as const, icon: FileSignature, label: 'Agreements', count: _pendingAgreementsCount }, */
           ].map(({ tab, icon: Icon, label, count }) => (
             <button
               key={tab}

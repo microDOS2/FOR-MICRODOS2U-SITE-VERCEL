@@ -830,10 +830,10 @@ export function WholesalerDashboard() { // test
                               <Eye className="w-4 h-4" />
                             </Button>
                             <ExportDropdown
-                              data={[order]}
-                              columns={orderColumns}
-                              filename={`order-${order.po_number}`}
-                              title={`Order ${order.po_number}`}
+                              data={[invoice]}
+                              columns={invoiceColumns}
+                              filename={`invoice-${invoice.invoice_number}`}
+                              title={`Invoice ${invoice.invoice_number}`}
                               label=""
                               variant="ghost"
                               size="icon"
@@ -1198,6 +1198,19 @@ export function WholesalerDashboard() { // test
     }
   };
 
+
+  // Send password reset email
+  const handleSendResetEmail = async () => {
+    if (!user?.email) return;
+    setResetEmailSending(true);
+    setResetEmailMessage(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+      redirectTo: `${window.location.origin}/#/reset-password`,
+    });
+    setResetEmailSending(false);
+    if (error) setResetEmailMessage('Error: ' + error.message);
+    else setResetEmailMessage('Password reset email sent! Check your inbox.');
+  };
   const renderSettings = () => {
     if (!user) {
       return (

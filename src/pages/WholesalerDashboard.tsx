@@ -153,7 +153,7 @@ export function WholesalerDashboard() { // test
     fetchData();
   }, [user]);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'agreements' | 'store-locations' | 'settings'>('orders');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'agreements' | 'store-locations' | 'settings'>('overview');
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
   const [orderSearch, setOrderSearch] = useState('');
@@ -1163,7 +1163,7 @@ export function WholesalerDashboard() { // test
             <nav className="space-y-2">
               <button
                 onClick={() => setActiveTab('overview')}
-                className={`hidden w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   activeTab === 'overview'
                     ? 'bg-psy-neonPurple/20 text-psy-neonPurple'
                     : 'text-gray-400 hover:text-white hover:bg-brand-700'
@@ -1261,7 +1261,7 @@ export function WholesalerDashboard() { // test
           <div className="flex justify-around p-2">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`hidden flex flex-col items-center p-2 rounded-lg ${
+              className={`flex flex-col items-center p-2 rounded-lg ${
                 activeTab === 'overview' ? 'text-psy-neonPurple' : 'text-gray-400'
               }`}
             >

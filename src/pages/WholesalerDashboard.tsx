@@ -571,7 +571,30 @@ export function WholesalerDashboard() {
         </CardContent>
       </Card>
 
-      {/* Pending Agreements Alert — hidden */}
+      {/* Pending Agreements Alert */}
+      {pendingAgreementsCount > 0 && (
+        <Card className="bg-psy-neonPurple/10 border-psy-neonPurple/30">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-lg bg-psy-neonPurple/20 flex items-center justify-center">
+                  <FileSignature className="w-6 h-6 text-psy-neonPurple" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white">Action Required: Pending Agreements</h3>
+                  <p className="text-sm text-gray-400">You have {pendingAgreementsCount} agreement(s) awaiting your signature</p>
+                </div>
+              </div>
+              <Button
+                className="btn-primary-gradient"
+                onClick={() => setActiveTab('agreements')}
+              >
+                Review & Sign
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1338,24 +1361,22 @@ export function WholesalerDashboard() {
                 <Package className="w-5 h-5" />
                 Products
               </Link>
-              {false && (
-                <button
-                  onClick={() => setActiveTab('agreements')}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    activeTab === 'agreements'
-                      ? 'bg-psy-neonPurple/20 text-psy-neonPurple'
-                      : 'text-gray-400 hover:text-white hover:bg-brand-700'
-                  }`}
-                >
-                  <FileSignature className="w-5 h-5" />
-                  Agreements
-                  {pendingAgreementsCount > 0 && (
-                    <span className="ml-auto bg-psy-neonPurple text-white text-xs px-2 py-0.5 rounded-full">
-                      {pendingAgreementsCount}
-                    </span>
-                  )}
-                </button>
-              )}
+              <button
+                onClick={() => setActiveTab('agreements')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  activeTab === 'agreements'
+                    ? 'bg-psy-neonPurple/20 text-psy-neonPurple'
+                    : 'text-gray-400 hover:text-white hover:bg-brand-700'
+                }`}
+              >
+                <FileSignature className="w-5 h-5" />
+                Agreements
+                {pendingAgreementsCount > 0 && (
+                  <span className="ml-auto bg-psy-neonPurple text-white text-xs px-2 py-0.5 rounded-full">
+                    {pendingAgreementsCount}
+                  </span>
+                )}
+              </button>
               <button
                 onClick={() => setActiveTab('store-locations')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
@@ -1432,22 +1453,20 @@ export function WholesalerDashboard() {
               <Package className="w-5 h-5" />
               <span className="text-xs mt-1">Products</span>
             </Link>
-            {false && (
-              <button
-                onClick={() => setActiveTab('agreements')}
-                className={`flex flex-col items-center p-2 rounded-lg relative ${
-                  activeTab === 'agreements' ? 'text-psy-neonPurple' : 'text-gray-400'
-                }`}
-              >
-                <FileSignature className="w-5 h-5" />
-                <span className="text-xs mt-1">Agreements</span>
-                {pendingAgreementsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-psy-neonPurple text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
-                    {pendingAgreementsCount}
-                  </span>
-                )}
-              </button>
-            )}
+            <button
+              onClick={() => setActiveTab('agreements')}
+              className={`flex flex-col items-center p-2 rounded-lg relative ${
+                activeTab === 'agreements' ? 'text-psy-neonPurple' : 'text-gray-400'
+              }`}
+            >
+              <FileSignature className="w-5 h-5" />
+              <span className="text-xs mt-1">Agreements</span>
+              {pendingAgreementsCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-psy-neonPurple text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
+                  {pendingAgreementsCount}
+                </span>
+              )}
+            </button>
             <button
               onClick={() => setActiveTab('store-locations')}
               className={`flex flex-col items-center p-2 rounded-lg relative ${
@@ -1483,7 +1502,8 @@ export function WholesalerDashboard() {
                 {activeTab === 'overview' && 'Dashboard'}
                 {activeTab === 'orders' && 'Orders'}
                 {activeTab === 'invoices' && 'Invoices'}
-                                {activeTab === 'store-locations' && 'Store Locations'}
+                {activeTab === 'agreements' && 'Agreements'}
+                {activeTab === 'store-locations' && 'Store Locations'}
                 {activeTab === 'settings' && 'Settings'}
               </h1>
               <Link to="/products">
@@ -1496,6 +1516,7 @@ export function WholesalerDashboard() {
             {activeTab === 'overview' && renderOverview()}
             {activeTab === 'orders' && renderOrders()}
             {activeTab === 'invoices' && renderInvoices()}
+            {activeTab === 'agreements' && renderAgreements()}
             {activeTab === 'store-locations' && renderStoreLocations()}
             {activeTab === 'settings' && renderSettings()}
           </div>

@@ -46,6 +46,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { CheckoutModal } from '@/components/payment/CheckoutModal';
 import { ExportDropdown } from '@/components/ExportDropdown';
+import { Pagination } from '@/components/Pagination';
 import { orderColumns, invoiceColumns } from '@/lib/exportUtils';
 
 // Types
@@ -120,6 +121,18 @@ export function DistributorDashboard() {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentInvoice, setPaymentInvoice] = useState<{ id: string; amount: number; invoiceNumber: string } | null>(null);
 
+  // Date range filters
+  const [orderDateFrom, setOrderDateFrom] = useState('');
+  const [orderDateTo, setOrderDateTo] = useState('');
+  const [invoiceDateFrom, setInvoiceDateFrom] = useState('');
+  const [invoiceDateTo, setInvoiceDateTo] = useState('');
+
+  // Pagination state
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderPageSize, setOrderPageSize] = useState(25);
+  const [invoicePage, setInvoicePage] = useState(1);
+  const [invoicePageSize, setInvoicePageSize] = useState(25);
+
   // Fetch data
   useEffect(() => {
     if (!user) return;
@@ -191,8 +204,23 @@ export function DistributorDashboard() {
   const filteredOrders = orders.filter((order) => {
     const matchesSearch = order.po_number.toLowerCase().includes(orderSearch.toLowerCase());
     const matchesFilter = orderFilter === 'all' || order.status === orderFilter;
-    return matchesSearch && matchesFilter;
+    const orderDate = order.created_at ? order.created_at.slice(0, 10) : '';
+    const matchesDateFrom = !orderDateFrom || orderDate >= orderDateFrom;
+    const matchesDateTo = !orderDateTo || orderDate <= orderDateTo;
+    return matchesSearch && matchesFilter && matchesDateFrom && matchesDateTo;
   });
+  const paginatedOrders = filteredOrders.slice((orderPage - 1) * orderPageSize, orderPage * orderPageSize);
+  const orderTotalPages = Math.max(1, Math.ceil(filteredOrders.length / orderPageSize));
+
+  // Filtered invoices
+  const filteredInvoices = invoices.filter((invoice) => {
+    const invDate = invoice.date ? invoice.date.slice(0, 10) : '';
+    const matchesDateFrom = !invoiceDateFrom || invDate >= invoiceDateFrom;
+    const matchesDateTo = !invoiceDateTo || invDate <= invoiceDateTo;
+    return matchesDateFrom && matchesDateTo;
+  });
+  const paginatedInvoices = filteredInvoices.slice((invoicePage - 1) * invoicePageSize, invoicePage * invoicePageSize);
+  const invoiceTotalPages = Math.max(1, Math.ceil(filteredInvoices.length / invoicePageSize));
 
 
   // Status helpers
@@ -444,16 +472,24 @@ export function DistributorDashboard() {
         </div>
       </div>
 
+      {/* Date Range Filter */}
+      <div className="flex gap-2">
+        <Input type="date" value={orderDateFrom} onChange={(e) => { setOrderDateFrom(e.target.value); setOrderPage(1); }} className="bg-brand-900 border-brand-700 text-white w-auto" />
+        <span className="text-gray-500 self-center">to</span>
+        <Input type="date" value={orderDateTo} onChange={(e) => { setOrderDateTo(e.target.value); setOrderPage(1); }} className="bg-brand-900 border-brand-700 text-white w-auto" />
+      </div>
+
       <Card className="bg-brand-800 border-brand-700">
         <CardContent className="p-0">
           {dataLoading ? (
             <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto text-psy-neonPurple" /></div>
-          ) : filteredOrders.length === 0 ? (
+          ) : paginatedOrders.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <Package className="w-12 h-12 mx-auto mb-3 text-gray-600" />
               <p>No orders found</p>
             </div>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow className="border-brand-700 hover:bg-transparent">
@@ -466,7 +502,7 @@ export function DistributorDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrders.map((order) => {
+                {paginatedOrders.map((order) => {
                   const StatusIcon = getStatusIcon(order.status);
                   const isExpanded = expandedOrders.has(order.id);
                   return (
@@ -539,6 +575,15 @@ export function DistributorDashboard() {
                 })}
               </TableBody>
             </Table>
+            <Pagination
+              currentPage={orderPage}
+              totalPages={orderTotalPages}
+              pageSize={orderPageSize}
+              onPageChange={setOrderPage}
+              onPageSizeChange={(size) => { setOrderPageSize(size); setOrderPage(1); }}
+              totalItems={filteredOrders.length}
+            />
+            </>
           )}
         </CardContent>
       </Card>
@@ -557,18 +602,24 @@ export function DistributorDashboard() {
           variant="default"
           className="btn-primary-gradient border-0"
         />
+        <div className="flex gap-2 items-center">
+          <Input type="date" value={invoiceDateFrom} onChange={(e) => { setInvoiceDateFrom(e.target.value); setInvoicePage(1); }} className="bg-brand-900 border-brand-700 text-white w-auto" />
+          <span className="text-gray-500">to</span>
+          <Input type="date" value={invoiceDateTo} onChange={(e) => { setInvoiceDateTo(e.target.value); setInvoicePage(1); }} className="bg-brand-900 border-brand-700 text-white w-auto" />
+        </div>
       </div>
 
       <Card className="bg-brand-800 border-brand-700">
         <CardContent className="p-0">
           {dataLoading ? (
             <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto text-psy-neonPurple" /></div>
-          ) : invoices.length === 0 ? (
+          ) : paginatedInvoices.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <FileText className="w-12 h-12 mx-auto mb-3 text-gray-600" />
               <p>No invoices found</p>
             </div>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow className="border-brand-700 hover:bg-transparent">
@@ -582,7 +633,7 @@ export function DistributorDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {invoices.map((invoice) => {
+                {paginatedInvoices.map((invoice) => {
                   const isInvExpanded = expandedInvoices.has(invoice.id);
                   return (
                     <>
@@ -660,6 +711,15 @@ export function DistributorDashboard() {
                 })}
               </TableBody>
             </Table>
+            <Pagination
+              currentPage={invoicePage}
+              totalPages={invoiceTotalPages}
+              pageSize={invoicePageSize}
+              onPageChange={setInvoicePage}
+              onPageSizeChange={(size) => { setInvoicePageSize(size); setInvoicePage(1); }}
+              totalItems={filteredInvoices.length}
+            />
+            </>
           )}
         </CardContent>
       </Card>

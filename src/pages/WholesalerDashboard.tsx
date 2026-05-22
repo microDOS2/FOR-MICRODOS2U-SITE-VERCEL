@@ -61,6 +61,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { CheckoutModal } from '@/components/payment/CheckoutModal';
 import { ExportDropdown } from '@/components/ExportDropdown';
+import { Pagination } from '@/components/Pagination';
 import { orderColumns, invoiceColumns } from '@/lib/exportUtils';
 
 
@@ -160,6 +161,18 @@ export function WholesalerDashboard() {
   // Payment modal state
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentInvoice, setPaymentInvoice] = useState<{ id: string; amount: number; invoiceNumber: string } | null>(null);
+
+  // Date range filters
+  const [orderDateFrom, setOrderDateFrom] = useState('');
+  const [orderDateTo, setOrderDateTo] = useState('');
+  const [invoiceDateFrom, setInvoiceDateFrom] = useState('');
+  const [invoiceDateTo, setInvoiceDateTo] = useState('');
+
+  // Pagination state
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderPageSize, setOrderPageSize] = useState(25);
+  const [invoicePage, setInvoicePage] = useState(1);
+  const [invoicePageSize, setInvoicePageSize] = useState(25);
 
   const toggleOrderExpand = (orderId: string) => {
     setExpandedOrders(prev => {
@@ -273,8 +286,23 @@ export function WholesalerDashboard() {
   const filteredOrders = orders.filter((order) => {
     const matchesSearch = order.po_number.toLowerCase().includes(orderSearch.toLowerCase());
     const matchesFilter = orderFilter === 'all' || order.status === orderFilter;
-    return matchesSearch && matchesFilter;
+    const orderDate = order.created_at ? order.created_at.slice(0, 10) : '';
+    const matchesDateFrom = !orderDateFrom || orderDate >= orderDateFrom;
+    const matchesDateTo = !orderDateTo || orderDate <= orderDateTo;
+    return matchesSearch && matchesFilter && matchesDateFrom && matchesDateTo;
   });
+
+  const paginatedOrders = filteredOrders.slice((orderPage - 1) * orderPageSize, orderPage * orderPageSize);
+  const orderTotalPages = Math.max(1, Math.ceil(filteredOrders.length / orderPageSize));
+
+  const filteredInvoices = invoices.filter((invoice) => {
+    const invDate = invoice.date ? invoice.date.slice(0, 10) : '';
+    const matchesDateFrom = !invoiceDateFrom || invDate >= invoiceDateFrom;
+    const matchesDateTo = !invoiceDateTo || invDate <= invoiceDateTo;
+    return matchesDateFrom && matchesDateTo;
+  });
+  const paginatedInvoices = filteredInvoices.slice((invoicePage - 1) * invoicePageSize, invoicePage * invoicePageSize);
+  const invoiceTotalPages = Math.max(1, Math.ceil(filteredInvoices.length / invoicePageSize));
 
   // Fetch store locations for the logged-in wholesaler
   useEffect(() => {
@@ -514,6 +542,14 @@ export function WholesalerDashboard() {
               )}
             </TableBody>
           </Table>
+          <Pagination
+            currentPage={orderPage}
+            totalPages={orderTotalPages}
+            pageSize={orderPageSize}
+            onPageChange={setOrderPage}
+            onPageSizeChange={(size) => { setOrderPageSize(size); setOrderPage(1); }}
+            totalItems={filteredOrders.length}
+          />
         </CardContent>
       </Card>
 
@@ -594,6 +630,13 @@ export function WholesalerDashboard() {
         </div>
       </div>
 
+      {/* Date Range Filter */}
+      <div className="flex gap-2">
+        <Input type="date" value={orderDateFrom} onChange={(e) => { setOrderDateFrom(e.target.value); setOrderPage(1); }} className="bg-brand-900 border-brand-700 text-white w-auto" />
+        <span className="text-gray-500 self-center">to</span>
+        <Input type="date" value={orderDateTo} onChange={(e) => { setOrderDateTo(e.target.value); setOrderPage(1); }} className="bg-brand-900 border-brand-700 text-white w-auto" />
+      </div>
+
       <Card className="bg-brand-800 border-brand-700">
         <CardContent className="p-0">
           <Table>
@@ -610,10 +653,10 @@ export function WholesalerDashboard() {
             <TableBody>
               {dataLoading ? (
                 <TableRow><TableCell colSpan={6} className="text-center text-gray-500 py-8">Loading orders...</TableCell></TableRow>
-              ) : filteredOrders.length === 0 ? (
+              ) : paginatedOrders.length === 0 ? (
                 <TableRow><TableCell colSpan={6} className="text-center text-gray-500 py-8">No orders found</TableCell></TableRow>
               ) : (
-                filteredOrders.map((order) => {
+                paginatedOrders.map((order) => {
                   const StatusIcon = getStatusIcon(order.status);
                   const isExpanded = expandedOrders.has(order.id);
                   return (
@@ -699,7 +742,7 @@ export function WholesalerDashboard() {
 
   const renderInvoices = () => (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <ExportDropdown
           data={invoices}
           columns={invoiceColumns}
@@ -709,6 +752,11 @@ export function WholesalerDashboard() {
           variant="default"
           className="btn-primary-gradient border-0"
         />
+        <div className="flex gap-2 items-center">
+          <Input type="date" value={invoiceDateFrom} onChange={(e) => { setInvoiceDateFrom(e.target.value); setInvoicePage(1); }} className="bg-brand-900 border-brand-700 text-white w-auto" />
+          <span className="text-gray-500">to</span>
+          <Input type="date" value={invoiceDateTo} onChange={(e) => { setInvoiceDateTo(e.target.value); setInvoicePage(1); }} className="bg-brand-900 border-brand-700 text-white w-auto" />
+        </div>
       </div>
 
       <Card className="bg-brand-800 border-brand-700">
@@ -728,10 +776,10 @@ export function WholesalerDashboard() {
             <TableBody>
               {dataLoading ? (
                 <TableRow><TableCell colSpan={7} className="text-center text-gray-500 py-8">Loading invoices...</TableCell></TableRow>
-              ) : invoices.length === 0 ? (
+              ) : paginatedInvoices.length === 0 ? (
                 <TableRow><TableCell colSpan={7} className="text-center text-gray-500 py-8">No invoices found</TableCell></TableRow>
               ) : (
-                invoices.map((invoice) => {
+                paginatedInvoices.map((invoice) => {
                   const isInvExpanded = expandedInvoices.has(invoice.id);
                   return (
                     <>
@@ -822,6 +870,14 @@ export function WholesalerDashboard() {
               )}
             </TableBody>
           </Table>
+          <Pagination
+            currentPage={invoicePage}
+            totalPages={invoiceTotalPages}
+            pageSize={invoicePageSize}
+            onPageChange={setInvoicePage}
+            onPageSizeChange={(size) => { setInvoicePageSize(size); setInvoicePage(1); }}
+            totalItems={filteredInvoices.length}
+          />
         </CardContent>
       </Card>
     </div>

@@ -9,14 +9,11 @@ import {
   ChevronRight,
   Search,
   Filter,
-  Download,
   Eye,
   CheckCircle,
   Clock,
   Truck,
   AlertCircle,
-  PenTool,
-  FileSignature,
   Send,
   Store,
   Plus,
@@ -57,7 +54,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -284,27 +280,6 @@ export function WholesalerDashboard() { // test
       cancelled: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
     };
     return styles[status];
-  };
-
-  const getAgreementStatusBadge = (status: AgreementStatus) => {
-    const styles: Record<AgreementStatus, string> = {
-      pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-      sent: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-      signed: 'bg-green-500/10 text-green-400 border-green-500/20',
-      active: 'bg-green-500/10 text-green-400 border-green-500/20',
-      expired: 'bg-red-500/10 text-red-400 border-red-500/20',
-    };
-    return styles[status];
-  };
-
-  const getAgreementTypeLabel = (type: AgreementType) => {
-    const labels = {
-      wholesale: 'Wholesale',
-      terms: 'Terms of Service',
-      nda: 'NDA',
-      compliance: 'Compliance',
-    };
-    return labels[type];
   };
 
   const getStatusIcon = (status: OrderStatus) => {
@@ -981,178 +956,6 @@ export function WholesalerDashboard() { // test
     </div>
   );
 
-  const renderAgreements = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-white">Agreements & Contracts</h2>
-        <div className="flex gap-2">
-          <Button variant="outline" className="border-brand-700 text-gray-300 hover:text-white hover:bg-brand-700">
-            <Download className="w-4 h-4 mr-2" />
-            Export History
-          </Button>
-        </div>
-      </div>
-
-      {/* Info Card */}
-      <Card className="bg-brand-800 border-brand-700">
-        <CardContent className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-lg bg-psy-neonPurple/20 flex items-center justify-center shrink-0">
-              <PenTool className="w-5 h-5 text-psy-neonPurple" />
-            </div>
-            <div>
-              <h3 className="font-bold text-white mb-1">E-Signature Integration</h3>
-              <p className="text-sm text-gray-400">
-                All agreements are sent via our secure e-signature platform. You'll receive an email notification 
-                when a new agreement is ready for your signature. Click "Review & Sign" to open the document 
-                in our signing portal.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Agreements Table */}
-      <Card className="bg-brand-800 border-brand-700">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-brand-700">
-                <TableHead className="text-gray-400">Document</TableHead>
-                <TableHead className="text-gray-400">Type</TableHead>
-                <TableHead className="text-gray-400">Version</TableHead>
-                <TableHead className="text-gray-400">Sent Date</TableHead>
-                <TableHead className="text-gray-400">Status</TableHead>
-                <TableHead className="text-gray-400">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {dataLoading ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-gray-500 py-8">Loading agreements...</TableCell></TableRow>
-              ) : agreements.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-gray-500 py-8">No agreements found</TableCell></TableRow>
-              ) : (
-                agreements.map((agreement) => (
-                  <TableRow key={agreement.id} className="border-brand-700">
-                    <TableCell>
-                      <div className="font-medium text-white">{agreement.title}</div>
-                      {agreement.signed_by && (
-                        <div className="text-xs text-gray-500">Signed by: {agreement.signed_by}</div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="bg-brand-900 text-gray-300 border-brand-700">
-                        {getAgreementTypeLabel(agreement.type)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-gray-300">{agreement.version}</TableCell>
-                    <TableCell className="text-gray-300">{agreement.sent_date?.slice(0, 10) || '—'}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={getAgreementStatusBadge(agreement.status === 'sent' ? 'pending' : agreement.status)}>
-                        {agreement.status === 'signed' && <CheckCircle className="w-3 h-3 mr-1" />}
-                        {(agreement.status === 'pending' || agreement.status === 'sent') && <Clock className="w-3 h-3 mr-1" />}
-                        {agreement.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        {agreement.status === 'pending' || agreement.status === 'sent' ? (
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                className="btn-primary-gradient"
-                              >
-                                <FileSignature className="w-4 h-4 mr-1" />
-                                Review & Sign
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="bg-[#150f24] border border-white/10 text-white max-w-2xl max-h-[80vh] overflow-y-auto !z-[9999]">
-                              <DialogHeader>
-                                <DialogTitle className="text-xl">{agreement.title}</DialogTitle>
-                                <DialogDescription className="text-gray-400">
-                                  Version {agreement.version} • Sent on {agreement.sent_date?.slice(0, 10) || '—'}
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4 mt-4">
-                                <div className="bg-[#0a0514] border border-white/10 rounded-lg p-6">
-                                  <h4 className="font-bold text-white mb-4">Document Preview</h4>
-                                  <div className="space-y-4 text-sm text-gray-300">
-                                    <p>
-                                      This is a preview of the agreement document. In a production environment,
-                                      this would display the actual PDF document with the full terms and conditions.
-                                    </p>
-                                    <div className="border-t border-white/10 pt-4">
-                                      <h5 className="font-semibold text-white mb-2">Key Terms:</h5>
-                                      <ul className="space-y-2 list-disc list-inside">
-                                        <li>Minimum order quantities apply</li>
-                                        <li>Net 30 payment terms</li>
-                                        <li>Authorized reseller status required</li>
-                                        <li>Compliance with state regulations mandatory</li>
-                                        <li>Product returns subject to approval</li>
-                                      </ul>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-                                  <p className="text-sm text-yellow-400">
-                                    <strong>Important:</strong> By signing this agreement, you acknowledge that you have
-                                    read and agree to all terms and conditions. This is a legally binding document.
-                                  </p>
-                                </div>
-                                <div className="flex gap-3">
-                                  <Button className="flex-1 bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white font-semibold">
-                                    <Send className="w-4 h-4 mr-2" />
-                                    Proceed to Sign
-                                  </Button>
-                                  <Button variant="outline" className="border-white/10 text-gray-300 hover:bg-white/5">
-                                    Download PDF
-                                  </Button>
-                                </div>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                        ) : (
-                          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                          <Download className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Agreement Types Legend */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-brand-800 border border-brand-700 rounded-lg p-4">
-          <div className="text-sm text-gray-400 mb-1">Wholesale</div>
-          <div className="text-xs text-gray-500">Distribution partnership terms</div>
-        </div>
-        <div className="bg-brand-800 border border-brand-700 rounded-lg p-4">
-          <div className="text-sm text-gray-400 mb-1">Terms of Service</div>
-          <div className="text-xs text-gray-500">Platform usage policies</div>
-        </div>
-        <div className="bg-brand-800 border border-brand-700 rounded-lg p-4">
-          <div className="text-sm text-gray-400 mb-1">NDA</div>
-          <div className="text-xs text-gray-500">Confidentiality agreements</div>
-        </div>
-        <div className="bg-brand-800 border border-brand-700 rounded-lg p-4">
-          <div className="text-sm text-gray-400 mb-1">Compliance</div>
-          <div className="text-xs text-gray-500">Regulatory certifications</div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Save profile to Supabase
   const handleSaveSettings = async () => {
     if (!user) return;
     setSettingsSaving(true);

@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Users, Loader2, Check, UserPlus, ChevronDown, ChevronRight, Store, MapPin, UserMinus, Shield, Download } from 'lucide-react'
+import { Users, Loader2, Check, UserPlus, ChevronDown, ChevronRight, Store, MapPin, UserMinus, Shield, Download, Upload, FileUp, X, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -61,6 +61,17 @@ interface SalesRep {
   email: string
 }
 
+interface CsvRow {
+  business_name: string
+  email: string
+  phone: string
+  role: string
+  city: string
+  state: string
+  _ok: boolean
+  _err?: string
+}
+
 const roleBadge: Record<string, string> = {
   wholesaler: 'bg-[#44f80c]/20 text-[#44f80c]',
   distributor: 'bg-[#ff66c4]/20 text-[#ff66c4]',
@@ -80,6 +91,44 @@ function dlCsv(name: string, csv: string) {
   a.click()
   URL.revokeObjectURL(a.href)
 }
+function parseCsv(text: string): CsvRow[] {
+  const lines = text.split(/\r?\n/).filter(l => l.trim())
+  if (lines.length < 2) return []
+  const h = parseCsvLine(lines[0]).map(x => x.trim().toLowerCase())
+  const iName = h.indexOf('business_name') >= 0 ? h.indexOf('business_name') : h.indexOf('business name') >= 0 ? h.indexOf('business name') : h.indexOf('name')
+  const iEmail = h.indexOf('email')
+  const iPhone = h.indexOf('phone')
+  const iRole = h.indexOf('role')
+  const iCity = h.indexOf('city')
+  const iState = h.indexOf('state')
+  const out: CsvRow[] = []
+  for (let i = 1; i < lines.length; i++) {
+    const c = parseCsvLine(lines[i])
+    const business_name = iName >= 0 ? (c[iName]?.trim() || '') : ''
+    const email = iEmail >= 0 ? (c[iEmail]?.trim() || '') : ''
+    const phone = iPhone >= 0 ? (c[iPhone]?.trim() || '') : ''
+    const role = iRole >= 0 ? (c[iRole]?.trim() || 'wholesaler') : 'wholesaler'
+    const city = iCity >= 0 ? (c[iCity]?.trim() || '') : ''
+    const state = iState >= 0 ? (c[iState]?.trim() || '') : ''
+    const ok = business_name.length > 0 && email.length > 0 && email.includes('@')
+    out.push({ business_name, email, phone, role, city, state, _ok: ok, _err: ok ? undefined : (!business_name ? 'Missing business_name' : !email ? 'Missing email' : 'Invalid email') })
+  }
+  return out
+}
+function parseCsvLine(line: string): string[] {
+  const r: string[] = []
+  let cur = '', inQ = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '"') {
+      if (inQ && line[i + 1] === '"') { cur += '"'; i++ }
+      else { inQ = !inQ }
+    } else if (ch === ',' && !inQ) { r.push(cur.trim()); cur = '' }
+    else { cur += ch }
+  }
+  r.push(cur.trim())
+  return r
+}
 
 export function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountItem[]>([])
@@ -94,6 +143,11 @@ export function AccountsPage() {
   const [savingStore, setSavingStore] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [repManagerMap, setRepManagerMap] = useState<Map<string, string | null>>(new Map())
+  // Upload state
+  const [showUpload, setShowUpload] = useState(false)
+  const [csvRows, setCsvRows] = useState<CsvRow[]>([])
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const parseStoreNumber = (name: string): { number: string; cleanName: string } => {
     const m = name.match(/^(\d+[a-z])\s*-\s*(.+)$/)
@@ -261,6 +315,41 @@ export function AccountsPage() {
     toast.success(`Downloaded ${rows.length} stores`)
   }
 
+  // Upload handlers
+  const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]; if (!f) return
+    const r = new FileReader()
+    r.onload = ev => { setCsvRows(parseCsv(String(ev.target?.result || ''))) }
+    r.readAsText(f)
+  }
+  const doUpload = async () => {
+    const valid = csvRows.filter(r => r._ok)
+    if (!valid.length) { toast.error('No valid rows'); return }
+    setUploading(true)
+    let ok = 0, fail = 0
+    for (const row of valid) {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-auth-user`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY, 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ email: row.email, password: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2), business_name: row.business_name, role: row.role === 'distributor' ? 'distributor' : 'wholesaler', site_url: window.location.origin })
+        })
+        let uid: string
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          if (err.error?.includes('already') || err.error?.includes('exists')) {
+            const { data: ex } = await supabase.from('users').select('id').eq('email', row.email).single()
+            if (ex) uid = ex.id; else { fail++; continue }
+          } else { fail++; continue }
+        } else { uid = (await res.json()).user.id }
+        const { error: insErr } = await supabase.rpc('insert_user', { p_id: uid, p_email: row.email, p_business_name: row.business_name, p_role: row.role === 'distributor' ? 'distributor' : 'wholesaler', p_status: 'approved', p_phone: row.phone || null, p_city: row.city || null, p_state: row.state || null })
+        if (insErr) { fail++ } else { ok++ }
+      } catch { fail++ }
+    }
+    setUploading(false)
+    toast.success(`${ok} imported, ${fail} failed`)
+    if (ok > 0) fetchAll()
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -271,8 +360,59 @@ export function AccountsPage() {
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={downloadAccounts} className="border-white/10 text-white hover:bg-white/5"><Download className="w-4 h-4 mr-1.5" />Accounts CSV</Button>
           <Button size="sm" variant="outline" onClick={downloadStores} className="border-white/10 text-white hover:bg-white/5"><Download className="w-4 h-4 mr-1.5" />Stores CSV</Button>
+          <Button size="sm" onClick={() => { setShowUpload(true); setCsvRows([]) }} className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white"><Upload className="w-4 h-4 mr-1.5" />Upload CSV</Button>
         </div>
       </div>
+
+      {/* Upload Modal */}
+      {showUpload && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowUpload(false)}>
+          <div className="bg-[#150f24] border border-white/10 rounded-xl w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2"><FileUp className="w-5 h-5 text-[#9a02d0]" /> Upload Accounts CSV</h3>
+              <button onClick={() => setShowUpload(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-5 overflow-y-auto flex-1">
+              {csvRows.length === 0 ? (
+                <div className="space-y-4">
+                  <div className="border-2 border-dashed border-white/10 rounded-lg p-8 text-center hover:border-[#9a02d0]/50 transition-colors">
+                    <Upload className="w-10 h-10 text-gray-500 mx-auto mb-3" />
+                    <p className="text-gray-300 mb-1">Select a CSV file to upload</p>
+                    <p className="text-gray-500 text-sm mb-4">Required: business_name, email | Optional: phone, role, city, state</p>
+                    <input ref={fileRef} type="file" accept=".csv" onChange={onPickFile} className="hidden" />
+                    <Button onClick={() => fileRef.current?.click()} className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">Select CSV File</Button>
+                  </div>
+                  <div className="bg-[#0a0514] rounded-lg p-4 border border-white/5">
+                    <p className="text-sm text-gray-400 mb-2"><strong className="text-white">Template:</strong></p>
+                    <code className="text-xs text-[#44f80c] font-mono block">business_name,email,phone,role,city,state</code>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-gray-300">{csvRows.length} rows ({csvRows.filter(r => r._ok).length} valid, {csvRows.filter(r => !r._ok).length} invalid)</p>
+                  <div className="overflow-x-auto rounded-lg border border-white/10">
+                    <table className="w-full text-sm">
+                      <thead className="bg-[#0a0514]"><tr><th className="text-left px-3 py-2 text-gray-400">Status</th><th className="text-left px-3 py-2 text-gray-400">Business Name</th><th className="text-left px-3 py-2 text-gray-400">Email</th><th className="text-left px-3 py-2 text-gray-400">Phone</th><th className="text-left px-3 py-2 text-gray-400">Role</th><th className="text-left px-3 py-2 text-gray-400">City</th><th className="text-left px-3 py-2 text-gray-400">State</th></tr></thead>
+                      <tbody>
+                        {csvRows.map((row, i) => (
+                          <tr key={i} className={row._ok ? 'border-t border-white/5' : 'border-t border-red-500/20 bg-red-500/5'}>
+                            <td className="px-3 py-2">{row._ok ? <Check className="w-4 h-4 text-[#44f80c]" /> : <AlertCircle className="w-4 h-4 text-red-400" />}</td>
+                            <td className="px-3 py-2 text-white">{row.business_name}</td><td className="px-3 py-2 text-gray-300">{row.email}</td><td className="px-3 py-2 text-gray-400">{row.phone}</td><td className="px-3 py-2 text-gray-400">{row.role}</td><td className="px-3 py-2 text-gray-400">{row.city}</td><td className="px-3 py-2 text-gray-400">{row.state}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="outline" onClick={() => { setCsvRows([]); fileRef.current && (fileRef.current.value = '') }} className="border-white/10 text-white hover:bg-white/5">Choose Different File</Button>
+                    <Button onClick={doUpload} disabled={uploading || !csvRows.filter(r => r._ok).length} className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">{uploading ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Importing...</> : <>Import {csvRows.filter(r => r._ok).length} Accounts</>}</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <Card className="bg-[#150f24] border-white/10">
         <CardHeader><CardTitle className="text-white flex items-center gap-2"><Users className="w-5 h-5 text-[#9a02d0]" />Accounts ({assignedCount} assigned, {accounts.length - assignedCount} unassigned)</CardTitle></CardHeader>
         <CardContent>

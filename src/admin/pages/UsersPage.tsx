@@ -154,6 +154,7 @@ export function UsersPage() {
   const [editPassword, setEditPassword] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
   const [editManagerId, setEditManagerId] = useState('')
+  const [editRepId, setEditRepId] = useState('')
 
   // Password modal
   const [showEmailSentModal, setShowEmailSentModal] = useState(false)
@@ -485,6 +486,12 @@ export function UsersPage() {
     setEditStatus(user.status || 'approved')
     setEditPassword('')
     setEditManagerId(user.raw?.manager_id || '')
+    if (user.role === 'wholesaler' || user.role === 'distributor') {
+      const assignment = accountRepMap.get(user.id)
+      setEditRepId(assignment?.id || '')
+    } else {
+      setEditRepId('')
+    }
     setShowEditModal(true)
   }
 
@@ -531,26 +538,52 @@ export function UsersPage() {
       if (error) {
         toast.error('Failed to update: ' + error.message)
       } else {
-        // Update manager_id if changed
-        const oldManagerId = editingUser.raw?.manager_id || ''
-        if (editManagerId !== oldManagerId) {
-          const { error: mgrError } = await supabase.from('users').update({
-            manager_id: editManagerId || null
-          }).eq('id', editingUser.id)
-          if (mgrError) {
-            toast.error('Profile updated but manager assignment failed: ' + mgrError.message)
-            setSavingEdit(false)
-            return
+        // For business accounts: manage rep_account_assignments
+        if (['wholesaler', 'distributor'].includes(editingUser.role || '')) {
+          const currentRep = accountRepMap.get(editingUser.id)
+          const currentRepId = currentRep?.id || ''
+          if (editRepId !== currentRepId) {
+            if (editRepId) {
+              await supabase.from('rep_account_assignments').delete().eq('account_id', editingUser.id)
+              const { error: repErr } = await supabase.from('rep_account_assignments').insert({
+                rep_id: editRepId,
+                account_id: editingUser.id,
+              })
+              if (repErr) {
+                toast.error('Profile updated but rep assignment failed: ' + repErr.message)
+                setSavingEdit(false)
+                return
+              }
+              const newRep = allAccounts.find(u => u.id === editRepId)
+              await logAudit('rep_assigned', 'rep_account_assignments', editingUser.id, currentRep?.business_name || currentRep?.email || null, newRep?.business_name || newRep?.email || null)
+            } else {
+              await supabase.from('rep_account_assignments').delete().eq('account_id', editingUser.id)
+              await logAudit('rep_unassigned', 'rep_account_assignments', editingUser.id, currentRep?.business_name || currentRep?.email || null, null)
+            }
           }
-          const newMgr = allAccounts.find(u => u.id === editManagerId)
-          const oldMgr = allAccounts.find(u => u.id === oldManagerId)
-          await logAudit(
-            editManagerId ? 'manager_assigned' : 'manager_unassigned',
-            'users',
-            editingUser.id,
-            oldMgr?.business_name || oldMgr?.email || oldManagerId || null,
-            newMgr?.business_name || newMgr?.email || editManagerId || null
-          )
+        }
+        // For sales reps: manage manager_id
+        if (editingUser.role === 'sales_rep') {
+          const oldManagerId = editingUser.raw?.manager_id || ''
+          if (editManagerId !== oldManagerId) {
+            const { error: mgrError } = await supabase.from('users').update({
+              manager_id: editManagerId || null
+            }).eq('id', editingUser.id)
+            if (mgrError) {
+              toast.error('Profile updated but manager assignment failed: ' + mgrError.message)
+              setSavingEdit(false)
+              return
+            }
+            const newMgr = allAccounts.find(u => u.id === editManagerId)
+            const oldMgr = allAccounts.find(u => u.id === oldManagerId)
+            await logAudit(
+              editManagerId ? 'manager_assigned' : 'manager_unassigned',
+              'users',
+              editingUser.id,
+              oldMgr?.business_name || oldMgr?.email || oldManagerId || null,
+              newMgr?.business_name || newMgr?.email || editManagerId || null
+            )
+          }
         }
         toast.success('User updated!')
         setShowEditModal(false)
@@ -1389,19 +1422,39 @@ export function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
-            {editingUser && ['sales_rep', 'wholesaler', 'distributor'].includes(editingUser.role || '') && (
+            {/* Sales Rep assignment for business accounts */}
+            {editingUser && ['wholesaler', 'distributor'].includes(editingUser.role || '') && (
+              <div>
+                <Label className="text-gray-300">Sales Rep</Label>
+                <Select value={editRepId} onValueChange={setEditRepId}>
+                  <SelectTrigger className="bg-[#0a0514] border-white/10 text-white"><SelectValue placeholder="— No Rep —" /></SelectTrigger>
+                  <SelectContent className="bg-[#150f24] border-white/10">
+                    <SelectItem value="">— No Rep —</SelectItem>
+                    {allAccounts.filter(u => u.role === 'sales_rep').map(r => (
+                      <SelectItem key={r.id} value={r.id}>{r.business_name || r.email}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {editRepId && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Manager: {allAccounts.find(u => u.id === allAccounts.find(r => r.id === editRepId)?.raw?.manager_id)?.business_name || 'None'}
+                  </p>
+                )}
+              </div>
+            )}
+            {/* Sales Manager for reps */}
+            {editingUser && editingUser.role === 'sales_rep' && (
               <div>
                 <Label className="text-gray-300">Sales Manager</Label>
-                <select
-                  className="w-full bg-[#0a0514] border border-white/10 rounded px-3 py-2 text-gray-300 focus:outline-none focus:border-[#44f80c]/50"
-                  value={editManagerId}
-                  onChange={(e) => setEditManagerId(e.target.value)}
-                >
-                  <option value="">— No Manager —</option>
-                  {allAccounts.filter(u => u.role === 'sales_manager').map(m => (
-                    <option key={m.id} value={m.id}>{m.business_name || m.email}</option>
-                  ))}
-                </select>
+                <Select value={editManagerId} onValueChange={setEditManagerId}>
+                  <SelectTrigger className="bg-[#0a0514] border-white/10 text-white"><SelectValue placeholder="— No Manager —" /></SelectTrigger>
+                  <SelectContent className="bg-[#150f24] border-white/10">
+                    <SelectItem value="">— No Manager —</SelectItem>
+                    {allAccounts.filter(u => u.role === 'sales_manager').map(m => (
+                      <SelectItem key={m.id} value={m.id}>{m.business_name || m.email}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
             {editingUser && ['sales_rep', 'sales_manager', 'admin', 'shipping_fulfillment'].includes(editingUser.role || '') && (

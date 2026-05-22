@@ -61,6 +61,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { CheckoutModal } from '@/components/payment/CheckoutModal';
 import { ExportDropdown } from '@/components/ExportDropdown';
+import { EmptyState } from '@/components/EmptyState';
 import { Pagination } from '@/components/Pagination';
 import { orderColumns, invoiceColumns } from '@/lib/exportUtils';
 
@@ -524,7 +525,7 @@ export function WholesalerDashboard() {
             </TableHeader>
             <TableBody>
               {orders.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center text-gray-500 py-8">No orders yet</TableCell></TableRow>
+                <tr><td colSpan={5}><EmptyState type="orders" /></td></tr>
               ) : (
                 orders.slice(0, 3).map((order) => (
                   <TableRow key={order.id} className="border-brand-700">
@@ -654,7 +655,7 @@ export function WholesalerDashboard() {
               {dataLoading ? (
                 <TableRow><TableCell colSpan={6} className="text-center text-gray-500 py-8">Loading orders...</TableCell></TableRow>
               ) : paginatedOrders.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-gray-500 py-8">No orders found</TableCell></TableRow>
+                <tr><td colSpan={6}><EmptyState type="orders" /></td></tr>
               ) : (
                 paginatedOrders.map((order) => {
                   const StatusIcon = getStatusIcon(order.status);
@@ -777,7 +778,7 @@ export function WholesalerDashboard() {
               {dataLoading ? (
                 <TableRow><TableCell colSpan={7} className="text-center text-gray-500 py-8">Loading invoices...</TableCell></TableRow>
               ) : paginatedInvoices.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center text-gray-500 py-8">No invoices found</TableCell></TableRow>
+                <tr><td colSpan={7}><EmptyState type="invoices" /></td></tr>
               ) : (
                 paginatedInvoices.map((invoice) => {
                   const isInvExpanded = expandedInvoices.has(invoice.id);

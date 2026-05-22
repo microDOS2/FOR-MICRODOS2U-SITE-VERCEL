@@ -46,6 +46,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { CheckoutModal } from '@/components/payment/CheckoutModal';
 import { ExportDropdown } from '@/components/ExportDropdown';
+import { EmptyState } from '@/components/EmptyState';
 import { Pagination } from '@/components/Pagination';
 import { orderColumns, invoiceColumns } from '@/lib/exportUtils';
 
@@ -484,10 +485,7 @@ export function DistributorDashboard() {
           {dataLoading ? (
             <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto text-psy-neonPurple" /></div>
           ) : paginatedOrders.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <Package className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-              <p>No orders found</p>
-            </div>
+            <EmptyState type="orders" />
           ) : (
             <>
             <Table>
@@ -592,7 +590,7 @@ export function DistributorDashboard() {
 
   const renderInvoices = () => (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <ExportDropdown
           data={invoices}
           columns={invoiceColumns}
@@ -614,10 +612,7 @@ export function DistributorDashboard() {
           {dataLoading ? (
             <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto text-psy-neonPurple" /></div>
           ) : paginatedInvoices.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <FileText className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-              <p>No invoices found</p>
-            </div>
+            <EmptyState type="invoices" />
           ) : (
             <>
             <Table>

@@ -171,6 +171,7 @@ export function UsersPage() {
   // Details column data
   const [storeCountMap, setStoreCountMap] = useState<Map<string, number>>(new Map())
   const [accountRepMap, setAccountRepMap] = useState<Map<string, DBUser>>(new Map())
+  const [lastLoginMap, setLastLoginMap] = useState<Map<string, string>>(new Map())
 
   // Sort state
   type SortColumn = 'name' | 'email' | 'role' | 'location'
@@ -180,6 +181,22 @@ export function UsersPage() {
   // Toggle filter state
   type FilterMode = 'all' | 'employees' | 'business' | 'unassigned'
   const [filterMode, setFilterMode] = useState<FilterMode>('all')
+
+  // Format last login timestamp
+  const formatLastLogin = (iso: string | undefined) => {
+    if (!iso) return <span className="text-gray-600">Never</span>
+    const d = new Date(iso)
+    const now = new Date()
+    const diffMs = now.getTime() - d.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+    if (diffMins < 1) return <span className="text-[#44f80c]">Just now</span>
+    if (diffMins < 60) return <span className="text-[#44f80c]">{diffMins}m ago</span>
+    if (diffHours < 24) return <span className="text-[#44f80c]">{diffHours}h ago</span>
+    if (diffDays < 7) return <span className="text-gray-400">{diffDays}d ago</span>
+    return <span className="text-gray-500">{d.toLocaleDateString()}</span>
+  }
 
   const employeeRoles = ['admin', 'sales_manager', 'sales_rep', 'shipping_fulfillment']
   const businessRoles = ['wholesaler', 'distributor']
@@ -239,7 +256,27 @@ export function UsersPage() {
       })
       setStoreCountMap(scMap)
 
-      // 3. Fetch account rep assignments
+      // 3. Fetch auth user last login times
+      try {
+        const resp = await fetch(`${SUPABASE_URL}/functions/v1/get-user-logins`, {
+          headers: {
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'apikey': SUPABASE_ANON_KEY,
+          },
+        })
+        if (resp.ok) {
+          const { logins } = await resp.json()
+          const llMap = new Map<string, string>()
+          for (const [uid, ts] of Object.entries(logins)) {
+            llMap.set(uid, ts as string)
+          }
+          setLastLoginMap(llMap)
+        }
+      } catch {
+        // Best effort — last login is optional
+      }
+
+      // 4. Fetch account rep assignments
       const { data: raaData } = await supabase
         .from('rep_account_assignments')
         .select('account_id,rep_id')
@@ -1034,13 +1071,14 @@ export function UsersPage() {
                         {col.label} {sortColumn === col.key && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                     ))}
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Last Login</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Details</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {sorted.length === 0 && (
-                    <tr><td colSpan={6} className="text-center text-gray-500 py-8">No approved users found</td></tr>
+                    <tr><td colSpan={7} className="text-center text-gray-500 py-8">No approved users found</td></tr>
                   )}
                   {sorted.map((account) => {
                     const role = account.role || ''
@@ -1059,6 +1097,9 @@ export function UsersPage() {
                         </td>
                         <td className="px-4 py-3 text-gray-400 text-sm">
                           {account.city && account.state ? `${account.city}, ${account.state}` : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          {formatLastLogin(lastLoginMap.get(account.id))}
                         </td>
                         {/* ─── Details Column ─── */}
                         <td className="px-4 py-3">

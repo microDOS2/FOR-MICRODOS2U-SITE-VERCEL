@@ -313,7 +313,7 @@ export function UsersPage() {
     return a.business_name.toLowerCase().localeCompare(b.business_name.toLowerCase())
   })
 
-  const approvedCount = allAccounts.filter((a) => a.status === 'approved').length
+  const filteredCount = filtered.length
 
   // ──── CREATE USER (internal roles only) ────
   const handleCreateUser = async () => {
@@ -642,7 +642,7 @@ export function UsersPage() {
         <div>
           <h2 className="text-2xl font-bold text-white mb-1">User Management</h2>
           <p className="text-gray-400">
-            {approvedCount} approved users
+            {filteredCount} {filterMode === 'employees' ? 'employees' : filterMode === 'business' ? 'business users' : 'approved users'}
           </p>
         </div>
         <div className="flex gap-2">

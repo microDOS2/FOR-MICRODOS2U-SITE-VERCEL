@@ -21,7 +21,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import {
-  Users, Plus, Search, Check, Store, UserPlus, Loader2, X, Info, Pencil
+  Users, Plus, Search, Check, Store, UserPlus, Loader2, X, Info, Pencil, Trash2, AlertTriangle
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DBUser } from '@/lib/supabase'
@@ -186,6 +186,10 @@ export function UsersPage() {
 
   // Inline manager assignment
   const [savingManager, setSavingManager] = useState<string | null>(null)
+
+  // Delete all non-admin dialog
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false)
+  const [deletingAll, setDeletingAll] = useState(false)
 
   // ─── Fetch approved users only ───
   const fetchAll = async () => {
@@ -574,6 +578,42 @@ export function UsersPage() {
     setActionLoading(null)
   }
 
+  // Delete all non-admin users (pre-launch cleanup)
+  const handleDeleteAllNonAdmin = async () => {
+    setDeletingAll(true)
+    try {
+      const nonAdminUsers = allAccounts.filter(u => u.role !== 'admin' && u.source === 'users')
+      if (nonAdminUsers.length === 0) {
+        toast.info('No non-admin users to delete')
+        setDeletingAll(false)
+        setShowDeleteAllDialog(false)
+        return
+      }
+      let deleted = 0
+      let failed = 0
+      for (const u of nonAdminUsers) {
+        const { error } = await supabase.from('users').delete().eq('id', u.id)
+        if (error) {
+          console.error('Failed to delete user:', u.email, error)
+          failed++
+        } else {
+          deleted++
+        }
+      }
+      await logAudit('bulk_delete_non_admin', 'users', 'all', `${nonAdminUsers.length} non-admin users`, `${deleted} deleted, ${failed} failed`)
+      await fetchAll()
+      if (failed > 0) {
+        toast.warning(`Deleted ${deleted} users, ${failed} failed`)
+      } else {
+        toast.success(`Deleted ${deleted} non-admin users`)
+      }
+      setShowDeleteAllDialog(false)
+    } catch (err: any) {
+      toast.error(err?.message || 'Bulk delete failed')
+    }
+    setDeletingAll(false)
+  }
+
   // ──── TERRITORY STATE MANAGEMENT ────
   const handleAddState = async (managerId: string, state: string) => {
     setSavingStates(managerId)
@@ -645,12 +685,19 @@ export function UsersPage() {
             {filteredCount} {filterMode === 'employees' ? 'employees' : filterMode === 'business' ? 'business users' : 'approved users'}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button onClick={() => setShowAddAccountModal(true)} className="bg-gradient-to-r from-[#ff66c4] to-[#9a02d0] text-white">
             <Store className="w-4 h-4 mr-1" /> Add Business Account
           </Button>
           <Button onClick={() => setShowCreateModal(true)} className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">
             <Plus className="w-4 h-4 mr-1" /> Create User
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowDeleteAllDialog(true)}
+            className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+          >
+            <Trash2 className="w-4 h-4 mr-1" /> Delete Non-Admin Users
           </Button>
         </div>
       </div>
@@ -1073,6 +1120,45 @@ export function UsersPage() {
               {savingEdit ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
               Save Changes
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete All Non-Admin Users Confirmation Dialog */}
+      <Dialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+        <DialogContent className="bg-[#150f24] border border-red-500/20 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-400">
+              <AlertTriangle className="w-5 h-5" />
+              Delete All Non-Admin Users
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              This will permanently delete all users except admins. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+              <p className="text-sm text-red-300">
+                <strong>Warning:</strong> This will delete {allAccounts.filter(u => u.role !== 'admin' && u.source === 'users').length} non-admin user(s).
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 border-white/10 text-gray-300 hover:bg-white/5"
+                onClick={() => setShowDeleteAllDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleDeleteAllNonAdmin}
+                disabled={deletingAll}
+              >
+                {deletingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                {deletingAll ? 'Deleting...' : 'Delete All'}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

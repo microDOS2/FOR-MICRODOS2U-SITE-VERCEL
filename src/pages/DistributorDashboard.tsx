@@ -41,6 +41,8 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { CheckoutModal } from '@/components/payment/CheckoutModal';
+import { ExportDropdown } from '@/components/ExportDropdown';
+import { orderColumns, invoiceColumns } from '@/lib/exportUtils';
 
 // Types
 type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
@@ -121,6 +123,10 @@ export function DistributorDashboard() {
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+
+  // Password reset email state
+  const [resetEmailSending, setResetEmailSending] = useState(false);
+  const [resetEmailMessage, setResetEmailMessage] = useState<string | null>(null);
 
   // Payment modal state
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -304,6 +310,19 @@ export function DistributorDashboard() {
       setPasswordMessage('Password updated!');
       setPasswordForm({ current: '', new: '', confirm: '' });
     }
+  };
+
+  // Send password reset email
+  const handleSendResetEmail = async () => {
+    if (!user?.email) return;
+    setResetEmailSending(true);
+    setResetEmailMessage(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+      redirectTo: `${window.location.origin}/#/reset-password`,
+    });
+    setResetEmailSending(false);
+    if (error) setResetEmailMessage('Error: ' + error.message);
+    else setResetEmailMessage('Password reset email sent! Check your inbox.');
   };
 
   // ─── Render Functions ──────────────────────────────────────────
@@ -541,7 +560,7 @@ export function DistributorDashboard() {
                             ) : order.notes ? (
                               <div className="space-y-2">
                                 <p className="text-xs font-medium text-gray-400 mb-2">Order Details (from notes):</p>
-                                <p className="text-sm text-white">{order.notes}</p>
+                                <pre className="text-sm text-white whitespace-pre-wrap font-sans">{order.notes.replace(/;\s*/g, "\n")}</pre>
                               </div>
                             ) : (
                               <p className="text-sm text-gray-500">No detailed order information available.</p>
@@ -563,10 +582,15 @@ export function DistributorDashboard() {
   const renderInvoices = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <Button className="btn-primary-gradient">
-          <Download className="w-4 h-4 mr-2" />
-          Export All
-        </Button>
+        <ExportDropdown
+          data={invoices}
+          columns={invoiceColumns}
+          filename="all-invoices"
+          title="Invoice Export"
+          label="Export All"
+          variant="default"
+          className="btn-primary-gradient border-0"
+        />
       </div>
 
       <Card className="bg-brand-800 border-brand-700">
@@ -657,7 +681,7 @@ export function DistributorDashboard() {
                             ) : invoice.orders?.notes ? (
                               <div className="space-y-2">
                                 <p className="text-xs font-medium text-gray-400 mb-2">Invoice Details (from Order {invoice.orders.po_number}):</p>
-                                <p className="text-sm text-white">{invoice.orders.notes}</p>
+                                <pre className="text-sm text-white whitespace-pre-wrap font-sans">{invoice.orders.notes.replace(/;\s*/g, "\n")}</pre>
                               </div>
                             ) : (
                               <p className="text-sm text-gray-500">No detailed invoice items available.</p>
@@ -881,6 +905,28 @@ export function DistributorDashboard() {
             )}
             <Button onClick={handleChangePassword} disabled={passwordSaving} className="btn-primary-gradient">
               {passwordSaving ? 'Updating...' : 'Update Password'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Password Reset Email */}
+        <Card className="bg-brand-800 border-brand-700">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <Lock className="w-5 h-5 text-psy-neonPurple" />
+              <CardTitle className="text-white">Forgot Your Password?</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-400">
+              If you don&apos;t know your current password, we can send a reset link to your email address:
+              <span className="text-white font-medium block mt-1">{user?.email}</span>
+            </p>
+            {resetEmailMessage && (
+              <p className={`text-sm ${resetEmailMessage.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>{resetEmailMessage}</p>
+            )}
+            <Button onClick={handleSendResetEmail} disabled={resetEmailSending} variant="outline" className="border-[#9a02d0] text-[#9a02d0] hover:bg-[#9a02d0]/10">
+              {resetEmailSending ? 'Sending...' : (<><Send className="w-4 h-4 mr-2" />Send Reset Email</>)}
             </Button>
           </CardContent>
         </Card>

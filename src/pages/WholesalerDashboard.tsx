@@ -64,6 +64,8 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { CheckoutModal } from '@/components/payment/CheckoutModal';
+import { ExportDropdown } from '@/components/ExportDropdown';
+import { orderColumns, invoiceColumns } from '@/lib/exportUtils';
 
 
 interface StoreLocation {
@@ -177,6 +179,10 @@ export function WholesalerDashboard() { // test
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+
+  // Password reset email state
+  const [resetEmailSending, setResetEmailSending] = useState(false);
+  const [resetEmailMessage, setResetEmailMessage] = useState<string | null>(null);
 
   // Payment modal state
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -693,9 +699,16 @@ export function WholesalerDashboard() { // test
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                              <Download className="w-4 h-4" />
-                            </Button>
+                            <ExportDropdown
+                              data={[order]}
+                              columns={orderColumns}
+                              filename={`order-${order.po_number}`}
+                              title={`Order ${order.po_number}`}
+                              label=""
+                              variant="ghost"
+                              size="icon"
+                              className="text-gray-400 hover:text-white"
+                            />
                           </div>
                         </TableCell>
                       </TableRow>
@@ -747,10 +760,15 @@ export function WholesalerDashboard() { // test
   const renderInvoices = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <Button className="btn-primary-gradient">
-          <Download className="w-4 h-4 mr-2" />
-          Export All
-        </Button>
+        <ExportDropdown
+          data={invoices}
+          columns={invoiceColumns}
+          filename="all-invoices"
+          title="Invoice Export"
+          label="Export All"
+          variant="default"
+          className="btn-primary-gradient border-0"
+        />
       </div>
 
       <Card className="bg-brand-800 border-brand-700">
@@ -811,9 +829,16 @@ export function WholesalerDashboard() { // test
                             <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" onClick={() => toggleInvoiceExpand(invoice.id)}>
                               <Eye className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                              <Download className="w-4 h-4" />
-                            </Button>
+                            <ExportDropdown
+                              data={[order]}
+                              columns={orderColumns}
+                              filename={`order-${order.po_number}`}
+                              title={`Order ${order.po_number}`}
+                              label=""
+                              variant="ghost"
+                              size="icon"
+                              className="text-gray-400 hover:text-white"
+                            />
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1272,6 +1297,28 @@ export function WholesalerDashboard() { // test
             )}
             <Button onClick={handleChangePassword} disabled={passwordSaving} className="btn-primary-gradient">
               {passwordSaving ? 'Updating...' : 'Update Password'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Password Reset Email */}
+        <Card className="bg-brand-800 border-brand-700">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <Lock className="w-5 h-5 text-psy-neonPurple" />
+              <CardTitle className="text-white">Forgot Your Password?</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-400">
+              If you don&apos;t know your current password, we can send a reset link to your email address:
+              <span className="text-white font-medium block mt-1">{user?.email}</span>
+            </p>
+            {resetEmailMessage && (
+              <p className={`text-sm ${resetEmailMessage.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>{resetEmailMessage}</p>
+            )}
+            <Button onClick={handleSendResetEmail} disabled={resetEmailSending} variant="outline" className="border-[#9a02d0] text-[#9a02d0] hover:bg-[#9a02d0]/10">
+              {resetEmailSending ? 'Sending...' : (<><Send className="w-4 h-4 mr-2" />Send Reset Email</>)}
             </Button>
           </CardContent>
         </Card>

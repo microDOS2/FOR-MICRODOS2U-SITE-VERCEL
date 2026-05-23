@@ -60,15 +60,22 @@ export function SalesRepAccounts() {
     }
 
     // Get accounts where this rep is assigned via rep_account_assignments
+    // Join with users to get account details (bypasses users RLS through the join)
     const { data: assignmentsData } = await supabase
       .from('rep_account_assignments')
-      .select('account_id')
+      .select(`
+        account_id,
+        users!rep_account_assignments_account_id_fkey(id, business_name, email, phone, role, city, state, address, referral_code, manager_id)
+      `)
       .eq('rep_id', repId)
 
-    let assignedAccountIds = (assignmentsData || []).map((a: any) => a.account_id)
+    let accountMap = new Map<string, any>()
+    ;(assignmentsData || []).forEach((a: any) => {
+      if (a.users) accountMap.set(a.account_id, a.users)
+    })
 
     // Fallback: If no account assignments exist, derive from store assignments
-    if (assignedAccountIds.length === 0) {
+    if (accountMap.size === 0) {
       const { data: storeData } = await supabase
         .from('wholesaler_store_locations')
         .select('name')
@@ -83,26 +90,24 @@ export function SalesRepAccounts() {
       if (acctNums.size > 0) {
         const { data: acctData } = await supabase
           .from('users')
-          .select('id')
+          .select('*')
           .eq('status', 'approved')
           .in('role', ['wholesaler', 'distributor'])
           .in('referral_code', Array.from(acctNums))
-        assignedAccountIds = (acctData || []).map((a: any) => a.id)
+        ;(acctData || []).forEach((u: any) => accountMap.set(u.id, u))
       }
     }
 
-    const { data: acctJson } = assignedAccountIds.length > 0
-      ? await supabase.from('users').select('*').in('id', assignedAccountIds)
-      : { data: [] }
+    const acctJson = Array.from(accountMap.values())
 
-    if (!acctJson || acctJson.length === 0) {
+    if (acctJson.length === 0) {
       setAccounts([])
       setLoading(false)
       return
     }
 
     // Get stores for these accounts
-    const accountIds = (acctJson || []).map((a: any) => a.id)
+    const accountIds = Array.from(accountMap.keys())
     const { data: storesData } = await supabase
       .from('wholesaler_store_locations')
       .select('id, name, city, state, user_id')

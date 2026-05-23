@@ -11,6 +11,7 @@ import {
   TrendingUp,
   CheckCircle,
   AlertTriangle,
+  Settings,
 } from 'lucide-react'
 
 interface CommissionEntry {
@@ -37,6 +38,8 @@ export function CommissionsPage() {
   const [payingPeriod, setPayingPeriod] = useState<string | null>(null)
   const [filterPeriod, setFilterPeriod] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [settings, setSettings] = useState({ rep_rate: 5, manager_override_rate: 2 })
+  const [savingSettings, setSavingSettings] = useState(false)
 
   // Get current and recent periods
   const now = new Date()
@@ -95,8 +98,34 @@ export function CommissionsPage() {
     }))
   }
 
+  const fetchSettings = async () => {
+    try {
+      const { data, error } = await supabase.from('commission_settings').select('rep_rate, manager_override_rate').single()
+      if (error) throw error
+      if (data) setSettings({ rep_rate: data.rep_rate, manager_override_rate: data.manager_override_rate })
+    } catch (e: any) {
+      toast.error('Failed to load commission settings: ' + e.message)
+    }
+  }
+
+  const handleSaveSettings = async () => {
+    setSavingSettings(true)
+    try {
+      const { error } = await supabase.from('commission_settings').update({
+        rep_rate: settings.rep_rate,
+        manager_override_rate: settings.manager_override_rate,
+      }).eq('id', 1)
+      if (error) throw error
+      toast.success('Commission settings saved!')
+    } catch (e: any) {
+      toast.error('Failed to save settings: ' + e.message)
+    }
+    setSavingSettings(false)
+  }
+
   useEffect(() => {
     fetchCommissions()
+    fetchSettings()
   }, [filterPeriod, filterStatus])
 
   const handlePayPeriod = async (period: string) => {
@@ -146,6 +175,58 @@ export function CommissionsPage() {
           <p className="text-gray-400 text-sm">Manage commissions and payouts</p>
         </div>
       </div>
+
+      {/* Commission Rate Settings */}
+      <Card className="bg-[#150f24] border-[#9a02d0]/20">
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row md:items-end gap-4">
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
+                <Settings className="w-4 h-4 text-[#9a02d0]" />
+                Commission Rates
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Rep Rate (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    value={settings.rep_rate}
+                    onChange={(e) => setSettings({ ...settings, rep_rate: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 rounded-lg bg-[#0a0514] border border-white/10 text-white text-sm focus:border-[#44f80c] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Manager Override (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    value={settings.manager_override_rate}
+                    onChange={(e) => setSettings({ ...settings, manager_override_rate: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 rounded-lg bg-[#0a0514] border border-white/10 text-white text-sm focus:border-[#44f80c] focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+            <Button
+              onClick={handleSaveSettings}
+              disabled={savingSettings}
+              className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]"
+            >
+              {savingSettings ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <DollarSign className="w-4 h-4 mr-2" />
+              )}
+              Save Rates
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -315,8 +396,4 @@ function StatusBadge({ status }: { status: string }) {
     paid: 'bg-[#44f80c]/20 text-[#44f80c]',
   }
   return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status as keyof typeof styles] || 'bg-gray-500/20 text-gray-400'}`}>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </span>
-  )
-}
+    <span className={`px-2 py-1 rounded-full text-xs font-medium ${sty

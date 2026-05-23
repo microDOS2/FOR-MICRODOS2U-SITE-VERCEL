@@ -39,6 +39,7 @@ interface StoreItem {
   is_active: boolean
   store_number: string
   account_number: string
+  contact_name: string
   owner_name: string
   owner_role: string
   assigned_rep_id: string | null
@@ -109,6 +110,7 @@ export function StoresPage() {
           id: s.id, name: cleanName, address: s.address || '', city: s.city || '', state: s.state || '',
           zip: s.zip || '', lat: s.lat, lng: s.lng, phone: s.phone || '', email: s.email || '',
           is_active: s.is_active ?? true, store_number: sn, account_number: acctNum,
+          contact_name: s.contact_name || 'Unknown',
           owner_name: owner ? (owner.business_name || owner.email) : 'Unknown',
           owner_role: owner?.role || '', assigned_rep_id: repId,
           assigned_rep_name: rep ? (rep.business_name || rep.email) : null,
@@ -134,7 +136,7 @@ export function StoresPage() {
   const handleDelete = async (id: string) => { if (!confirm('Delete?')) return; const { error } = await supabase.from('wholesaler_store_locations').delete().eq('id', id); error ? toast.error('Error') : toast.success('Deleted'); fetchStores() }
   const handleSetPending = async (id: string) => { if (!confirm('Set to Pending?')) return; const { error } = await supabase.from('wholesaler_store_locations').update({ is_active: false }).eq('id', id); error ? toast.error('Error') : toast.success('Pending'); fetchStores() }
   const handleReactivate = async (id: string) => { const { error } = await supabase.from('wholesaler_store_locations').update({ is_active: true }).eq('id', id); error ? toast.error('Error') : toast.success('Active'); fetchStores() }
-  const openEdit = (s: StoreItem) => { setEditingStore(s); setFormData({ name: s.name, address: s.address, city: s.city, state: s.state, zip: s.zip || '', lat: s.lat != null ? String(s.lat) : '', lng: s.lng != null ? String(s.lng) : '', phone: s.phone || '', email: s.email || '', contact_name: (s as any).contact_name || '' }); setShowModal(true) }
+  const openEdit = (s: StoreItem) => { setEditingStore(s); setFormData({ name: s.name, address: s.address, city: s.city, state: s.state, zip: s.zip || '', lat: s.lat != null ? String(s.lat) : '', lng: s.lng != null ? String(s.lng) : '', phone: s.phone || '', email: s.email || '', contact_name: s.contact_name || '' }); setShowModal(true) }
 
   const handleAssignStore = async (storeId: string) => {
     const repId = selectedRep[storeId]; if (!repId) { toast.error('Select a Sales Rep'); return }
@@ -212,7 +214,7 @@ export function StoresPage() {
         <div className="flex gap-2">
           <button onClick={() => exportData('csv', stores, storeAdminColumns, 'microDOS2_stores')} className="flex items-center gap-2 px-4 py-2.5 border border-[#44f80c]/30 text-[#44f80c] hover:bg-[#44f80c]/10 rounded-lg text-sm"><Download className="w-4 h-4" /> Download</button>
           <button onClick={() => setShowUploadModal(true)} className="flex items-center gap-2 px-4 py-2.5 border border-[#9a02d0]/30 text-[#9a02d0] hover:bg-[#9a02d0]/10 rounded-lg text-sm"><Upload className="w-4 h-4" /> Upload</button>
-          <button onClick={() => { setEditingStore(null); setFormData({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '' }); setShowModal(true) }} className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white"><Store className="w-4 h-4" /> Add</button>
+          <button onClick={() => { setEditingStore(null); setFormData({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '', contact_name: '' }); setShowModal(true) }} className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white"><Store className="w-4 h-4" /> Add</button>
         </div>
       </div>
       <p className="text-sm text-gray-500">{totalCount} store{totalCount !== 1 ? 's' : ''}</p>

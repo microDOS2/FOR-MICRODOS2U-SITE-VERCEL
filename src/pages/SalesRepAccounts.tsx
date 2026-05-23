@@ -52,75 +52,43 @@ export function SalesRepAccounts() {
     }
     const repId = session.user.id
 
-    const { data: me } = await supabase.from('users').select('role,also_rep').eq('id', repId).single()
+    const { data: me } = await supabase.from('users').select('role,also_rep,manager_id').eq('id', repId).single()
     if (me?.role !== 'sales_rep' && !(me?.role === 'sales_manager' && me?.also_rep)) {
       toast.error('Access denied')
       navigate('/')
       return
     }
 
+    // Get MY manager info to show on account cards
+    let myManagerName = 'Unassigned'
+    if (me?.manager_id) {
+      const { data: mgrData } = await supabase
+        .from('users')
+        .select('business_name,email')
+        .eq('id', me.manager_id)
+        .single()
+      if (mgrData) myManagerName = mgrData.business_name || mgrData.email || 'Unassigned'
+    }
+
     // Get accounts where this rep is assigned via rep_account_assignments
-    const { data: assignmentsData, error: assignmentsError } = await supabase
+    const { data: assignmentsData } = await supabase
       .from('rep_account_assignments')
       .select('account_id')
       .eq('rep_id', repId)
 
-    if (assignmentsError) {
-      console.error('Assignments error:', assignmentsError)
-    }
-
     const assignedAccountIds = (assignmentsData || []).map((a: any) => a.account_id)
-    console.log('Rep ID:', repId, 'Assignments found:', assignedAccountIds.length)
 
-    // Fetch account details via edge function to bypass users RLS
+    // Fetch account details using the RLS policy (reads approved business accounts)
     let accountMap = new Map<string, any>()
     if (assignedAccountIds.length > 0) {
-      try {
-        const { data: sessionData } = await supabase.auth.getSession()
-        const token = sessionData?.session?.access_token || ''
-        const resp = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-accounts-for-rep`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
-            },
-            body: JSON.stringify({ account_ids: assignedAccountIds }),
-          }
-        )
-        if (resp.ok) {
-          const acctData = await resp.json()
-          ;(acctData || []).forEach((u: any) => accountMap.set(u.id, u))
-        }
-      } catch (e) {
-        // Silently fail - will show empty state
-      }
-    }
-
-    // Fallback: If no account assignments exist, derive from store assignments
-    if (accountMap.size === 0) {
-      const { data: storeData } = await supabase
-        .from('wholesaler_store_locations')
-        .select('name')
-        .ilike('license_number', `rep:${repId}%`)
-
-      const acctNums = new Set<string>()
-      ;(storeData || []).forEach((s: any) => {
-        const match = (s.name || '').match(/^(\d+)[a-z]/)
-        if (match) acctNums.add(match[1])
+      const { data: acctData } = await supabase
+        .from('users')
+        .select('*')
+        .in('id', assignedAccountIds)
+      ;(acctData || []).forEach((u: any) => {
+        u._myManagerName = myManagerName
+        accountMap.set(u.id, u)
       })
-
-      if (acctNums.size > 0) {
-        const { data: acctData } = await supabase
-          .from('users')
-          .select('*')
-          .eq('status', 'approved')
-          .in('role', ['wholesaler', 'distributor'])
-          .in('referral_code', Array.from(acctNums))
-        ;(acctData || []).forEach((u: any) => accountMap.set(u.id, u))
-      }
     }
 
     const acctJson = Array.from(accountMap.values())
@@ -156,7 +124,7 @@ export function SalesRepAccounts() {
       address: u.address,
       referral_code: u.referral_code || '',
       manager_id: u.manager_id || null,
-      manager_name: u.manager_name || 'Unassigned',
+      manager_name: u._myManagerName || 'Unassigned',
       manager_city: u.manager_city || null,
       manager_state: u.manager_state || null,
       manager_email: u.manager_email || null,

@@ -60,6 +60,7 @@ export function SalesRepStores() {
     }
 
     // Fetch MY manager (the sales manager I report to)
+    let myManagerInfo: ManagerInfo | null = null
     if (me?.manager_id) {
       const { data: mgrData } = await supabase
         .from('users')
@@ -67,97 +68,61 @@ export function SalesRepStores() {
         .eq('id', me.manager_id)
         .single()
       if (mgrData) {
-        setMyManager({
+        myManagerInfo = {
           name: mgrData.business_name || mgrData.email || 'Your Manager',
           email: mgrData.email || null,
           phone: mgrData.phone || null,
+        }
+        setMyManager(myManagerInfo)
+      }
+    }
+
+    // Get stores for this rep by deriving from assigned accounts
+    // Account → Stores (store name prefix matches account referral_code)
+    let storeList: any[] = []
+
+    // Step 1: Get account assignments
+    const { data: assignmentsData } = await supabase
+      .from('rep_account_assignments')
+      .select('account_id')
+      .eq('rep_id', repId)
+
+    const accountIds = (assignmentsData || []).map((a: any) => a.account_id)
+
+    if (accountIds.length > 0) {
+      // Step 2: Get referral_codes for those accounts
+      const { data: acctsData } = await supabase
+        .from('users')
+        .select('id, referral_code')
+        .in('id', accountIds)
+
+      const refCodes = (acctsData || []).map((a: any) => a.referral_code).filter(Boolean)
+
+      if (refCodes.length > 0) {
+        // Step 3: Get all stores whose name starts with any referral_code
+        const { data: acctStores } = await supabase
+          .from('wholesaler_store_locations')
+          .select('id, name, address, city, state, license_number, user_id')
+          .order('name', { ascending: true })
+
+        storeList = (acctStores || []).filter((s: any) => {
+          const namePrefix = (s.name || '').match(/^(\d+[a-z])/)?.[1]
+          if (!namePrefix) return false
+          const acctNum = namePrefix.replace(/[a-z]$/, '')
+          return refCodes.includes(acctNum)
         })
       }
     }
 
-    // Get stores for this rep
-    // First: try direct store assignment via license_number
-    let storeList: any[] = []
-    const { data: directStores } = await supabase
-      .from('wholesaler_store_locations')
-      .select('id, name, address, city, state, license_number, user_id')
-      .ilike('license_number', `rep:${repId}%`)
-      .order('name', { ascending: true })
-    storeList = directStores || []
-
-    // Fallback: Derive stores from assigned accounts (store name prefix matches referral_code)
-    if (storeList.length === 0) {
-      const { data: assignmentsData } = await supabase
-        .from('rep_account_assignments')
-        .select('account_id')
-        .eq('rep_id', repId)
-
-      const accountIds = (assignmentsData || []).map((a: any) => a.account_id)
-
-      if (accountIds.length > 0) {
-        const { data: acctsData } = await supabase
-          .from('users')
-          .select('id, referral_code')
-          .in('id', accountIds)
-
-        const refCodes = (acctsData || []).map((a: any) => a.referral_code).filter(Boolean)
-
-        if (refCodes.length > 0) {
-          const { data: acctStores } = await supabase
-            .from('wholesaler_store_locations')
-            .select('id, name, address, city, state, license_number, user_id')
-            .order('name', { ascending: true })
-
-          storeList = (acctStores || []).filter((s: any) => {
-            const namePrefix = (s.name || '').match(/^(\d+[a-z])/)?.[1]
-            if (!namePrefix) return false
-            const acctNum = namePrefix.replace(/[a-z]$/, '')
-            return refCodes.includes(acctNum)
-          })
-        }
-      }
-    }
-
-    const accountIds = storeList.map((s: any) => s.user_id).filter(Boolean)
-
-    // Get account details
-    const { data: accountsData } = accountIds.length > 0
-      ? await supabase.from('users').select('id,business_name,email,phone,manager_id').in('id', accountIds)
+    // Step 4: Look up account details for the stores
+    const storeAccountIds = storeList.map((s: any) => s.user_id).filter(Boolean)
+    const { data: accountsData } = storeAccountIds.length > 0
+      ? await supabase.from('users').select('id,business_name,email,phone,manager_id').in('id', storeAccountIds)
       : { data: [] }
-
-    // Get manager details
-    const managerIds = (accountsData || []).map((a: any) => a.manager_id).filter(Boolean)
-    const { data: managersData } = managerIds.length > 0
-      ? await supabase.from('users').select('id,business_name,email,phone,city,state').in('id', managerIds)
-      : { data: [] }
-    const managersMap = new Map((managersData || []).map((m: any) => [m.id, m]))
-
-    const accountInfoMap = new Map<string, {
-      account_name: string | null
-      account_email: string | null
-      account_phone: string | null
-      manager_name: string | null
-      manager_email: string | null
-      manager_phone: string | null
-      manager_city: string | null
-      manager_state: string | null
-    }>()
-    ;(accountsData || []).forEach((m: any) => {
-      const mgr = managersMap.get(m.manager_id)
-      accountInfoMap.set(m.id, {
-        account_name: m.business_name || 'Unknown',
-        account_email: m.email || null,
-        account_phone: m.phone || null,
-        manager_name: mgr?.business_name || 'Unassigned',
-        manager_email: mgr?.email || null,
-        manager_phone: mgr?.phone || null,
-        manager_city: mgr?.city || null,
-        manager_state: mgr?.state || null,
-      })
-    })
+    const accountMap = new Map((accountsData || []).map((a: any) => [a.id, a]))
 
     const storesWithAccounts: StoreData[] = storeList.map((s: any) => {
-      const info = accountInfoMap.get(s.user_id)
+      const acct = accountMap.get(s.user_id)
       return {
         id: s.id,
         name: s.name,
@@ -165,14 +130,14 @@ export function SalesRepStores() {
         city: s.city || '',
         state: s.state || '',
         license_number: s.license_number,
-        account_name: info?.account_name || 'Unknown',
-        account_email: info?.account_email || null,
-        account_phone: info?.account_phone || null,
-        manager_name: info?.manager_name || 'Unassigned',
-        manager_email: info?.manager_email || null,
-        manager_phone: info?.manager_phone || null,
-        manager_city: info?.manager_city || null,
-        manager_state: info?.manager_state || null,
+        account_name: acct?.business_name || 'Unknown',
+        account_email: acct?.email || null,
+        account_phone: acct?.phone || null,
+        manager_name: myManagerInfo?.name || 'Unassigned',
+        manager_email: myManagerInfo?.email || null,
+        manager_phone: myManagerInfo?.phone || null,
+        manager_city: null,
+        manager_state: null,
       }
     })
 

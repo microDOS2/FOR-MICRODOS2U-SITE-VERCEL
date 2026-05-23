@@ -282,17 +282,48 @@ export function StoresPage() {
         ))}
       </div>
       {totalCount > pageSize && <div className="flex justify-between bg-[#150f24] border border-white/10 rounded-xl px-4 py-3"><span className="text-sm text-gray-500">{totalCount} total</span><div className="flex gap-2"><button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="p-2 hover:bg-white/5 rounded-lg disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button><span className="text-sm text-gray-400">Page {page + 1} of {totalPages || 1}</span><button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="p-2 hover:bg-white/5 rounded-lg disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button></div></div>}
-      {showModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"><div className="bg-[#150f24] border border-white/10 rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between p-5 border-b border-white/10"><h3 className="text-lg font-semibold text-white">{editingStore ? 'Edit' : 'Add'} Store</h3><button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-white/5 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button></div>
-        <div className="p-5 space-y-4">
-          <div><label className="block text-sm font-medium text-gray-400 mb-1.5">Name <span className="text-red-400">*</span></label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
-          <div><label className="block text-sm font-medium text-gray-400 mb-1.5">Contact Name <span className="text-red-400">*</span> <span className="text-xs font-normal text-gray-500">— Store owner or contact person</span></label><input type="text" value={formData.contact_name} onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" placeholder="e.g. Emily Williams" /></div>
-          <div><label className="block text-sm font-medium text-gray-400 mb-1.5">Address</label><textarea value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} rows={2} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
-          <div className="grid grid-cols-3 gap-3"><div><label className="block text-sm text-gray-400 mb-1.5">City</label><input type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div><div><label className="block text-sm text-gray-400 mb-1.5">State</label><input type="text" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div><div><label className="block text-sm text-gray-400 mb-1.5">ZIP</label><input type="text" value={formData.zip} onChange={(e) => setFormData({ ...formData, zip: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div></div>
-          <div className="grid grid-cols-2 gap-3"><div><label className="block text-sm text-gray-400 mb-1.5">Lat</label><input type="text" value={formData.lat} onChange={(e) => setFormData({ ...formData, lat: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div><div><label className="block text-sm text-gray-400 mb-1.5">Lng</label><input type="text" value={formData.lng} onChange={(e) => setFormData({ ...formData, lng: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div></div>
-          <div className="grid grid-cols-2 gap-3"><div><label className="block text-sm text-gray-400 mb-1.5">Phone</label><input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div><div><label className="block text-sm text-gray-400 mb-1.5">Email</label><input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div></div>
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[#150f24] border border-white/10 rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between p-5 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white">{editingStore ? 'Edit' : 'Add'} Store</h3>
+              <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-white/5 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1.5">Name <span className="text-red-400">*</span></label>
+                <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1.5">Contact Name <span className="text-red-400">*</span></label>
+                <input type="text" value={formData.contact_name} onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" placeholder="e.g. Emily Williams" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1.5">Address</label>
+                <textarea value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} rows={2} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div><label className="block text-sm text-gray-400 mb-1.5">City</label><input type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
+                <div><label className="block text-sm text-gray-400 mb-1.5">State</label><input type="text" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
+                <div><label className="block text-sm text-gray-400 mb-1.5">ZIP</label><input type="text" value={formData.zip} onChange={(e) => setFormData({ ...formData, zip: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-sm text-gray-400 mb-1.5">Lat</label><input type="text" value={formData.lat} onChange={(e) => setFormData({ ...formData, lat: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
+                <div><label className="block text-sm text-gray-400 mb-1.5">Lng</label><input type="text" value={formData.lng} onChange={(e) => setFormData({ ...formData, lng: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-sm text-gray-400 mb-1.5">Phone</label><input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
+                <div><label className="block text-sm text-gray-400 mb-1.5">Email</label><input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 p-5 border-t border-white/10">
+              <button onClick={() => setShowModal(false)} className="px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 rounded-lg text-sm text-gray-300">Cancel</button>
+              <button onClick={handleSave} disabled={!formData.name || !formData.address || !formData.contact_name} className="px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white disabled:opacity-50">{editingStore ? 'Update' : 'Create'}</button>
+            </div>
+          </div>
         </div>
-        <div className="flex justify-end gap-3 p-5 border-t border-white/10"><button onClick={() => setShowModal(false)} className="px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 rounded-lg text-sm text-gray-300">Cancel</button><button onClick={handleSave} disabled={!formData.name || !formData.address || !formData.contact_name} className="px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white disabled:opacity-50">{editingStore ? 'Update' : 'Create'}</button></div>
-      </div></div>}
+      )}
       {showUploadModal && <StoreUploadModal onClose={() => setShowUploadModal(false)} onImport={handleImportStores} isAdmin />}
-    </d
+    </div>
+  )
+}

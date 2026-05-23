@@ -106,6 +106,7 @@ export function ConfigPage() {
     let query = supabase.from('app_config').select('*').order('key', { ascending: true })
     if (search) query = query.or(`key.ilike.%${search}%,description.ilike.%${search}%`)
     const { data, error } = await query
+    if (error) toast.error(error.message)
     else setConfigs(data || [])
     setLoading(false)
   }

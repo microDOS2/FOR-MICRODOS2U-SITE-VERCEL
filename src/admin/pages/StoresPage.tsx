@@ -117,6 +117,9 @@ export function StoresPage() {
         }
       })
       setStores(transformed); setTotalCount(count || 0)
+    } catch (err) {
+      setStores([])
+    }
     setLoading(false)
   }, [page, search])
 

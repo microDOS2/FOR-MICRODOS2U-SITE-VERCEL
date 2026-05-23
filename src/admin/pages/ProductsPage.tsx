@@ -65,6 +65,7 @@ export function ProductsPage() {
     let query = supabase.from('products').select('*', { count: 'exact' }).order('created_at', { ascending: false }).range(page * pageSize, (page + 1) * pageSize - 1)
     if (search) query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%,description.ilike.%${search}%`)
     const { data, count, error } = await query
+    if (error) toast.error(error.message)
     else { setProducts(data || []); setTotalCount(count || 0) }
 
     // Fetch ALL variants from the real product_variants table

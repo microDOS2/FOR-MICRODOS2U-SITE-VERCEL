@@ -54,6 +54,7 @@ export function AuditLogPage() {
     if (filter !== 'all') query = query.eq('table_name', filter)
 
     const { data, count, error } = await query
+    if (error) toast.error(error.message)
     else { setEntries(data || []); setTotalCount(count || 0) }
     setLoading(false)
   }

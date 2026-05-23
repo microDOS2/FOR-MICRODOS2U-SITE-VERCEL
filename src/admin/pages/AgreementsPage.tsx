@@ -41,6 +41,7 @@ export function AgreementsPage() {
     let query = supabase.from('agreements').select('*', { count: 'exact' }).order('created_at', { ascending: false }).range(page * pageSize, (page + 1) * pageSize - 1)
     if (search) query = query.or(`title.ilike.%${search}%,signee_name.ilike.%${search}%`)
     const { data, count, error } = await query
+    if (error) toast.error(error.message)
     else { setAgreements(data || []); setTotalCount(count || 0) }
     setLoading(false)
   }

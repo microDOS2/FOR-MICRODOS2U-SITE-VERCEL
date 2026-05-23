@@ -65,6 +65,7 @@ export const invoiceColumns: ExportColumn[] = [
 
 export const storeColumns: ExportColumn[] = [
   { header: 'Store Name', key: 'name' },
+  { header: 'Contact Name', key: 'contact_name' },
   { header: 'Address', key: 'address' },
   { header: 'City', key: 'city' },
   { header: 'State', key: 'state' },

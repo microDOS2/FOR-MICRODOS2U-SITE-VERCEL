@@ -4,6 +4,19 @@ import { parseCSV } from '@/lib/exportUtils';
 import { geocodeAddress } from '@/lib/geocode';
 import { Upload, X, Loader2, Check, AlertTriangle, Download } from 'lucide-react';
 
+// Extract name from email: emily.williams@example.com → Emily Williams
+function extractNameFromEmail(email: string): string {
+  if (!email || !email.includes('@')) return '';
+  const localPart = email.split('@')[0];
+  const parts = localPart.split('.');
+  if (parts.length >= 2) {
+    const first = parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase();
+    const last = parts[1].charAt(0).toUpperCase() + parts[1].slice(1).toLowerCase();
+    return `${first} ${last}`;
+  }
+  return localPart.charAt(0).toUpperCase() + localPart.slice(1).toLowerCase();
+}
+
 interface ParsedStore {
   row: number;
   name: string;
@@ -17,6 +30,7 @@ interface ParsedStore {
   stock: string;
   is_primary: boolean;
   owner_email?: string;
+  contact_name: string;
   lat: number | null;
   lng: number | null;
   status: 'pending' | 'geocoding' | 'ready' | 'error';
@@ -55,6 +69,7 @@ export function StoreUploadModal({ onClose, onImport, isAdmin = false }: StoreUp
         stock: row['Stock'] || row['stock'] || 'In Stock',
         is_primary: (row['Is Primary'] || row['is_primary'] || '').toLowerCase() === 'true' || (row['Is Primary'] || row['is_primary'] || '').toLowerCase() === 'yes',
         owner_email: isAdmin ? (row['Owner Email'] || row['owner_email'] || '') : undefined,
+        contact_name: row['Contact Name'] || row['contact_name'] || extractNameFromEmail(row['Email'] || row['email'] || ''),
         lat: null,
         lng: null,
         status: 'pending' as const,
@@ -97,11 +112,11 @@ export function StoreUploadModal({ onClose, onImport, isAdmin = false }: StoreUp
 
   const downloadTemplate = () => {
     const headers = isAdmin
-      ? 'Store Name,Address,City,State,ZIP,Phone,Email,Website,Stock,Is Primary,Owner Email\n'
-      : 'Store Name,Address,City,State,ZIP,Phone,Email,Website,Stock,Is Primary\n';
+      ? 'Store Name,Contact Name,Address,City,State,ZIP,Phone,Email,Website,Stock,Is Primary,Owner Email\n'
+      : 'Store Name,Contact Name,Address,City,State,ZIP,Phone,Email,Website,Stock,Is Primary\n';
     const example = isAdmin
-      ? 'Downtown LA,123 Main St,Los Angeles,CA,90001,555-0100,store@co.com,www.co.com/dt,In Stock,true,wellness@co.com\nHollywood Branch,456 Sunset Blvd,Los Angeles,CA,90028,555-0200,hollywood@co.com,,,false,wellness@co.com\n'
-      : 'Downtown LA,123 Main St,Los Angeles,CA,90001,555-0100,store@co.com,www.co.com/dt,In Stock,true\nHollywood Branch,456 Sunset Blvd,Los Angeles,CA,90028,555-0200,hollywood@co.com,,,false\n';
+      ? 'Downtown LA,Emily Williams,123 Main St,Los Angeles,CA,90001,555-0100,emily.williams@co.com,www.co.com/dt,In Stock,true,wellness@co.com\nHollywood Branch,John Smith,456 Sunset Blvd,Los Angeles,CA,90028,555-0200,john.smith@co.com,,,false,wellness@co.com\n'
+      : 'Downtown LA,Emily Williams,123 Main St,Los Angeles,CA,90001,555-0100,emily.williams@co.com,www.co.com/dt,In Stock,true\nHollywood Branch,John Smith,456 Sunset Blvd,Los Angeles,CA,90028,555-0200,john.smith@co.com,,,false\n';
     const blob = new Blob([headers + example], { type: 'text/csv' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);

@@ -126,7 +126,7 @@ export function OrdersInvoicesPage() {
 
   const fetchData = async () => {
     setLoading(true)
-    const [{ data: o, error: oErr }, { data: i, error: iErr }] = await Promise.all([
+    const [{ data: o }, { data: i }] = await Promise.all([
       supabase.from('orders')
         .select(`
           *,

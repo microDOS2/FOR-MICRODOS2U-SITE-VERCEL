@@ -72,10 +72,10 @@ export function VideosPage() {
       if (error) throw error;
     } else {
       // Update existing bucket to ensure limit is set
-      const { error } = await supabase.storage.updateBucket('videos', {
+      await supabase.storage.updateBucket('videos', {
         public: true,
         fileSizeLimit: 52428800,
-      });
+      })
     }
   };
 
@@ -154,9 +154,9 @@ export function VideosPage() {
     setDeletingId(v.id);
 
     // Delete from storage
-    const { error: storageError } = await supabase.storage
+    await supabase.storage
       .from('videos')
-      .remove([v.storage_path]);
+      .remove([v.storage_path])
 
     // Delete from database
     const { error: dbError } = await supabase.rpc('delete_video_record', { p_id: v.id });

@@ -215,7 +215,7 @@ export function UsersPage() {
     setLoading(true)
     try {
       // 1. Fetch approved users via RPC (bypasses RLS for admin)
-      const { data: usersData, error: usersError } = await supabase
+      const { data: usersData } = await supabase
         .rpc('get_all_users')
 
 

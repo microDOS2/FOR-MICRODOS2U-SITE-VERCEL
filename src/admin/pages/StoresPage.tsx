@@ -77,7 +77,7 @@ export function StoresPage() {
     try {
       let query = supabase.from('wholesaler_store_locations').select('*', { count: 'exact' }).order('name', { ascending: true })
       if (search) query = query.or(`name.ilike.%${search}%,address.ilike.%${search}%,city.ilike.%${search}%`)
-      const { data: storeData, count, error } = await query
+      const { data: storeData, count } = await query
 
       const { data: usersData } = await supabase.from('users').select('id, business_name, email, role, referral_code, manager_id').eq('status', 'approved').in('role', ['wholesaler', 'distributor'])
       const userMap = new Map(); (usersData || []).forEach((u: any) => userMap.set(u.referral_code, u))

@@ -118,7 +118,6 @@ export function CommissionsPage() {
         id: 1,
         rep_rate: settings.rep_rate,
         manager_override_rate: settings.manager_override_rate,
-        updated_at: new Date().toISOString(),
       }, { onConflict: 'id' })
       if (error) throw error
       toast.success('Commission settings saved!')
@@ -403,3 +402,6 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status as keyof typeof styles] || 'bg-gray-500/20 text-gray-400'}`}>
       {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  )
+}

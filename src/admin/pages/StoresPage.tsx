@@ -114,8 +114,8 @@ export function StoresPage() {
           owner_name: owner ? (owner.business_name || owner.email) : 'Unknown',
           owner_role: owner?.role || '', assigned_rep_id: repId,
           assigned_rep_name: rep ? (rep.business_name || rep.email) : null,
-          manager_name: owner?.manager_id ? (managerMap.get(owner.manager_id)?.business_name || managerMap.get(owner.manager_id)?.email || 'Unknown') : null,
-          owner_manager_id: owner?.manager_id || null,
+          manager_name: rep?.manager_id ? (managerMap.get(rep.manager_id)?.business_name || managerMap.get(rep.manager_id)?.email || 'Unknown') : null,
+          owner_manager_id: rep?.manager_id || null,
         }
       })
       setStores(transformed); setTotalCount(count || 0)
@@ -232,12 +232,12 @@ export function StoresPage() {
               <h3 className="text-lg font-semibold text-white mb-1">{s.name}</h3>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-mono bg-[#9a02d0]/20 text-[#9a02d0] px-1.5 py-0.5 rounded">Acct #{s.account_number || '?'}</span>
-                <span className="text-sm text-gray-400">{s.owner_name}</span>
+                <span className="text-sm text-gray-400" title="Account Owner">{s.owner_name}</span>
                 {s.owner_role && <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full uppercase', s.owner_role === 'wholesaler' ? 'bg-[#44f80c]/20 text-[#44f80c]' : 'bg-[#ff66c4]/20 text-[#ff66c4]')}>{s.owner_role}</span>}
               </div>
               <div className="flex flex-col gap-2 mt-2 mb-3">
                 {s.manager_name && (
-                  <span className="text-xs text-[#9a02d0] bg-[#9a02d0]/10 px-2 py-0.5 rounded flex items-center gap-1 w-fit"><Shield className="w-3 h-3" /> Manager: {s.manager_name}</span>
+                  <span className="text-xs text-[#9a02d0] bg-[#9a02d0]/10 px-2 py-0.5 rounded flex items-center gap-1 w-fit"><Shield className="w-3 h-3" /> Territory Manager: {s.manager_name}</span>
                 )}
                 {(() => {
                   const hasMgr = s.assigned_rep_id ? repHasManager.get(s.assigned_rep_id) : true
@@ -295,6 +295,4 @@ export function StoresPage() {
         <div className="flex justify-end gap-3 p-5 border-t border-white/10"><button onClick={() => setShowModal(false)} className="px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 rounded-lg text-sm text-gray-300">Cancel</button><button onClick={handleSave} disabled={!formData.name || !formData.address || !formData.contact_name} className="px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white disabled:opacity-50">{editingStore ? 'Update' : 'Create'}</button></div>
       </div></div>}
       {showUploadModal && <StoreUploadModal onClose={() => setShowUploadModal(false)} onImport={handleImportStores} isAdmin />}
-    </div>
-  )
-}
+    </d

@@ -66,19 +66,34 @@ export function SalesRepStores() {
       return
     }
 
-    const storesWithContact: StoreData[] = storeList.map((s: any) => ({
-      id: s.id,
-      name: s.name,
-      address: s.address,
-      city: s.city || '',
-      state: s.state || '',
-      license_number: s.license_number,
-      contact_name: s.contact_name || 'Unknown',
-      contact_email: s.email || null,
-      contact_phone: s.phone || null,
-      account_manager_name: repName,
-      account_manager_email: null,
-    }))
+    // Helper: extract name from email
+    function nameFromEmail(email: string): string {
+      if (!email || !email.includes('@')) return ''
+      const local = email.split('@')[0]
+      const parts = local.split('.')
+      if (parts.length >= 2) {
+        return parts[0][0].toUpperCase() + parts[0].slice(1) + ' ' + parts[1][0].toUpperCase() + parts[1].slice(1)
+      }
+      return local[0].toUpperCase() + local.slice(1)
+    }
+
+    const storesWithContact: StoreData[] = storeList.map((s: any) => {
+      const emailName = nameFromEmail(s.email || '')
+      const displayName = s.contact_name || emailName || s.email || 'Unknown'
+      return {
+        id: s.id,
+        name: s.name,
+        address: s.address,
+        city: s.city || '',
+        state: s.state || '',
+        license_number: s.license_number,
+        contact_name: displayName,
+        contact_email: s.email || null,
+        contact_phone: s.phone || null,
+        account_manager_name: repName,
+        account_manager_email: null,
+      }
+    })
 
     setStores(storesWithContact)
     setLoading(false)

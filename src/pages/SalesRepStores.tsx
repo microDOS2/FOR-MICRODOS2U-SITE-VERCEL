@@ -55,7 +55,7 @@ export function SalesRepStores() {
     // Get stores where this rep is the store rep
     const { data: storeData } = await supabase
       .from('wholesaler_store_locations')
-      .select('id, name, address, city, state, license_number')
+      .select('id, name, address, city, state, license_number, email, phone, contact_name')
       .ilike('license_number', `rep:${repId}%`)
       .order('name', { ascending: true })
 
@@ -159,6 +159,18 @@ export function SalesRepStores() {
                         <Building2 className="w-4 h-4 text-[#44f80c]" />
                         <span className="text-sm text-white">{s.contact_name}</span>
                       </div>
+                      {s.contact_email && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <Mail className="w-3.5 h-3.5 text-gray-500" />
+                          <a href={`mailto:${s.contact_email}`} className="text-xs text-[#9a02d0] hover:text-[#ff66c4] underline">{s.contact_email}</a>
+                        </div>
+                      )}
+                      {s.contact_phone && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <Phone className="w-3.5 h-3.5 text-gray-500" />
+                          <span className="text-xs text-gray-400">{s.contact_phone}</span>
+                        </div>
+                      )}
                       {s.contact_email && (
                         <div className="flex items-center gap-2">
                           <Mail className="w-3.5 h-3.5 text-gray-500" />

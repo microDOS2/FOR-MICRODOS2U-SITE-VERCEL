@@ -32,6 +32,7 @@ export function SalesRepStores() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [stores, setStores] = useState<StoreData[]>([])
+  const [myManager, setMyManager] = useState<ManagerInfo | null>(null)
 
   const fetchData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -124,6 +125,35 @@ export function SalesRepStores() {
               {stores.length} store location{stores.length !== 1 ? 's' : ''} assigned to you as Store Rep
             </p>
           </div>
+
+          {/* My Sales Manager */}
+          {myManager && (
+            <Card className="bg-gradient-to-r from-[#9a02d0]/10 to-[#150f24] border-[#9a02d0]/20">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#9a02d0]/20 flex items-center justify-center flex-shrink-0">
+                    <Shield className="w-5 h-5 text-[#9a02d0]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">My Sales Manager</p>
+                    <p className="text-white font-medium">{myManager.name}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {myManager.email && (
+                      <a href={`mailto:${myManager.email}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0a0514] border border-white/10 text-xs text-[#9a02d0] hover:text-[#ff66c4] hover:border-[#9a02d0]/30 transition-colors">
+                        <Mail className="w-3.5 h-3.5" /> {myManager.email}
+                      </a>
+                    )}
+                    {myManager.phone && (
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0a0514] border border-white/10 text-xs text-gray-300">
+                        <Phone className="w-3.5 h-3.5" /> {myManager.phone}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {stores.length === 0 ? (
             <Card className="bg-[#150f24] border-white/10">

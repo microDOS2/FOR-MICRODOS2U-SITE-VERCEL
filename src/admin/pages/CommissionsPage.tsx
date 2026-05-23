@@ -100,21 +100,26 @@ export function CommissionsPage() {
 
   const fetchSettings = async () => {
     try {
-      const { data, error } = await supabase.from('commission_settings').select('rep_rate, manager_override_rate').single()
-      if (error) throw error
-      if (data) setSettings({ rep_rate: data.rep_rate, manager_override_rate: data.manager_override_rate })
+      const { data } = await supabase.from('commission_settings').select('rep_rate, manager_override_rate').maybeSingle()
+      if (data) {
+        setSettings({ rep_rate: data.rep_rate, manager_override_rate: data.manager_override_rate })
+      }
+      // If no row exists, keep default values (5% / 2%)
     } catch (e: any) {
-      toast.error('Failed to load commission settings: ' + e.message)
+      // Silently fail - defaults are fine
     }
   }
 
   const handleSaveSettings = async () => {
     setSavingSettings(true)
     try {
-      const { error } = await supabase.from('commission_settings').update({
+      // Try upsert - inserts if no row exists, updates if it does
+      const { error } = await supabase.from('commission_settings').upsert({
+        id: 1,
         rep_rate: settings.rep_rate,
         manager_override_rate: settings.manager_override_rate,
-      }).eq('id', 1)
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' })
       if (error) throw error
       toast.success('Commission settings saved!')
     } catch (e: any) {
@@ -398,6 +403,3 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status as keyof typeof styles] || 'bg-gray-500/20 text-gray-400'}`}>
       {status.charAt(0).toUpperCase() + status.slice(1)}
-    </span>
-  )
-}

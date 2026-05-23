@@ -55,23 +55,43 @@ export function SalesRepStores() {
     // Get stores where this rep is the store rep
     const { data: storeData } = await supabase
       .from('wholesaler_store_locations')
-      .select('id, name, address, city, state, license_number, user_id')
+      .select('id, name, address, city, state, license_number')
       .ilike('license_number', `rep:${repId}%`)
       .order('name', { ascending: true })
 
     const storeList = storeData || []
-    const accountIds = storeList.map((s: any) => s.user_id).filter(Boolean)
-    if (accountIds.length === 0) {
+    if (storeList.length === 0) {
       setStores([])
       setLoading(false)
       return
     }
 
-    // Get account details + manager info directly
+    // Parse account numbers from store names (e.g. "100a - Store Name" → "100")
+    function parseStoreNumber(name: string): { number: string; cleanName: string } {
+      const match = name.match(/^(\d+[a-z])\s*-\s*(.+)$/)
+      if (match) {
+        return { number: match[1], cleanName: match[2].trim() }
+      }
+      return { number: '', cleanName: name }
+    }
+
+    const acctNums = storeList.map((s: any) => {
+      const { number } = parseStoreNumber(s.name || '')
+      return number.replace(/[a-z]$/, '') // "100a" → "100"
+    }).filter(Boolean)
+
+    // Fetch all approved wholesalers/distributors to find account owners by referral_code
     const { data: accountsData } = await supabase
       .from('users')
-      .select('id,business_name,email,phone,manager_id')
-      .in('id', accountIds)
+      .select('id,referral_code,business_name,email,phone,manager_id')
+      .eq('status', 'approved')
+      .in('role', ['wholesaler', 'distributor'])
+
+    // Build referral_code → account map
+    const accountByRefCode = new Map<string, any>()
+    ;(accountsData || []).forEach((a: any) => {
+      if (a.referral_code) accountByRefCode.set(a.referral_code, a)
+    })
 
     // Get manager details
     const managerIds = (accountsData || []).map((a: any) => a.manager_id).filter(Boolean)
@@ -80,32 +100,11 @@ export function SalesRepStores() {
       : { data: [] }
     const managersMap = new Map((managersData || []).map((m: any) => [m.id, m]))
 
-    const accountInfoMap = new Map<string, {
-      account_name: string | null
-      account_email: string | null
-      account_phone: string | null
-      manager_name: string | null
-      manager_email: string | null
-      manager_phone: string | null
-      manager_city: string | null
-      manager_state: string | null
-    }>()
-    ;(accountsData || []).forEach((m: any) => {
-      const mgr = managersMap.get(m.manager_id)
-      accountInfoMap.set(m.id, {
-        account_name: m.business_name || 'Unknown',
-        account_email: m.email || null,
-        account_phone: m.phone || null,
-        manager_name: mgr?.business_name || 'Unassigned',
-        manager_email: mgr?.email || null,
-        manager_phone: mgr?.phone || null,
-        manager_city: mgr?.city || null,
-        manager_state: mgr?.state || null,
-      })
-    })
-
     const storesWithAccounts: StoreData[] = storeList.map((s: any) => {
-      const info = accountInfoMap.get(s.user_id)
+      const acctNum = s.name.match(/^(\d+[a-z])/)?.[0]?.replace(/[a-z]$/, '') || ''
+      const account = acctNum ? accountByRefCode.get(acctNum) : null
+      const mgr = account?.manager_id ? managersMap.get(account.manager_id) : null
+
       return {
         id: s.id,
         name: s.name,
@@ -113,14 +112,14 @@ export function SalesRepStores() {
         city: s.city || '',
         state: s.state || '',
         license_number: s.license_number,
-        account_name: info?.account_name || 'Unknown',
-        account_email: info?.account_email || null,
-        account_phone: info?.account_phone || null,
-        manager_name: info?.manager_name || 'Unassigned',
-        manager_email: info?.manager_email || null,
-        manager_phone: info?.manager_phone || null,
-        manager_city: info?.manager_city || null,
-        manager_state: info?.manager_state || null,
+        account_name: account?.business_name || 'Unknown',
+        account_email: account?.email || null,
+        account_phone: account?.phone || null,
+        manager_name: mgr?.business_name || 'Unassigned',
+        manager_email: mgr?.email || null,
+        manager_phone: mgr?.phone || null,
+        manager_city: mgr?.city || null,
+        manager_state: mgr?.state || null,
       }
     })
 

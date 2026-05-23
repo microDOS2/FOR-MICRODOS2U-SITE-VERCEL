@@ -22,7 +22,6 @@ async function logAudit(action: string, table_name: string, record_id: string, o
       user_id: session?.user?.id || null,
     })
   } catch (e) {
-    console.error('Audit log failed:', e)
   }
 }
 
@@ -79,7 +78,6 @@ export function StoresPage() {
       let query = supabase.from('wholesaler_store_locations').select('*', { count: 'exact' }).order('name', { ascending: true })
       if (search) query = query.or(`name.ilike.%${search}%,address.ilike.%${search}%,city.ilike.%${search}%`)
       const { data: storeData, count, error } = await query
-      if (error) { console.error(error); setStores([]); setLoading(false); return }
 
       const { data: usersData } = await supabase.from('users').select('id, business_name, email, role, referral_code, manager_id').eq('status', 'approved').in('role', ['wholesaler', 'distributor'])
       const userMap = new Map(); (usersData || []).forEach((u: any) => userMap.set(u.referral_code, u))
@@ -119,7 +117,6 @@ export function StoresPage() {
         }
       })
       setStores(transformed); setTotalCount(count || 0)
-    } catch (err) { console.error(err); setStores([]) }
     setLoading(false)
   }, [page, search])
 

@@ -103,7 +103,6 @@ export function DashboardPage() {
       })
       setOrderStatusData(Object.entries(statusCounts).map(([name, value]) => ({ name, value })))
     } catch (err) {
-      console.error('Dashboard fetch error:', err)
     } finally {
       setLoading(false)
     }

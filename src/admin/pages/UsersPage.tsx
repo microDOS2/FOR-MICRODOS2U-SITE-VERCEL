@@ -39,7 +39,6 @@ async function logAudit(action: string, table_name: string, record_id: string, o
       user_id: session?.user?.id || null,
     })
   } catch (e) {
-    console.error('Audit log failed:', e)
   }
 }
 
@@ -219,7 +218,6 @@ export function UsersPage() {
       const { data: usersData, error: usersError } = await supabase
         .rpc('get_all_users')
 
-      if (usersError) console.error('Users error:', usersError)
 
       const combined: UnifiedUser[] = []
 
@@ -312,7 +310,6 @@ export function UsersPage() {
       map.forEach((states, id) => map.set(id, states.sort()))
       setManagerStateMap(map)
     } catch (err) {
-      console.error(err)
       toast.error('Failed to load accounts')
     }
     setLoading(false)
@@ -534,11 +531,9 @@ export function UsersPage() {
           })
           const result = await resp.json()
           if (!resp.ok || result.error) {
-            console.error('Edge function error:', result)
             toast.error('Password update failed: ' + (result.error || 'Unknown error'))
           }
         } catch (err: any) {
-          console.error('Failed to call edge function:', err)
           toast.error('Password update failed: ' + (err?.message || 'Network error'))
         }
       }
@@ -815,7 +810,6 @@ export function UsersPage() {
         // Delete from users table
         const { error } = await supabase.from('users').delete().eq('id', u.id)
         if (error) {
-          console.error('Failed to delete user:', u.email, error)
           userFailed++
         } else {
           userDeleted++

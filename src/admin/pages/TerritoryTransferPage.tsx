@@ -208,7 +208,6 @@ export function TerritoryTransferPage() {
       setTargetManagerId('')
       await fetchData()
     } catch (err: any) {
-      console.error('Transfer error:', err)
       toast.error('Transfer failed: ' + (err.message || 'Unknown error'))
     }
 

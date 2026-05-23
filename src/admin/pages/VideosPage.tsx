@@ -76,7 +76,6 @@ export function VideosPage() {
         public: true,
         fileSizeLimit: 52428800,
       });
-      if (error) console.log('Bucket update (non-critical):', error.message);
     }
   };
 
@@ -129,7 +128,6 @@ export function VideosPage() {
       toast.success(`"${file.name}" uploaded successfully`);
       fetchVideos();
     } catch (err: any) {
-      console.error('Upload error:', err);
       toast.error('Upload failed: ' + (err.message || 'Unknown error'));
     } finally {
       setUploading(false);
@@ -159,7 +157,6 @@ export function VideosPage() {
     const { error: storageError } = await supabase.storage
       .from('videos')
       .remove([v.storage_path]);
-    if (storageError) console.error('Storage delete error:', storageError);
 
     // Delete from database
     const { error: dbError } = await supabase.rpc('delete_video_record', { p_id: v.id });

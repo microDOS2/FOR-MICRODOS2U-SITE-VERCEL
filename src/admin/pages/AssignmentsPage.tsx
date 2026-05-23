@@ -21,7 +21,6 @@ async function logAudit(action: string, table_name: string, record_id: string, o
       user_id: session?.user?.id || null,
     })
   } catch (e) {
-    console.error('Audit log failed:', e)
   }
 }
 

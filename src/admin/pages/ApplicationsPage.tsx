@@ -133,7 +133,6 @@ export function ApplicationsPage() {
       })
 
       if (userError) {
-        console.error('User insert error:', userError)
         toast.error('Failed to create user profile: ' + userError.message)
         setActionLoading(null)
         return

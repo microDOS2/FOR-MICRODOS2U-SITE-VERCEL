@@ -65,7 +65,6 @@ export function ProductsPage() {
     let query = supabase.from('products').select('*', { count: 'exact' }).order('created_at', { ascending: false }).range(page * pageSize, (page + 1) * pageSize - 1)
     if (search) query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%,description.ilike.%${search}%`)
     const { data, count, error } = await query
-    if (error) console.error(error)
     else { setProducts(data || []); setTotalCount(count || 0) }
 
     // Fetch ALL variants from the real product_variants table
@@ -93,7 +92,6 @@ export function ProductsPage() {
     if (editingProduct) {
       const { error } = await supabase.from('products').update(payload).eq('id', editingProduct.id)
       if (error) {
-        console.error('Update error:', error)
         toast.error('Error updating product: ' + error.message)
       } else {
         fetchProducts()
@@ -103,7 +101,6 @@ export function ProductsPage() {
       // Insert new product
       const { data, error } = await supabase.from('products').insert([payload]).select()
       if (error) {
-        console.error('Insert error:', error)
         toast.error('Error creating product: ' + error.message)
         return
       }

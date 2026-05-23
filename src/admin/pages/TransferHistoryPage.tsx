@@ -59,14 +59,12 @@ export function TransferHistoryPage() {
     try {
       const { data, error } = await supabase.rpc('get_all_transfers')
       if (error) {
-        console.error('get_all_transfers error:', error)
         toast.error('Failed to load transfers: ' + error.message)
         setTransfers([])
       } else {
         setTransfers(data || [])
       }
     } catch (e) {
-      console.error('Exception:', e)
       toast.error('Failed to load transfers')
       setTransfers([])
     }
@@ -92,7 +90,6 @@ export function TransferHistoryPage() {
       .update({ status, resolved_at: new Date().toISOString() })
       .eq('id', transferId)
     if (error) {
-      console.error('admin_resolve_transfer error:', error)
       toast.error('Failed: ' + error.message)
     } else {
       toast.success(`Transfer ${status}`)

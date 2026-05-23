@@ -144,8 +144,6 @@ export function OrdersInvoicesPage() {
         .order('created_at', { ascending: false })
         .limit(100),
     ])
-    if (oErr) console.error('[OrdersInvoices] orders error:', oErr)
-    if (iErr) console.error('[OrdersInvoices] invoices error:', iErr)
     setOrders((o as any) || [])
     setInvoices((i as any) || [])
     setLoading(false)
@@ -209,7 +207,6 @@ export function OrdersInvoicesPage() {
         line_total: lineTotal,
       });
       if (itemsError) {
-        console.error('[CreateOrder] order_items error:', itemsError);
       }
     }
 
@@ -897,7 +894,6 @@ function OrderCard({
                     description: `Invoice ${invoice.invoice_number}`,
                   })
                   toast.success(`Payment link created: ${intent.id}`)
-                  console.log('Payment intent:', intent)
                 } catch (err: any) {
                   toast.error('Payment link failed: ' + err.message)
                 }

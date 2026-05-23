@@ -60,19 +60,44 @@ export function SalesRepAccounts() {
     }
 
     // Get accounts where this rep is assigned via rep_account_assignments
-    // Join with users to get account details (bypasses users RLS through the join)
-    const { data: assignmentsData } = await supabase
+    const { data: assignmentsData, error: assignmentsError } = await supabase
       .from('rep_account_assignments')
-      .select(`
-        account_id,
-        users!rep_account_assignments_account_id_fkey(id, business_name, email, phone, role, city, state, address, referral_code, manager_id)
-      `)
+      .select('account_id')
       .eq('rep_id', repId)
 
+    if (assignmentsError) {
+      console.error('Assignments error:', assignmentsError)
+    }
+
+    const assignedAccountIds = (assignmentsData || []).map((a: any) => a.account_id)
+    console.log('Rep ID:', repId, 'Assignments found:', assignedAccountIds.length)
+
+    // Fetch account details via edge function to bypass users RLS
     let accountMap = new Map<string, any>()
-    ;(assignmentsData || []).forEach((a: any) => {
-      if (a.users) accountMap.set(a.account_id, a.users)
-    })
+    if (assignedAccountIds.length > 0) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData?.session?.access_token || ''
+        const resp = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-accounts-for-rep`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+            },
+            body: JSON.stringify({ account_ids: assignedAccountIds }),
+          }
+        )
+        if (resp.ok) {
+          const acctData = await resp.json()
+          ;(acctData || []).forEach((u: any) => accountMap.set(u.id, u))
+        }
+      } catch (e) {
+        // Silently fail - will show empty state
+      }
+    }
 
     // Fallback: If no account assignments exist, derive from store assignments
     if (accountMap.size === 0) {

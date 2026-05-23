@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
 import { Search, Plus, Pencil, Trash2, X, Save, Settings, Store, CreditCard, Link, Server, Key, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface ConfigItem {
   id: string
@@ -84,7 +85,7 @@ export function ConfigPage() {
           { onConflict: 'key' }
         )
         if (error) {
-          alert('Failed to save ' + entry.key + ': ' + error.message)
+          toast.error('Failed to save ' + entry.key + ': ' + error.message)
           setSavingPayment(false)
           return
         }
@@ -93,9 +94,9 @@ export function ConfigPage() {
       const hasCreds = paymentConfig.clientId.length > 0 && paymentConfig.apiKey.length > 0
       setPaymentConfigStatus(hasCreds ? 'configured' : 'not_configured')
       await fetchConfigs() // Refresh the config table below
-      alert('Authorize.net configuration saved!')
+      toast.success('Authorize.net configuration saved!')
     } catch (err: any) {
-      alert(err?.message || 'Failed to save payment config')
+      toast.error(err?.message || 'Failed to save payment config')
     }
     setSavingPayment(false)
   }
@@ -111,15 +112,15 @@ export function ConfigPage() {
   }
 
   const handleSave = async () => {
-    if (!formData.key.trim()) { alert('Key is required'); return }
+    if (!formData.key.trim()) { toast.error('Key is required'); return }
     if (editingConfig) {
       const { error } = await supabase.from('app_config').update({
         key: formData.key, value: formData.value, description: formData.description, updated_at: new Date().toISOString()
       }).eq('id', editingConfig.id)
-      if (error) alert('Error: ' + error.message)
+      if (error) toast.error(error.message)
     } else {
       const { error } = await supabase.from('app_config').insert([{ key: formData.key, value: formData.value, description: formData.description }])
-      if (error) alert('Error: ' + error.message)
+      if (error) toast.error(error.message)
     }
     setShowModal(false); setEditingConfig(null); setFormData({ key: '', value: '', description: '' }); fetchConfigs()
   }
@@ -127,7 +128,7 @@ export function ConfigPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this config?')) return
     const { error } = await supabase.from('app_config').delete().eq('id', id)
-    if (error) alert('Error: ' + error.message)
+    if (error) toast.error(error.message)
     else fetchConfigs()
   }
 

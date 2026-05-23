@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { downloadCSV, formatCurrency } from '@/lib/utils'
 import { Search, Download, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 interface Product {
   id: string
@@ -93,7 +94,7 @@ export function ProductsPage() {
       const { error } = await supabase.from('products').update(payload).eq('id', editingProduct.id)
       if (error) {
         console.error('Update error:', error)
-        alert('Error updating product: ' + error.message)
+        toast.error('Error updating product: ' + error.message)
       } else {
         fetchProducts()
         if (activeTab === 'details') { setShowModal(false); setEditingProduct(null); resetForm() }
@@ -103,7 +104,7 @@ export function ProductsPage() {
       const { data, error } = await supabase.from('products').insert([payload]).select()
       if (error) {
         console.error('Insert error:', error)
-        alert('Error creating product: ' + error.message)
+        toast.error('Error creating product: ' + error.message)
         return
       }
       const newProduct = data && data.length > 0 ? data[0] : null
@@ -121,7 +122,7 @@ export function ProductsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this product and all its variants?')) return
     const { error } = await supabase.from('products').delete().eq('id', id)
-    if (error) alert('Error: ' + error.message)
+    if (error) toast.error(error.message)
     else fetchProducts()
   }
 
@@ -154,10 +155,10 @@ export function ProductsPage() {
     }
     if (editingVariantId) {
       const { error } = await supabase.from('product_variants').update(payload).eq('id', editingVariantId)
-      if (error) { alert('Error: ' + error.message); return }
+      if (error) { toast.error(error.message); return }
     } else {
       const { error } = await supabase.from('product_variants').insert([payload])
-      if (error) { alert('Error: ' + error.message); return }
+      if (error) { toast.error(error.message); return }
     }
     setShowVariantForm(false)
     setEditingVariantId(null)
@@ -168,7 +169,7 @@ export function ProductsPage() {
   const deleteVariant = async (id: string) => {
     if (!confirm('Delete this variant?')) return
     const { error } = await supabase.from('product_variants').delete().eq('id', id)
-    if (error) alert('Error: ' + error.message)
+    if (error) toast.error(error.message)
     else fetchProducts()
   }
   // --- End Variant CRUD ---

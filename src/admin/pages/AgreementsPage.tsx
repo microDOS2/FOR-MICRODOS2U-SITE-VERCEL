@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { formatDate, downloadCSV } from '@/lib/utils'
 import { Search, Download, Plus, Trash2, X, ChevronLeft, ChevronRight, FileSignature, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 interface Agreement {
   id: string
@@ -47,14 +48,14 @@ export function AgreementsPage() {
 
   const handleCreate = async () => {
     const { error } = await supabase.from('agreements').insert([{ ...formData, status: 'pending' }])
-    if (error) alert('Error: ' + error.message)
+    if (error) toast.error(error.message)
     setShowCreateModal(false); setFormData({ title: '', content: '' }); fetchAgreements()
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this agreement?')) return
     const { error } = await supabase.from('agreements').delete().eq('id', id)
-    if (error) alert('Error: ' + error.message)
+    if (error) toast.error(error.message)
     else fetchAgreements()
   }
 
@@ -129,7 +130,7 @@ export function AgreementsPage() {
       status: 'signed'
     }).eq('id', selectedAgreement.id)
 
-    if (error) alert('Error: ' + error.message)
+    if (error) toast.error(error.message)
     else {
       setShowSignModal(false)
       fetchAgreements()

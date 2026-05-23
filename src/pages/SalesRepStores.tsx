@@ -171,18 +171,6 @@ export function SalesRepStores() {
                           <span className="text-xs text-gray-400">{s.contact_phone}</span>
                         </div>
                       )}
-                      {s.contact_email && (
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-3.5 h-3.5 text-gray-500" />
-                          <a href={`mailto:${s.contact_email}`} className="text-xs text-[#9a02d0] hover:text-[#ff66c4] underline">{s.contact_email}</a>
-                        </div>
-                      )}
-                      {s.contact_phone && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-3.5 h-3.5 text-gray-500" />
-                          <span className="text-xs text-gray-400">{s.contact_phone}</span>
-                        </div>
-                      )}
 
                       <div className="pt-2 border-t border-white/10">
                         <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Account Manager (Your Rep)</p>

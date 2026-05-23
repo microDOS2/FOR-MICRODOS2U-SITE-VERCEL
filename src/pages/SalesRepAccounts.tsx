@@ -65,7 +65,31 @@ export function SalesRepAccounts() {
       .select('account_id')
       .eq('rep_id', repId)
 
-    const assignedAccountIds = (assignmentsData || []).map((a: any) => a.account_id)
+    let assignedAccountIds = (assignmentsData || []).map((a: any) => a.account_id)
+
+    // Fallback: If no account assignments exist, derive from store assignments
+    if (assignedAccountIds.length === 0) {
+      const { data: storeData } = await supabase
+        .from('wholesaler_store_locations')
+        .select('name')
+        .ilike('license_number', `rep:${repId}%`)
+
+      const acctNums = new Set<string>()
+      ;(storeData || []).forEach((s: any) => {
+        const match = (s.name || '').match(/^(\d+)[a-z]/)
+        if (match) acctNums.add(match[1])
+      })
+
+      if (acctNums.size > 0) {
+        const { data: acctData } = await supabase
+          .from('users')
+          .select('id')
+          .eq('status', 'approved')
+          .in('role', ['wholesaler', 'distributor'])
+          .in('referral_code', Array.from(acctNums))
+        assignedAccountIds = (acctData || []).map((a: any) => a.id)
+      }
+    }
 
     const { data: acctJson } = assignedAccountIds.length > 0
       ? await supabase.from('users').select('*').in('id', assignedAccountIds)

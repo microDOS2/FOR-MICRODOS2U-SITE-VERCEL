@@ -21,11 +21,20 @@ interface StoreData {
   city: string
   state: string
   license_number: string | null
-  contact_name: string
-  contact_email: string | null
-  contact_phone: string | null
-  account_manager_name: string
-  account_manager_email: string | null
+  account_name: string
+  account_email: string | null
+  account_phone: string | null
+  manager_name: string | null
+  manager_email: string | null
+  manager_phone: string | null
+  manager_city: string | null
+  manager_state: string | null
+}
+
+interface ManagerInfo {
+  name: string
+  email: string | null
+  phone: string | null
 }
 
 export function SalesRepStores() {
@@ -43,44 +52,112 @@ export function SalesRepStores() {
     }
     const repId = session.user.id
 
-    const { data: me } = await supabase.from('users').select('role,also_rep,business_name,email').eq('id', repId).single()
+    const { data: me } = await supabase.from('users').select('role,also_rep,manager_id').eq('id', repId).single()
     if (me?.role !== 'sales_rep' && !(me?.role === 'sales_manager' && me?.also_rep)) {
       toast.error('Access denied')
       navigate('/')
       return
     }
 
-    // Store rep name for display as Account Manager
-    const repName = me?.business_name || me?.email || 'Your Rep'
+    // Fetch MY manager (the sales manager I report to)
+    if (me?.manager_id) {
+      const { data: mgrData } = await supabase
+        .from('users')
+        .select('business_name,email,phone')
+        .eq('id', me.manager_id)
+        .single()
+      if (mgrData) {
+        setMyManager({
+          name: mgrData.business_name || mgrData.email || 'Your Manager',
+          email: mgrData.email || null,
+          phone: mgrData.phone || null,
+        })
+      }
+    }
 
-    // Get stores where this rep is the store rep
-    const { data: storeData } = await supabase
+    // Get stores for this rep
+    // First: try direct store assignment via license_number
+    let storeList: any[] = []
+    const { data: directStores } = await supabase
       .from('wholesaler_store_locations')
-      .select('id, name, address, city, state, license_number, email, phone, contact_name')
+      .select('id, name, address, city, state, license_number, user_id')
       .ilike('license_number', `rep:${repId}%`)
       .order('name', { ascending: true })
+    storeList = directStores || []
 
-    const storeList = storeData || []
+    // Fallback: Derive stores from assigned accounts (store name prefix matches referral_code)
     if (storeList.length === 0) {
-      setStores([])
-      setLoading(false)
-      return
-    }
+      const { data: assignmentsData } = await supabase
+        .from('rep_account_assignments')
+        .select('account_id')
+        .eq('rep_id', repId)
 
-    // Helper: extract name from email
-    function nameFromEmail(email: string): string {
-      if (!email || !email.includes('@')) return ''
-      const local = email.split('@')[0]
-      const parts = local.split('.')
-      if (parts.length >= 2) {
-        return parts[0][0].toUpperCase() + parts[0].slice(1) + ' ' + parts[1][0].toUpperCase() + parts[1].slice(1)
+      const accountIds = (assignmentsData || []).map((a: any) => a.account_id)
+
+      if (accountIds.length > 0) {
+        const { data: acctsData } = await supabase
+          .from('users')
+          .select('id, referral_code')
+          .in('id', accountIds)
+
+        const refCodes = (acctsData || []).map((a: any) => a.referral_code).filter(Boolean)
+
+        if (refCodes.length > 0) {
+          const { data: acctStores } = await supabase
+            .from('wholesaler_store_locations')
+            .select('id, name, address, city, state, license_number, user_id')
+            .order('name', { ascending: true })
+
+          storeList = (acctStores || []).filter((s: any) => {
+            const namePrefix = (s.name || '').match(/^(\d+[a-z])/)?.[1]
+            if (!namePrefix) return false
+            const acctNum = namePrefix.replace(/[a-z]$/, '')
+            return refCodes.includes(acctNum)
+          })
+        }
       }
-      return local[0].toUpperCase() + local.slice(1)
     }
 
-    const storesWithContact: StoreData[] = storeList.map((s: any) => {
-      const emailName = nameFromEmail(s.email || '')
-      const displayName = s.contact_name || emailName || s.email || 'Unknown'
+    const accountIds = storeList.map((s: any) => s.user_id).filter(Boolean)
+
+    // Get account details
+    const { data: accountsData } = accountIds.length > 0
+      ? await supabase.from('users').select('id,business_name,email,phone,manager_id').in('id', accountIds)
+      : { data: [] }
+
+    // Get manager details
+    const managerIds = (accountsData || []).map((a: any) => a.manager_id).filter(Boolean)
+    const { data: managersData } = managerIds.length > 0
+      ? await supabase.from('users').select('id,business_name,email,phone,city,state').in('id', managerIds)
+      : { data: [] }
+    const managersMap = new Map((managersData || []).map((m: any) => [m.id, m]))
+
+    const accountInfoMap = new Map<string, {
+      account_name: string | null
+      account_email: string | null
+      account_phone: string | null
+      manager_name: string | null
+      manager_email: string | null
+      manager_phone: string | null
+      manager_city: string | null
+      manager_state: string | null
+    }>()
+    ;(accountsData || []).forEach((m: any) => {
+      const mgr = managersMap.get(m.manager_id)
+      accountInfoMap.set(m.id, {
+        account_name: m.business_name || 'Unknown',
+        account_email: m.email || null,
+        account_phone: m.phone || null,
+        manager_name: mgr?.business_name || 'Unassigned',
+        manager_email: mgr?.email || null,
+        manager_phone: mgr?.phone || null,
+        manager_city: mgr?.city || null,
+        manager_state: mgr?.state || null,
+      })
+    })
+
+    const storesWithAccounts: StoreData[] = storeList.map((s: any) => {
+      const info = accountInfoMap.get(s.user_id)
       return {
         id: s.id,
         name: s.name,
@@ -88,15 +165,18 @@ export function SalesRepStores() {
         city: s.city || '',
         state: s.state || '',
         license_number: s.license_number,
-        contact_name: displayName,
-        contact_email: s.email || null,
-        contact_phone: s.phone || null,
-        account_manager_name: repName,
-        account_manager_email: null,
+        account_name: info?.account_name || 'Unknown',
+        account_email: info?.account_email || null,
+        account_phone: info?.account_phone || null,
+        manager_name: info?.manager_name || 'Unassigned',
+        manager_email: info?.manager_email || null,
+        manager_phone: info?.manager_phone || null,
+        manager_city: info?.manager_city || null,
+        manager_state: info?.manager_state || null,
       }
     })
 
-    setStores(storesWithContact)
+    setStores(storesWithAccounts)
     setLoading(false)
   }, [navigate])
 
@@ -184,30 +264,48 @@ export function SalesRepStores() {
                     </div>
 
                     <div className="bg-[#0a0514] rounded-lg p-3 border border-white/5 space-y-2">
-                      <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Account Owner (Store Contact)</p>
+                      <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Account Owner</p>
                       <div className="flex items-center gap-2">
                         <Building2 className="w-4 h-4 text-[#44f80c]" />
-                        <span className="text-sm text-white">{s.contact_name}</span>
+                        <span className="text-sm text-white">{s.account_name}</span>
                       </div>
-                      {s.contact_email && (
-                        <div className="flex items-center gap-2 mt-1">
+                      {s.account_email && (
+                        <div className="flex items-center gap-2">
                           <Mail className="w-3.5 h-3.5 text-gray-500" />
-                          <a href={`mailto:${s.contact_email}`} className="text-xs text-[#9a02d0] hover:text-[#ff66c4] underline">{s.contact_email}</a>
+                          <a href={`mailto:${s.account_email}`} className="text-xs text-[#9a02d0] hover:text-[#ff66c4] underline">{s.account_email}</a>
                         </div>
                       )}
-                      {s.contact_phone && (
-                        <div className="flex items-center gap-2 mt-1">
+                      {s.account_phone && (
+                        <div className="flex items-center gap-2">
                           <Phone className="w-3.5 h-3.5 text-gray-500" />
-                          <span className="text-xs text-gray-400">{s.contact_phone}</span>
+                          <span className="text-xs text-gray-400">{s.account_phone}</span>
                         </div>
                       )}
 
                       <div className="pt-2 border-t border-white/10">
-                        <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Account Manager (Your Rep)</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Account Manager</p>
                         <div className="flex items-center gap-2">
                           <Shield className="w-4 h-4 text-[#9a02d0]" />
-                          <span className="text-sm text-white">{s.account_manager_name}</span>
+                          <span className="text-sm text-white">{s.manager_name}</span>
                         </div>
+                        {s.manager_email && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <Mail className="w-3.5 h-3.5 text-gray-500" />
+                            <a href={`mailto:${s.manager_email}`} className="text-xs text-[#9a02d0] hover:text-[#ff66c4] underline">{s.manager_email}</a>
+                          </div>
+                        )}
+                        {s.manager_phone && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <Phone className="w-3.5 h-3.5 text-gray-500" />
+                            <span className="text-xs text-gray-400">{s.manager_phone}</span>
+                          </div>
+                        )}
+                        {(s.manager_city || s.manager_state) && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <MapPin className="w-3.5 h-3.5 text-gray-500" />
+                            <span className="text-xs text-gray-400">{s.manager_city || '—'}, {s.manager_state || '—'}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>

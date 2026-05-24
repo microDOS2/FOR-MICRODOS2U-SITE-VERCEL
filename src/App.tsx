@@ -69,6 +69,7 @@ function AppContent() {
     '/sales-manager-team',
     '/sales-manager-accounts',
     '/sales-manager-performance',
+    '/sales-manager-commissions',
     '/sales-manager-stores',
     '/sales-manager-settings',
     '/sales-manager-rep-dashboard',

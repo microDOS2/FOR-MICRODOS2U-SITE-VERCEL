@@ -74,8 +74,8 @@ export function SalesManagerStores() {
   const [editingStore, setEditingStore] = useState<StoreItem | null>(null);
   const [users, setUsers] = useState<DBUser[]>([]);
   const [geocoding, setGeocoding] = useState(false);
-  const [sortBy, setSortBy] = useState<'updated_at' | 'created_at' | 'name'>('updated_at');
-  const [sortAsc, setSortAsc] = useState(false);
+  const [sortBy, setSortBy] = useState<'rep' | 'state' | 'name'>('name');
+  const [sortAsc, setSortAsc] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [salesReps, setSalesReps] = useState<SalesRep[]>([]);
   const [assigningStore, setAssigningStore] = useState<string | null>(null);
@@ -182,45 +182,82 @@ export function SalesManagerStores() {
     setError(null);
 
     try {
+      // Build account→rep map for sorting
+      let accountRepMap = new Map<string, string>();
+      if (sortBy === 'rep' && salesReps.length > 0) {
+        const { data: assignmentsData } = await supabase
+          .from('rep_account_assignments')
+          .select('account_id, rep_id')
+          .in('account_id', territoryAccountIds);
+        const repMap = new Map(salesReps.map(r => [r.id, r.business_name || r.email || 'Unknown']));
+        (assignmentsData || []).forEach((a: any) => {
+          const repName = repMap.get(a.rep_id) || 'Unassigned';
+          accountRepMap.set(a.account_id, repName);
+        });
+      }
+
       let query = supabase
         .from('wholesaler_store_locations')
         .select('*', { count: 'exact' })
-        .in('user_id', territoryAccountIds)
-        .order(sortBy, { ascending: sortAsc });
+        .in('user_id', territoryAccountIds);
 
       if (search) {
         query = query.or(`name.ilike.%${search}%,address.ilike.%${search}%,city.ilike.%${search}%`);
       }
 
-      const { data, count, error } = await query.range(page * pageSize, (page + 1) * pageSize - 1);
+      // For rep sort, fetch all and sort client-side; otherwise use DB sort
+      let allStores: any[] = [];
+      let total = 0;
 
-      if (error) {
-        setError(error.message);
+      if (sortBy === 'rep') {
+        const { data, count, error } = await query;
+        if (error) throw error;
+        allStores = data || [];
+        total = count || 0;
+        // Sort by rep name
+        allStores.sort((a: any, b: any) => {
+          const repA = accountRepMap.get(a.user_id) || 'ZZZ';
+          const repB = accountRepMap.get(b.user_id) || 'ZZZ';
+          return sortAsc ? repA.localeCompare(repB) : repB.localeCompare(repA);
+        });
       } else {
-        const storeData = data || [];
-        // Fetch owners via client-side join (no FK relationship in schema)
-        const userIds = [...new Set(storeData.map((s: any) => s.user_id).filter(Boolean))];
-        let ownerMap = new Map<string, DBUser>();
-        if (userIds.length > 0) {
-          const { data: ownersData } = await supabase
-            .from('users')
-            .select('*')
-            .in('id', userIds);
-          (ownersData || []).forEach((u: DBUser) => ownerMap.set(u.id, u));
-        }
-        const transformed = storeData.map((s: any) => ({
-          ...s,
-          owner: ownerMap.get(s.user_id) || null,
-        }));
-        setStores(transformed);
-        setTotalCount(count || 0);
+        const dbSortField = sortBy === 'state' ? 'state' : 'name';
+        query = query.order(dbSortField, { ascending: sortAsc });
+        const { data, count, error } = await query.range(page * pageSize, (page + 1) * pageSize - 1);
+        if (error) throw error;
+        allStores = data || [];
+        total = count || 0;
       }
+
+      // Fetch owners
+      const userIds = [...new Set(allStores.map((s: any) => s.user_id).filter(Boolean))];
+      let ownerMap = new Map<string, DBUser>();
+      if (userIds.length > 0) {
+        const { data: ownersData } = await supabase
+          .from('users')
+          .select('*')
+          .in('id', userIds);
+        (ownersData || []).forEach((u: DBUser) => ownerMap.set(u.id, u));
+      }
+
+      // For rep sort, paginate after sorting
+      const paginatedStores = sortBy === 'rep'
+        ? allStores.slice(page * pageSize, (page + 1) * pageSize)
+        : allStores;
+
+      const transformed = paginatedStores.map((s: any) => ({
+        ...s,
+        owner: ownerMap.get(s.user_id) || null,
+      }));
+      setStores(transformed);
+      setTotalCount(total);
+      setError(null);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch stores');
     }
 
     setLoading(false);
-  }, [territoryAccountIds, search, page, sortBy, sortAsc]);
+  }, [territoryAccountIds, search, page, sortBy, sortAsc, salesReps]);
 
   useEffect(() => {
     fetchStores();
@@ -352,12 +389,12 @@ export function SalesManagerStores() {
       is_active: true,
     });
 
-  const handleSort = (column: 'updated_at' | 'created_at' | 'name') => {
+  const handleSort = (column: 'rep' | 'state' | 'name') => {
     if (sortBy === column) {
       setSortAsc(!sortAsc);
     } else {
       setSortBy(column);
-      setSortAsc(false);
+      setSortAsc(column === 'name'); // Default asc for name, desc for others
     }
     setPage(0);
   };
@@ -424,9 +461,9 @@ export function SalesManagerStores() {
           <div className="flex items-center gap-3 text-sm mb-4">
             <span className="text-gray-500">Sort by:</span>
             {[
-              { key: 'updated_at' as const, label: 'Last Updated' },
-              { key: 'created_at' as const, label: 'Created' },
-              { key: 'name' as const, label: 'Name' },
+              { key: 'rep' as const, label: 'Sales Rep' },
+              { key: 'state' as const, label: 'State' },
+              { key: 'name' as const, label: 'Account / Store Name' },
             ].map((opt) => (
               <button
                 key={opt.key}
@@ -862,8 +899,4 @@ export function SalesManagerStores() {
               </button>
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
+ 

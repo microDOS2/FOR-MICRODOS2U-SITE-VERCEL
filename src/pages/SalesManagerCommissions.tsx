@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { CommissionView } from '@/components/CommissionView'
+import { SalesManagerSidebar } from '@/components/sales-manager/SalesManagerSidebar'
 import { Loader2 } from 'lucide-react'
 
 export function SalesManagerCommissions() {
@@ -44,14 +45,19 @@ export function SalesManagerCommissions() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">My Commission Overrides</h1>
-        <p className="text-gray-400 text-sm mt-1">
-          Track your override earnings from your sales reps' account sales
-        </p>
-      </div>
-      <CommissionView userId={user.id} role="manager" />
+    <div className="min-h-screen bg-[#0a0514] flex">
+      <SalesManagerSidebar />
+      <main className="flex-1 p-6 lg:p-8 overflow-auto">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-white">My Commission Overrides</h1>
+            <p className="text-gray-400 text-sm mt-1">
+              Track your override earnings from your sales reps' account sales
+            </p>
+          </div>
+          <CommissionView userId={user.id} role="manager" />
+        </div>
+      </main>
     </div>
   )
 }

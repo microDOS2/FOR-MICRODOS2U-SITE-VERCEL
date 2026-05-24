@@ -900,3 +900,8 @@ export function SalesManagerStores() {
             </div>
           </div>
  
+        </div>
+      )}
+    </div>
+  );
+}

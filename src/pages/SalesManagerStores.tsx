@@ -19,6 +19,7 @@ import {
   ChevronRight,
   AlertCircle,
   Shield,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -170,94 +171,137 @@ export function SalesManagerStores() {
     init();
   }, [navigate]);
 
-  // Fetch stores for territory accounts
+  // Fetch ALL stores for the manager's team (all reps + all their accounts)
   const fetchStores = useCallback(async () => {
-    if (territoryAccountIds.length === 0) {
-      setStores([]);
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
-    setError(null);
-
     try {
-      // Build account→rep map for sorting
-      let accountRepMap = new Map<string, string>();
-      if (sortBy === 'rep' && salesReps.length > 0) {
-        const { data: assignmentsData } = await supabase
-          .from('rep_account_assignments')
-          .select('account_id, rep_id')
-          .in('account_id', territoryAccountIds);
-        const repMap = new Map(salesReps.map(r => [r.id, r.business_name || r.email || 'Unknown']));
-        (assignmentsData || []).forEach((a: any) => {
-          const repName = repMap.get(a.rep_id) || 'Unassigned';
-          accountRepMap.set(a.account_id, repName);
-        });
+      // Step 1: Get all reps under this manager
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data: repsData } = await supabase
+        .from('users')
+        .select('id, business_name, email')
+        .eq('role', 'sales_rep')
+        .eq('manager_id', session.user.id);
+
+      const repIds = (repsData || []).map((r: any) => r.id);
+      if (repIds.length === 0) {
+        setStores([]);
+        setLoading(false);
+        return;
       }
 
-      let query = supabase
+      // Step 2: Get all account assignments for those reps
+      const { data: assignmentsData } = await supabase
+        .from('rep_account_assignments')
+        .select('account_id, rep_id')
+        .in('rep_id', repIds);
+
+      const accountIds = [...new Set((assignmentsData || []).map((a: any) => a.account_id))];
+      if (accountIds.length === 0) {
+        setStores([]);
+        setLoading(false);
+        return;
+      }
+
+      // Step 3: Get account details (including referral_code and manager_id)
+      const { data: accountsData } = await supabase
+        .from('users')
+        .select('id, referral_code, manager_id, business_name, email, phone, role')
+        .in('id', accountIds)
+        .eq('status', 'approved')
+        .in('role', ['wholesaler', 'distributor']);
+
+      // Build maps
+      const accountMap = new Map<string, any>();
+      const managerIds = new Set<string>();
+      const referralCodes: string[] = [];
+      (accountsData || []).forEach((a: any) => {
+        accountMap.set(a.id, a);
+        if (a.manager_id) managerIds.add(a.manager_id);
+        if (a.referral_code) referralCodes.push(a.referral_code);
+      });
+
+      // Step 4: Get all territory managers
+      const { data: managersData } = managerIds.size > 0
+        ? await supabase.from('users').select('id, business_name, email').in('id', Array.from(managerIds))
+        : { data: [] };
+      const managerMap = new Map((managersData || []).map((m: any) => [m.id, m]));
+
+      // Step 5: Build rep map for display
+      const repMap = new Map((repsData || []).map((r: any) => [r.id, r.business_name || r.email || 'Unknown']));
+      const accountRepMap = new Map<string, string>();
+      (assignmentsData || []).forEach((a: any) => {
+        const repName = repMap.get(a.rep_id) || 'Unknown';
+        accountRepMap.set(a.account_id, repName);
+      });
+
+      // Step 6: Fetch ALL stores matching those referral codes
+      if (referralCodes.length === 0) {
+        setStores([]);
+        setLoading(false);
+        return;
+      }
+
+      const { data: allStoresData, count } = await supabase
         .from('wholesaler_store_locations')
         .select('*', { count: 'exact' })
-        .in('user_id', territoryAccountIds);
+        .or(referralCodes.map(code => `name.ilike.${code}%`).join(','));
 
+      let allStores = allStoresData || [];
+
+      // Apply search filter client-side
       if (search) {
-        query = query.or(`name.ilike.%${search}%,address.ilike.%${search}%,city.ilike.%${search}%`);
+        const searchLower = search.toLowerCase();
+        allStores = allStores.filter((s: any) =>
+          (s.name || '').toLowerCase().includes(searchLower) ||
+          (s.address || '').toLowerCase().includes(searchLower) ||
+          (s.city || '').toLowerCase().includes(searchLower)
+        );
       }
 
-      // For rep sort, fetch all and sort client-side; otherwise use DB sort
-      let allStores: any[] = [];
-      let total = 0;
+      let total = count || 0;
 
+      // Sort
       if (sortBy === 'rep') {
-        const { data, count, error } = await query;
-        if (error) throw error;
-        allStores = data || [];
-        total = count || 0;
-        // Sort by rep name
         allStores.sort((a: any, b: any) => {
           const repA = accountRepMap.get(a.user_id) || 'ZZZ';
           const repB = accountRepMap.get(b.user_id) || 'ZZZ';
           return sortAsc ? repA.localeCompare(repB) : repB.localeCompare(repA);
         });
+      } else if (sortBy === 'state') {
+        allStores.sort((a: any, b: any) => {
+          return sortAsc
+            ? (a.state || '').localeCompare(b.state || '')
+            : (b.state || '').localeCompare(a.state || '');
+        });
       } else {
-        const dbSortField = sortBy === 'state' ? 'state' : 'name';
-        query = query.order(dbSortField, { ascending: sortAsc });
-        const { data, count, error } = await query.range(page * pageSize, (page + 1) * pageSize - 1);
-        if (error) throw error;
-        allStores = data || [];
-        total = count || 0;
+        allStores.sort((a: any, b: any) => {
+          return sortAsc
+            ? (a.name || '').localeCompare(b.name || '')
+            : (b.name || '').localeCompare(a.name || '');
+        });
       }
 
-      // Fetch owners
-      const userIds = [...new Set(allStores.map((s: any) => s.user_id).filter(Boolean))];
-      let ownerMap = new Map<string, DBUser>();
-      if (userIds.length > 0) {
-        const { data: ownersData } = await supabase
-          .from('users')
-          .select('*')
-          .in('id', userIds);
-        (ownersData || []).forEach((u: DBUser) => ownerMap.set(u.id, u));
-      }
+      // Paginate
+      const paginatedStores = allStores.slice(page * pageSize, (page + 1) * pageSize);
 
-      // For rep sort, paginate after sorting
-      const paginatedStores = sortBy === 'rep'
-        ? allStores.slice(page * pageSize, (page + 1) * pageSize)
-        : allStores;
-
-      const transformed = paginatedStores.map((s: any) => ({
-        ...s,
-        owner: ownerMap.get(s.user_id) || null,
-      }));
+      // Transform with correct manager info
+      const transformed = paginatedStores.map((s: any) => {
+        const acct = accountMap.get(s.user_id);
+        const territoryMgr = acct?.manager_id ? managerMap.get(acct.manager_id) : null;
+        return {
+          ...s,
+          owner: acct || null,
+          _assignedRep: accountRepMap.get(s.user_id) || 'Unknown',
+          _territoryManager: territoryMgr?.business_name || territoryMgr?.email || 'Unassigned',
+        };
+      });
       setStores(transformed);
-      setTotalCount(total);
+      setTotalCount(search ? allStores.length : total);
       setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch stores');
-    }
-
-    setLoading(false);
-  }, [territoryAccountIds, search, page, sortBy, sortAsc, salesReps]);
+  }, [search, page, sortBy, sortAsc]);
 
   useEffect(() => {
     fetchStores();
@@ -556,10 +600,16 @@ export function SalesManagerStores() {
                       </span>
                     )}
                   </p>
-                  {managerName && (
+                  {s._territoryManager && (
                     <p className="text-sm text-[#9a02d0] mb-3">
                       <Shield className="w-3 h-3 inline mr-1" />
-                      Manager: {managerName}
+                      Territory Manager: {s._territoryManager}
+                    </p>
+                  )}
+                  {s._assignedRep && (
+                    <p className="text-sm text-[#44f80c] mb-3">
+                      <Users className="w-3 h-3 inline mr-1" />
+                      Assigned Rep: {s._assignedRep}
                     </p>
                   )}
                   <div className="space-y-1.5 text-sm text-gray-500 mb-4">

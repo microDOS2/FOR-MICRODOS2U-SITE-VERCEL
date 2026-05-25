@@ -72,6 +72,8 @@ export function SalesManagerDashboard() {
   const [assignments, setAssignments] = useState<AssignmentData[]>([]);
   const [assignmentDialogOpen, setAssignmentDialogOpen] = useState(false);
   const [selectedRep, setSelectedRep] = useState<DBUser | null>(null);
+  const [monthlyVolume, setMonthlyVolume] = useState(0);
+  const [pendingOrders, setPendingOrders] = useState(0);
 
   // Territory + store management state
   const [managerStates, setManagerStates] = useState<string[]>([]);
@@ -140,13 +142,13 @@ export function SalesManagerDashboard() {
       const { data: allRepsData } = await supabase.rpc('get_all_reps');
       setAllReps((allRepsData || []) as DBUser[]);
 
-      // Fetch accounts assigned to this manager (territory)
+      // Fetch accounts in this manager's territory (by state)
       const { data: accountsData, error: accountsError } = await supabase
         .from('users')
         .select('*')
         .in('role', ['wholesaler', 'distributor'])
         .eq('status', 'approved')
-        .eq('manager_id', session.user.id)
+        .in('state', stateCodes)
         .order('business_name', { ascending: true });
 
       if (accountsError) {
@@ -212,6 +214,21 @@ export function SalesManagerDashboard() {
       } catch {
         // Table doesn't exist yet, use empty assignments
         setAssignments([]);
+      }
+
+      // Fetch order data for territory accounts
+      if (accountsData && accountsData.length > 0) {
+        const accountIds = accountsData.map((a: any) => a.id);
+        const { data: ordersData } = await supabase
+          .from('orders')
+          .select('total, status')
+          .in('user_id', accountIds);
+        if (ordersData) {
+          const totalVolume = ordersData.reduce((sum, o) => sum + (o.total || 0), 0);
+          const pendingCount = ordersData.filter((o) => o.status === 'pending').length;
+          setMonthlyVolume(totalVolume);
+          setPendingOrders(pendingCount);
+        }
       }
 
       // Fetch pending transfers for this manager directly
@@ -481,6 +498,8 @@ export function SalesManagerDashboard() {
               salesRepCount={salesReps.length}
               totalAccountCount={accounts.length}
               pendingAssignmentCount={accounts.filter((a) => !assignments.some((asgn) => asgn.account_id === a.id)).length}
+              monthlyVolume={monthlyVolume}
+              pendingOrders={pendingOrders}
             />
           </div>
 

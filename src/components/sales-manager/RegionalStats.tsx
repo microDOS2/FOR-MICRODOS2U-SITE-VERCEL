@@ -36,9 +36,11 @@ interface RegionalStatsProps {
   salesRepCount: number;
   totalAccountCount: number;
   pendingAssignmentCount: number;
+  monthlyVolume?: number;
+  pendingOrders?: number;
 }
 
-export function RegionalStats({ salesRepCount, totalAccountCount, pendingAssignmentCount }: RegionalStatsProps) {
+export function RegionalStats({ salesRepCount, totalAccountCount, pendingAssignmentCount, monthlyVolume = 0, pendingOrders = 0 }: RegionalStatsProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard
@@ -59,15 +61,15 @@ export function RegionalStats({ salesRepCount, totalAccountCount, pendingAssignm
       />
       <StatCard
         title="Monthly Volume"
-        value="$45,200"
+        value={`$${monthlyVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
         subtitle="Combined sales"
         icon={DollarSign}
-        trend="+12% from last month"
-        trendUp={true}
+        trend={monthlyVolume > 0 ? "This period" : "No sales yet"}
+        trendUp={monthlyVolume > 0}
       />
       <StatCard
         title="Pending Orders"
-        value="8"
+        value={String(pendingOrders)}
         subtitle="Across all accounts"
         icon={ShoppingCart}
       />

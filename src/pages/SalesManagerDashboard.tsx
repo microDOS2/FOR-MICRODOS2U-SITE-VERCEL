@@ -78,6 +78,7 @@ export function SalesManagerDashboard() {
   const [territoryStores, setTerritoryStores] = useState<any[]>([]);
   const [allReps, setAllReps] = useState<DBUser[]>([]);
   const [selectedStoreRep, setSelectedStoreRep] = useState<Record<string, string>>({});
+  const [storeRepAssignments, setStoreRepAssignments] = useState<Map<string, string>>(new Map());
   const [savingStore, setSavingStore] = useState<string | null>(null);
   const [pendingTransfers, setPendingTransfers] = useState<any[]>([]);
   const [resolvingTransfer, setResolvingTransfer] = useState<string | null>(null);
@@ -187,6 +188,16 @@ export function SalesManagerDashboard() {
           }
         }
       }
+
+      // Fetch store-to-rep assignments from proper junction table
+      const { data: storeAssignmentsData } = await supabase
+        .from('store_rep_assignments')
+        .select('store_id, rep_id')
+        .eq('is_primary', true);
+      if (storeAssignmentsData) {
+        setStoreRepAssignments(new Map(storeAssignmentsData.map((a: any) => [a.store_id, a.rep_id])));
+      }
+
       // Fetch rep_account_assignments
       // This table may not exist yet (migration needs to be applied)
       // Wrap in try/catch to handle gracefully
@@ -297,9 +308,14 @@ export function SalesManagerDashboard() {
     });
   };
 
-  // Store-level rep assignment
-  const extractRepFromLicense = (license: string | null): string | null => {
-    return license && license.startsWith('rep:') ? license.slice(4) : null;
+  // Fetch store-to-rep assignments from proper junction table
+  const fetchStoreRepAssignments = async (): Promise<Map<string, string>> => {
+    const { data, error } = await supabase
+      .from('store_rep_assignments')
+      .select('store_id, rep_id')
+      .eq('is_primary', true);
+    if (error || !data) return new Map();
+    return new Map(data.map((a: any) => [a.store_id, a.rep_id]));
   };
 
   const handleAssignStore = async (storeId: string) => {
@@ -307,12 +323,21 @@ export function SalesManagerDashboard() {
     if (!repId) { toast.error('Select a Sales Rep'); return; }
     setSavingStore(storeId);
     const store = territoryStores.find(s => s.id === storeId);
-    const oldRepId = store ? extractRepFromLicense(store.license_number) : null;
-    const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: `rep:${repId}` }).eq('id', storeId);
+    const assignments = await fetchStoreRepAssignments();
+    const oldRepId = assignments.get(storeId) || null;
+    // Remove any existing assignment for this store
+    await supabase.from('store_rep_assignments').delete().eq('store_id', storeId);
+    // Insert new assignment
+    const { error } = await supabase.from('store_rep_assignments').insert({
+      store_id: storeId,
+      rep_id: repId,
+      assigned_by: manager?.id,
+      is_primary: true,
+    });
     if (error) { toast.error('Failed: ' + error.message); } else {
       const rep = salesReps.find(r => r.id === repId);
       const oldRep = oldRepId ? salesReps.find(r => r.id === oldRepId) : null;
-      await logAudit('store_rep_assigned', 'wholesaler_store_locations', storeId, oldRep?.business_name || oldRep?.email || null, rep?.business_name || rep?.email || repId);
+      await logAudit('store_rep_assigned', 'store_rep_assignments', storeId, oldRep?.business_name || oldRep?.email || null, rep?.business_name || rep?.email || repId);
       toast.success('Assigned!'); window.location.reload();
     }
     setSavingStore(null);
@@ -320,12 +345,12 @@ export function SalesManagerDashboard() {
 
   const handleUnassignStore = async (storeId: string) => {
     if (!confirm('Remove store rep assignment?')) return;
-    const store = territoryStores.find(s => s.id === storeId);
-    const oldRepId = store ? extractRepFromLicense(store.license_number) : null;
-    const { error } = await supabase.from('wholesaler_store_locations').update({ license_number: null }).eq('id', storeId);
+    const assignments = await fetchStoreRepAssignments();
+    const oldRepId = assignments.get(storeId) || null;
+    const { error } = await supabase.from('store_rep_assignments').delete().eq('store_id', storeId);
     if (error) { toast.error('Error'); } else {
       const oldRep = oldRepId ? salesReps.find(r => r.id === oldRepId) : null;
-      await logAudit('store_rep_unassigned', 'wholesaler_store_locations', storeId, oldRep?.business_name || oldRep?.email || oldRepId || null, null);
+      await logAudit('store_rep_unassigned', 'store_rep_assignments', storeId, oldRep?.business_name || oldRep?.email || oldRepId || null, null);
       toast.success('Unassigned'); window.location.reload();
     }
   };
@@ -646,7 +671,7 @@ export function SalesManagerDashboard() {
                           {expandedAccounts[acct.id] && (
                             <div className="border-t border-white/10 px-4 pb-4 space-y-3">
                               {acctStores.map((store) => {
-                                const storeRepId = extractRepFromLicense(store.license_number);
+                                const storeRepId = storeRepAssignments.get(store.id) || null;
                                 const storeRep = allReps.find((r) => r.id === storeRepId);
                                 return (
                                   <div key={store.id} className="bg-[#150f24] rounded-lg p-3 border border-white/5">
@@ -785,4 +810,5 @@ export function SalesManagerDashboard() {
       />
     </div>
   );
+}
 }

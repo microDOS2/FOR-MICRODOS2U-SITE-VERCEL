@@ -84,35 +84,23 @@ export function ApplicationsPage() {
     const password = generatePassword()
 
     try {
-      // 1. Create auth user via Edge Function (auto-sends welcome email)
-      const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-auth-user`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      // 1. Create auth user directly via Supabase signUp (no edge function)
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+        email: app.email,
+        password,
+        options: {
+          data: { business_name: app.business_name, role: app.account_type },
         },
-        body: JSON.stringify({
-          email: app.email,
-          password,
-          business_name: app.business_name,
-          role: app.account_type,
-          site_url: window.location.origin,
-        }),
       })
 
-      let userId: string
-
-      if (resp.ok) {
-        const result = await resp.json()
-        userId = result.user.id
-      } else {
-        const err = await resp.json().catch(() => ({ error: 'Unknown error' }))
-        toast.error('Auth error: ' + (err.error || resp.statusText))
+      if (signUpErr || !signUpData.user) {
+        toast.error('Auth error: ' + (signUpErr?.message || 'Unknown error'))
         setActionLoading(null)
         return
       }
+      const userId = signUpData.user.id
 
-      // 2. Insert into users table (uses RLS - will work once insert_user RPC is created)
+      // 2. Insert into users table (direct query, no RPC)
       const { error: userError } = await supabase.from('users').insert({
         id: userId,
         email: app.email,
@@ -138,7 +126,7 @@ export function ApplicationsPage() {
         return
       }
 
-      // 3. Update application status
+      // 3. Update application status (direct query, no RPC)
       const { error: appError } = await supabase.from('applications').update({
         status: 'approved',
         auth_user_id: userId,
@@ -151,21 +139,22 @@ export function ApplicationsPage() {
         return
       }
 
-      // 4. Auto-create store location for wholesaler/distributor
+      // 4. Auto-create store location for wholesaler/distributor (direct query, no RPC)
       if (app.account_type === 'wholesaler' || app.account_type === 'distributor') {
-        const { error: storeError } = await supabase.rpc('insert_store_location', {
-          p_user_id: userId,
-          p_name: app.business_name,
-          p_address: app.address,
-          p_city: app.city,
-          p_state: app.state,
-          p_zip: app.zip,
-          p_phone: app.phone,
-          p_email: app.email,
-          p_website: app.website,
-          p_stock: 'In Stock',
-          p_license_number: app.license_number,
-          p_source: 'admin',
+        const { error: storeError } = await supabase.from('wholesaler_store_locations').insert({
+          user_id: userId,
+          name: app.business_name,
+          address: app.address || '',
+          city: app.city || '',
+          state: app.state || '',
+          zip: app.zip || '',
+          phone: app.phone || '',
+          email: app.email,
+          website: app.website,
+          stock: 'In Stock',
+          license_number: app.license_number,
+          source: 'admin',
+          is_active: true,
         })
         if (storeError) {
           toast.error('Account approved but store creation failed: ' + storeError.message)
@@ -190,10 +179,10 @@ export function ApplicationsPage() {
 
   const handleReject = async (appId: string) => {
     setActionLoading(appId + '-reject')
-    const { error } = await supabase.rpc('update_application_status', {
-      p_id: appId,
-      p_status: 'rejected',
-    })
+    const { error } = await supabase.from('applications').update({
+      status: 'rejected',
+      reviewed_at: new Date().toISOString(),
+    }).eq('id', appId)
     if (error) {
       toast.error('Failed to reject: ' + error.message)
     } else {
@@ -437,3 +426,4 @@ export function ApplicationsPage() {
     </div>
   )
 }
+                                                                                                                                                                                                                                                                                       

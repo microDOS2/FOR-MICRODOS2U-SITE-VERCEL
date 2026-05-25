@@ -371,36 +371,29 @@ export function UsersPage() {
     setCreatingUser(true)
     const password = generatePassword()
     try {
-      // Use edge function (admin API) to bypass rate limits
-      const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-auth-user`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      // Create auth user directly via Supabase signUp (no edge function)
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+        email: newUserEmail,
+        password,
+        options: {
+          data: { business_name: newUserName, role: newUserRole },
         },
-        body: JSON.stringify({
-          email: newUserEmail,
-          password,
-          business_name: newUserName,
-          role: newUserRole,
-          site_url: window.location.origin,
-        }),
       })
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ error: 'Failed to create user' }))
-        throw new Error(err.error || 'Failed to create user')
+      if (signUpErr || !signUpData.user) {
+        throw new Error(signUpErr?.message || 'Failed to create auth user')
       }
-      const result = await resp.json()
-      // Insert into public.users table
-      const { error: insertErr } = await supabase.rpc('insert_user', {
-        p_id: result.user.id,
-        p_email: newUserEmail,
-        p_business_name: newUserName,
-        p_role: newUserRole,
-        p_status: 'approved',
+      const userId = signUpData.user.id
+
+      // Insert into public.users table (direct query, no RPC)
+      const { error: insertErr } = await supabase.from('users').insert({
+        id: userId,
+        email: newUserEmail,
+        business_name: newUserName,
+        role: newUserRole,
+        status: 'approved',
       })
       if (insertErr) throw new Error('Failed to insert user record: ' + insertErr.message)
+
       await fetchAll()
       setSentEmailTo(newUserEmail)
       setShowCreateModal(false)
@@ -423,42 +416,36 @@ export function UsersPage() {
     }
     setAddingAccount(true)
     try {
-      // Use edge function (admin API) to bypass rate limits
-      const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-auth-user`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      // Create auth user directly via Supabase signUp (no edge function)
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+        email: accountEmail,
+        password: accountPassword,
+        options: {
+          data: { business_name: accountBusinessName, role: accountType },
         },
-        body: JSON.stringify({
-          email: accountEmail,
-          password: accountPassword,
-          business_name: accountBusinessName,
-          role: accountType,
-          site_url: window.location.origin,
-        }),
       })
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ error: 'Failed to create account' }))
-        throw new Error(err.error || 'Failed to create account')
+      if (signUpErr || !signUpData.user) {
+        throw new Error(signUpErr?.message || 'Failed to create account')
       }
-      const result = await resp.json()
-      const { error: insertErr } = await supabase.rpc('insert_user', {
-        p_id: result.user.id,
-        p_email: accountEmail,
-        p_business_name: accountBusinessName,
-        p_phone: accountPhone || null,
-        p_address: accountAddress || null,
-        p_city: accountCity || null,
-        p_state: accountState || null,
-        p_zip: accountZip || null,
-        p_license_number: accountLicense,
-        p_ein: accountEin,
-        p_role: accountType,
-        p_status: 'approved',
+      const userId = signUpData.user.id
+
+      // Insert into public.users table (direct query, no RPC)
+      const { error: insertErr } = await supabase.from('users').insert({
+        id: userId,
+        email: accountEmail,
+        business_name: accountBusinessName,
+        phone: accountPhone || null,
+        address: accountAddress || null,
+        city: accountCity || null,
+        state: accountState || null,
+        zip: accountZip || null,
+        license_number: accountLicense,
+        ein: accountEin,
+        role: accountType,
+        status: 'approved',
       })
       if (insertErr) throw new Error('Failed to insert business account: ' + insertErr.message)
+
       await fetchAll()
       toast.success(`${roleLabels[accountType]} account created!`)
       setShowAddAccountModal(false)

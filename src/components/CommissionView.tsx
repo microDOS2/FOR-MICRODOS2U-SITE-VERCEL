@@ -34,10 +34,11 @@ export function CommissionView({ userId, role }: CommissionViewProps) {
     const fetchCommissions = async () => {
       setLoading(true);
       try {
+        // Query commission_payments table (replaces commission_entries)
         const { data, error } = await supabase
-          .from('commission_entries')
-          .select('*')
-          .eq(role === 'rep' ? 'rep_id' : 'manager_id', userId)
+          .from('commission_payments')
+          .select('*, orders(total)')
+          .eq('user_id', userId)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -46,7 +47,18 @@ export function CommissionView({ userId, role }: CommissionViewProps) {
           return;
         }
 
-        const list = (data as CommissionEntry[]) || [];
+        // Map to CommissionEntry interface
+        const list = ((data || []) as any[]).map((row: any) => ({
+          id: row.id,
+          order_id: row.order_id || '',
+          order_amount: row.orders?.total || 0,
+          rep_earnings: row.amount || 0,
+          manager_earnings: row.amount || 0,
+          period: `${row.period_year}-${String(row.period_month).padStart(2, '0')}`,
+          status: (row.status === 'pending' ? 'accrued' : row.status === 'approved' ? 'processing' : row.status) as CommissionEntry['status'],
+          paid_at: row.paid_at,
+          created_at: row.created_at,
+        }));
         setEntries(list);
 
         // Calculate totals

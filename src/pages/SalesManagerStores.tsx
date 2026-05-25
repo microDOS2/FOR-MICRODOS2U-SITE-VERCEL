@@ -182,7 +182,7 @@ export function SalesManagerStores() {
 
       const { data: repsData } = await supabase
         .from('users')
-        .select('id, business_name, email')
+        .select('id, business_name, email, manager_id')
         .eq('role', 'sales_rep')
         .eq('manager_id', session.user.id);
 

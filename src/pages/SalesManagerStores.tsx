@@ -301,6 +301,12 @@ export function SalesManagerStores() {
       setStores(transformed);
       setTotalCount(search ? allStores.length : total);
       setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch stores');
+      console.error('Fetch stores error:', err);
+    } finally {
+      setLoading(false);
+    }
   }, [search, page, sortBy, sortAsc]);
 
   useEffect(() => {

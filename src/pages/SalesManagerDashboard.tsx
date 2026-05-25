@@ -811,4 +811,3 @@ export function SalesManagerDashboard() {
     </div>
   );
 }
-}

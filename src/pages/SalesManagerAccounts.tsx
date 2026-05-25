@@ -107,20 +107,44 @@ export function SalesManagerAccounts() {
       setManagerName(userData?.business_name || '');
       setCurrentUserId(session.user.id);
 
-      // Fetch accounts assigned to this manager (territory)
-      const { data: accountsData, error: accountsError } = await supabase
+      // Fetch ALL reps under this manager
+      const { data: repsData } = await supabase
         .from('users')
-        .select('*')
-        .in('role', ['wholesaler', 'distributor'])
-        .eq('status', 'approved')
-        .eq('manager_id', session.user.id)
-        .order('business_name', { ascending: true });
+        .select('id')
+        .eq('role', 'sales_rep')
+        .eq('manager_id', session.user.id);
 
-      if (accountsError) {
-        toast.error('Failed to fetch accounts: ' + accountsError.message);
-      } else {
-        setAccounts(accountsData || []);
+      const repIds = (repsData || []).map((r: any) => r.id);
+
+      // Fetch ALL accounts assigned to those reps (via rep_account_assignments)
+      let accountIds: string[] = [];
+      if (repIds.length > 0) {
+        const { data: assignmentsData } = await supabase
+          .from('rep_account_assignments')
+          .select('account_id')
+          .in('rep_id', repIds);
+        accountIds = [...new Set((assignmentsData || []).map((a: any) => a.account_id))];
       }
+
+      // Fetch those accounts
+      let accountsData: any[] = [];
+      if (accountIds.length > 0) {
+        const { data, error: accountsError } = await supabase
+          .from('users')
+          .select('*')
+          .in('role', ['wholesaler', 'distributor'])
+          .eq('status', 'approved')
+          .in('id', accountIds)
+          .order('business_name', { ascending: true });
+
+        if (accountsError) {
+          toast.error('Failed to fetch accounts: ' + accountsError.message);
+        } else {
+          accountsData = data || [];
+        }
+      }
+
+      setAccounts(accountsData);
 
       // Fetch all approved reps via RPC (bypasses RLS)
       const { data: repsData } = await supabase.rpc('get_all_reps');
@@ -441,17 +465,6 @@ export function SalesManagerAccounts() {
                                       <Badge className="bg-[#44f80c]/20 text-[#44f80c] text-xs">
                                         <Users className="w-3 h-3 mr-1" /> Rep: {store.assigned_rep_name}
                                       </Badge>
-                                      {(() => {
-                                        const rep = allReps.find(r => r.id === store.assigned_rep_id);
-                                        if (rep && rep.manager_id && rep.manager_id !== currentUserId) {
-                                          return (
-                                            <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">
-                                              ⚠️ Cross-Territory
-                                            </Badge>
-                                          );
-                                        }
-                                        return null;
-                                      })()}
                                       <button onClick={() => handleUnassignStore(store.id)} className="text-xs text-red-400 hover:text-red-300 underline">Remove</button>
                                     </>
                                   ) : (

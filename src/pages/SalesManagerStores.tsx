@@ -47,6 +47,8 @@ interface StoreItem {
   created_at: string;
   updated_at: string;
   owner?: DBUser | null;
+  _territoryManager?: string;
+  _assignedRep?: string;
 }
 
 interface RepAssignment {
@@ -66,7 +68,6 @@ export function SalesManagerStores() {
   const [stores, setStores] = useState<StoreItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [, setManagerId] = useState<string | null>(null);
-  const [managerName, setManagerName] = useState<string>('');
   const [territoryAccountIds, setTerritoryAccountIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -124,7 +125,7 @@ export function SalesManagerStores() {
         }
 
         setManagerId(session.user.id);
-        setManagerName(userData?.business_name || '');
+        // Manager name fetched per-store via territory manager logic
 
         // Fetch reps under this manager
         const { data: repsData } = await supabase

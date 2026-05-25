@@ -141,9 +141,9 @@ export function WholesalerPortal() {
             </form>
 
             <div className="mt-4 text-center">
-              <a href="#/forgot-password" className="text-sm text-[#9a02d0] hover:underline">
+              <Link to="/forgot-password" className="text-sm text-[#9a02d0] hover:underline">
                 Forgot your password?
-              </a>
+              </Link>
             </div>
           </CardContent>
         </Card>

@@ -182,7 +182,7 @@ export function CommissionsPage() {
           }).eq('id', existing[0].id)
           if (error) throw error
         } else {
-          const { data, error } = await supabase.from('commission_rules').insert({
+          const { error } = await supabase.from('commission_rules').insert({
             role,
             rate_percent: rate,
             tier: 'standard',

@@ -108,13 +108,13 @@ export function SalesManagerAccounts() {
       setCurrentUserId(session.user.id);
 
       // Fetch ALL reps under this manager
-      const { data: repsData } = await supabase
+      const { data: teamRepsData } = await supabase
         .from('users')
         .select('id')
         .eq('role', 'sales_rep')
         .eq('manager_id', session.user.id);
 
-      const repIds = (repsData || []).map((r: any) => r.id);
+      const repIds = (teamRepsData || []).map((r: any) => r.id);
 
       // Fetch ALL accounts assigned to those reps (via rep_account_assignments)
       let accountIds: string[] = [];

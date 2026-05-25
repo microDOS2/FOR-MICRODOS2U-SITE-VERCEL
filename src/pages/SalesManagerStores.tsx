@@ -224,18 +224,25 @@ export function SalesManagerStores() {
         if (a.referral_code) referralCodes.push(a.referral_code);
       });
 
-      // Step 4: Get all territory managers
-      const { data: managersData } = managerIds.size > 0
-        ? await supabase.from('users').select('id, business_name, email').in('id', Array.from(managerIds))
+      // Step 4: Get all territory managers (from REPs, not accounts)
+      // Get unique manager_ids from the reps
+      const repManagerIds = new Set((repsData || []).map((r: any) => r.manager_id).filter(Boolean));
+      const { data: managersData } = repManagerIds.size > 0
+        ? await supabase.from('users').select('id, business_name, email').in('id', Array.from(repManagerIds))
         : { data: [] };
       const managerMap = new Map((managersData || []).map((m: any) => [m.id, m]));
 
-      // Step 5: Build rep map for display
-      const repMap = new Map((repsData || []).map((r: any) => [r.id, r.business_name || r.email || 'Unknown']));
+      // Step 5: Build rep map and account→territory manager map
+      const repMap = new Map((repsData || []).map((r: any) => [r.id, r]));
       const accountRepMap = new Map<string, string>();
+      const accountTerritoryMgrMap = new Map<string, string>();
       (assignmentsData || []).forEach((a: any) => {
-        const repName = repMap.get(a.rep_id) || 'Unknown';
+        const rep = repMap.get(a.rep_id);
+        const repName = rep?.business_name || rep?.email || 'Unknown';
         accountRepMap.set(a.account_id, repName);
+        // Territory manager = the rep's manager
+        const mgr = rep?.manager_id ? managerMap.get(rep.manager_id) : null;
+        accountTerritoryMgrMap.set(a.account_id, mgr?.business_name || mgr?.email || 'Unassigned');
       });
 
       // Step 6: Fetch ALL stores matching those referral codes
@@ -288,15 +295,14 @@ export function SalesManagerStores() {
       // Paginate
       const paginatedStores = allStores.slice(page * pageSize, (page + 1) * pageSize);
 
-      // Transform with correct manager info
+      // Transform with correct manager info (from rep, not account)
       const transformed = paginatedStores.map((s: any) => {
         const acct = accountMap.get(s.user_id);
-        const territoryMgr = acct?.manager_id ? managerMap.get(acct.manager_id) : null;
         return {
           ...s,
           owner: acct || null,
           _assignedRep: accountRepMap.get(s.user_id) || 'Unknown',
-          _territoryManager: territoryMgr?.business_name || territoryMgr?.email || 'Unassigned',
+          _territoryManager: accountTerritoryMgrMap.get(s.user_id) || 'Unassigned',
         };
       });
       setStores(transformed);

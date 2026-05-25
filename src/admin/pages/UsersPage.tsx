@@ -473,9 +473,9 @@ export function UsersPage() {
     setEditManagerId(user.raw?.manager_id || '')
     if (user.role === 'wholesaler' || user.role === 'distributor') {
       const assignment = accountRepMap.get(user.id)
-      setEditRepId(assignment?.id || '')
+      setEditRepId(assignment?.id || 'none')
     } else {
-      setEditRepId('')
+      setEditRepId('none')
     }
     setEditAlsoRep(user.raw?.also_rep || false)
     setShowEditModal(true)
@@ -530,12 +530,13 @@ export function UsersPage() {
         // For business accounts: manage rep_account_assignments
         if (['wholesaler', 'distributor'].includes(editingUser.role || '')) {
           const currentRep = accountRepMap.get(editingUser.id)
-          const currentRepId = currentRep?.id || ''
-          if (editRepId !== currentRepId) {
-            if (editRepId) {
+          const currentRepId = currentRep?.id || 'none'
+          const effectiveEditRepId = editRepId === 'none' ? '' : editRepId
+          if (effectiveEditRepId !== currentRepId) {
+            if (effectiveEditRepId) {
               await supabase.from('rep_account_assignments').delete().eq('account_id', editingUser.id)
               const { error: repErr } = await supabase.from('rep_account_assignments').insert({
-                rep_id: editRepId,
+                rep_id: effectiveEditRepId,
                 account_id: editingUser.id,
               })
               if (repErr) {
@@ -543,7 +544,7 @@ export function UsersPage() {
                 setSavingEdit(false)
                 return
               }
-              const newRep = allAccounts.find(u => u.id === editRepId)
+              const newRep = allAccounts.find(u => u.id === effectiveEditRepId)
               await logAudit('rep_assigned', 'rep_account_assignments', editingUser.id, currentRep?.business_name || currentRep?.email || null, newRep?.business_name || newRep?.email || null)
             } else {
               await supabase.from('rep_account_assignments').delete().eq('account_id', editingUser.id)
@@ -553,10 +554,11 @@ export function UsersPage() {
         }
         // For sales reps: manage manager_id
         if (editingUser.role === 'sales_rep') {
-          const oldManagerId = editingUser.raw?.manager_id || ''
-          if (editManagerId !== oldManagerId) {
+          const oldManagerId = editingUser.raw?.manager_id || 'none'
+          const effectiveEditManagerId = editManagerId === 'none' ? '' : editManagerId
+          if (effectiveEditManagerId !== oldManagerId) {
             const { error: mgrError } = await supabase.from('users').update({
-              manager_id: editManagerId || null
+              manager_id: effectiveEditManagerId || null
             }).eq('id', editingUser.id)
             if (mgrError) {
               toast.error('Profile updated but manager assignment failed: ' + mgrError.message)
@@ -1439,10 +1441,10 @@ export function UsersPage() {
             {editingUser && ['wholesaler', 'distributor'].includes(editingUser.role || '') && (
               <div>
                 <Label className="text-gray-300">Sales Rep</Label>
-                <Select value={editRepId} onValueChange={setEditRepId}>
+                <Select value={editRepId || 'none'} onValueChange={setEditRepId}>
                   <SelectTrigger className="bg-[#0a0514] border-white/10 text-white"><SelectValue placeholder="— No Rep —" /></SelectTrigger>
                   <SelectContent className="bg-[#150f24] border-white/10">
-                    <SelectItem value="">— No Rep —</SelectItem>
+                    <SelectItem value="none">— No Rep —</SelectItem>
                     {allAccounts.filter(u => u.role === 'sales_rep').map(r => (
                       <SelectItem key={r.id} value={r.id}>{r.business_name || r.email}</SelectItem>
                     ))}
@@ -1459,10 +1461,10 @@ export function UsersPage() {
             {editingUser && editingUser.role === 'sales_rep' && (
               <div>
                 <Label className="text-gray-300">Sales Manager</Label>
-                <Select value={editManagerId} onValueChange={setEditManagerId}>
+                <Select value={editManagerId || 'none'} onValueChange={setEditManagerId}>
                   <SelectTrigger className="bg-[#0a0514] border-white/10 text-white"><SelectValue placeholder="— No Manager —" /></SelectTrigger>
                   <SelectContent className="bg-[#150f24] border-white/10">
-                    <SelectItem value="">— No Manager —</SelectItem>
+                    <SelectItem value="none">— No Manager —</SelectItem>
                     {allAccounts.filter(u => u.role === 'sales_manager').map(m => (
                       <SelectItem key={m.id} value={m.id}>{m.business_name || m.email}</SelectItem>
                     ))}

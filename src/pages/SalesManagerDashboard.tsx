@@ -322,7 +322,6 @@ export function SalesManagerDashboard() {
     const repId = selectedStoreRep[storeId];
     if (!repId) { toast.error('Select a Sales Rep'); return; }
     setSavingStore(storeId);
-    const store = territoryStores.find(s => s.id === storeId);
     const assignments = await fetchStoreRepAssignments();
     const oldRepId = assignments.get(storeId) || null;
     // Remove any existing assignment for this store

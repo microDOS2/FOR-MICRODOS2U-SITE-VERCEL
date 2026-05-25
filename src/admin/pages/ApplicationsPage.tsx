@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

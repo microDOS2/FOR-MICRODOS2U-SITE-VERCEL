@@ -60,7 +60,6 @@ export function CommissionsPage() {
   const [filterPeriod, setFilterPeriod] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
   const [settings, setSettings] = useState({ rep_rate: 5, manager_override_rate: 2 })
-  const [settingsId, setSettingsId] = useState<string | null>(null)
   const [savingSettings, setSavingSettings] = useState(false)
   const [reps, setReps] = useState<RepPerformance[]>([])
   const [managers, setManagers] = useState<ManagerPerformance[]>([])
@@ -155,7 +154,6 @@ export function CommissionsPage() {
           rep_rate: repRule?.rate_percent || settings.rep_rate,
           manager_override_rate: mgrRule?.rate_percent || settings.manager_override_rate,
         })
-        setSettingsId(repRule?.id || rules[0]?.id || null)
       }
     } catch (e: any) {
       // Silently fail - defaults are fine
@@ -190,7 +188,6 @@ export function CommissionsPage() {
             tier: 'standard',
           }).select('id').single()
           if (error) throw error
-          if (role === 'sales_rep' && data) setSettingsId(data.id)
         }
       }
       toast.success('Commission settings saved!')

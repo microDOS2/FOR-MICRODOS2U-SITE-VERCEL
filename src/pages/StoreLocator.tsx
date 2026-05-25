@@ -64,7 +64,6 @@ export function StoreLocator() {
           .from('wholesaler_store_locations')
           .select('*')
           .eq('is_active', true)
-          .eq('source', 'admin')
           .order('created_at', { ascending: false });
         if (error) { console.error('StoreLocator fetch error:', error); setStores([]); setLoading(false); return; }
         if (data && data.length > 0) {

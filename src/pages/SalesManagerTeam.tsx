@@ -13,7 +13,7 @@ import { UserInfoBar } from '@/components/UserInfoBar';
 interface RepData {
   rep: DBUser;
   accounts: { id: string; business_name: string | null; email: string; role: string; referral_code: string | null }[];
-  stores: { id: string; name: string; city: string | null; state: string | null }[];
+  stores: { id: string; name: string; address: string; city: string | null; state: string | null; phone: string | null }[];
   totalOrderAmount: number;
   orderCount: number;
 }
@@ -21,7 +21,7 @@ interface RepData {
 export function SalesManagerTeam() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [manager, setManager] = useState<DBUser | null>(null);
+  const [managerName, setManagerName] = useState('');
   const [repDataList, setRepDataList] = useState<RepData[]>([]);
   const [expandedRep, setExpandedRep] = useState<string | null>(null);
 
@@ -46,7 +46,7 @@ export function SalesManagerTeam() {
         return;
       }
 
-      setManager(userData);
+      setManagerName(userData?.business_name || userData?.email || '');
 
       // Fetch ALL sales reps managed by this manager
       const { data: repsData, error: repsError } = await supabase
@@ -90,23 +90,24 @@ export function SalesManagerTeam() {
         accountsData = data || [];
       }
 
-      // Get stores for those accounts
+      // Get stores for those accounts (with address + phone)
       let storesData: any[] = [];
       if (accountIds.length > 0) {
         const { data } = await supabase
           .from('wholesaler_store_locations')
-          .select('id, name, city, state, user_id')
+          .select('id, name, address, city, state, phone, user_id')
           .in('user_id', accountIds)
+          .eq('is_active', true)
           .order('name', { ascending: true });
         storesData = data || [];
       }
 
-      // Get order data for commission calc
+      // Get order data for volume calc
       let ordersData: any[] = [];
       if (accountIds.length > 0) {
         const { data } = await supabase
           .from('orders')
-          .select('user_id, total_amount')
+          .select('user_id, total')
           .in('user_id', accountIds)
           .eq('status', 'shipped');
         ordersData = data || [];
@@ -119,7 +120,7 @@ export function SalesManagerTeam() {
         const repAccounts = accountsData.filter(a => repAccountIds.includes(a.id));
         const repStores = storesData.filter(s => repAccountIds.includes(s.user_id));
         const repOrders = ordersData.filter(o => repAccountIds.includes(o.user_id));
-        const totalAmount = repOrders.reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
+        const totalAmount = repOrders.reduce((sum: number, o: any) => sum + (o.total || 0), 0);
 
         return {
           rep,
@@ -169,7 +170,7 @@ export function SalesManagerTeam() {
               <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
               <p className="text-gray-400">No sales reps on your team yet.</p>
               <p className="text-gray-500 text-sm mt-2">
-                Ask your admin to assign sales reps to you.
+                Ask your admin to assign sales reps to you{managerName ? ` (${managerName})` : ''}.
               </p>
             </div>
           )}
@@ -194,17 +195,21 @@ export function SalesManagerTeam() {
                   {/* Contact Info */}
                   <div className="space-y-2">
                     {rep.phone && (
-                      <div className="flex items-center gap-2 text-sm">
+                      <a
+                        href={`tel:${rep.phone}`}
+                        className="flex items-center gap-2 text-sm text-gray-300 hover:text-[#44f80c] transition-colors"
+                      >
                         <Phone className="w-4 h-4 text-[#44f80c]" />
-                        <span className="text-gray-300">{rep.phone}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="w-4 h-4 text-[#9a02d0]" />
-                      <a href={`mailto:${rep.email}`} className="text-[#9a02d0] hover:text-[#ff66c4] underline">
-                        {rep.email}
+                        {rep.phone}
                       </a>
-                    </div>
+                    )}
+                    <a
+                      href={`mailto:${rep.email}`}
+                      className="flex items-center gap-2 text-sm text-[#9a02d0] hover:text-[#ff66c4] transition-colors"
+                    >
+                      <Mail className="w-4 h-4 text-[#9a02d0]" />
+                      {rep.email}
+                    </a>
                     {(rep.city || rep.state) && (
                       <div className="flex items-center gap-2 text-sm">
                         <MapPin className="w-4 h-4 text-gray-500" />
@@ -278,9 +283,24 @@ export function SalesManagerTeam() {
                           </h4>
                           <div className="space-y-1 max-h-40 overflow-y-auto">
                             {stores.map(store => (
-                              <div key={store.id} className="flex items-center justify-between px-3 py-2 bg-[#0a0514] rounded-lg text-sm">
-                                <span className="text-gray-300 truncate">{store.name}</span>
-                                <span className="text-gray-500 text-xs">{[store.city, store.state].filter(Boolean).join(', ')}</span>
+                              <div key={store.id} className="px-3 py-2 bg-[#0a0514] rounded-lg text-sm">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-gray-300 truncate">{store.name}</span>
+                                  <span className="text-gray-500 text-xs ml-2">{[store.city, store.state].filter(Boolean).join(', ')}</span>
+                                </div>
+                                {store.address && (
+                                  <p className="text-gray-600 text-xs mt-1 truncate">{store.address}</p>
+                                )}
+                                {store.phone && (
+                                  <a
+                                    href={`tel:${store.phone}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-gray-500 text-xs hover:text-[#44f80c] transition-colors flex items-center gap-1 mt-1"
+                                  >
+                                    <Phone className="w-3 h-3" />
+                                    {store.phone}
+                                  </a>
+                                )}
                               </div>
                             ))}
                           </div>

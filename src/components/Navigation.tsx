@@ -299,6 +299,15 @@ export function Navigation() {
             >
               {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in...</> : 'Sign In'}
             </Button>
+            <p className="text-center text-sm">
+              <Link
+                to="/forgot-password"
+                className="text-[#9a02d0] hover:text-[#ff66c4] hover:underline"
+                onClick={() => setLoginOpen(false)}
+              >
+                Forgot your password?
+              </Link>
+            </p>
             <p className="text-center text-sm text-gray-400">
               Don't have an account?{' '}
               <Link

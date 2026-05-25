@@ -225,8 +225,9 @@ export function SalesManagerStores() {
       });
 
       // Step 4: Get all territory managers (from REPs, not accounts)
-      // Get unique manager_ids from the reps
+      // Get unique manager_ids from the reps + always include logged-in manager
       const repManagerIds = new Set((repsData || []).map((r: any) => r.manager_id).filter(Boolean));
+      repManagerIds.add(session.user.id); // Always include self
       const { data: managersData } = repManagerIds.size > 0
         ? await supabase.from('users').select('id, business_name, email').in('id', Array.from(repManagerIds))
         : { data: [] };

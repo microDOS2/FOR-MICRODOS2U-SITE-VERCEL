@@ -148,7 +148,7 @@ export function SalesManagerDashboard() {
         .select('*')
         .in('role', ['wholesaler', 'distributor'])
         .eq('status', 'approved')
-        .in('state', stateCodes)
+        .in('state', myStates)
         .order('business_name', { ascending: true });
 
       if (accountsError) {

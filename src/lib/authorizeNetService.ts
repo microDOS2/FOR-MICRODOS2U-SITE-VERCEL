@@ -131,27 +131,22 @@ async function ensureAcceptJsReady(mode?: 'test' | 'live', maxWait = 8000): Prom
 // ─── Fetch Config from Supabase ──────────────────────────────────────
 
 export async function getAuthorizeNetConfig(): Promise<AuthorizeNetConfig> {
-  // Bypass Supabase client cache — use direct fetch with cache-busting
-  const keys = [
-    'payment_processor',
-    'payment_mode',
-    'payment_public_client_key',
-    'payment_client_id',
-    'payment_endpoint_url',
-  ]
-  const url = `${SUPABASE_URL}/rest/v1/app_config?select=key,value&key=in.(${keys.join(',')})&_cb=${Date.now()}`
+  const { data, error } = await supabase
+    .from('app_config')
+    .select('key, value')
+    .in('key', [
+      'payment_processor',
+      'payment_mode',
+      'payment_public_client_key',
+      'payment_client_id',
+      'payment_endpoint_url',
+    ])
 
-  const resp = await fetch(url, {
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-    cache: 'no-store',
-  })
+  if (error) {
+    console.error('Failed to fetch payment config:', error)
+  }
 
-  const data = resp.ok ? (await resp.json() as Array<{ key: string; value: string | null }>) : []
-
-  const map = new Map((data || []).map((r) => [r.key, r.value]))
+  const map = new Map((data || []).map((r: any) => [r.key, r.value]))
   const processor = map.get('payment_processor') || ''
   const mode = (map.get('payment_mode') as 'test' | 'live') || 'test'
   const publicKey = map.get('payment_public_client_key') || ''

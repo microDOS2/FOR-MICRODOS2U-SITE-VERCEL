@@ -54,6 +54,7 @@ export interface DBUser {
   id: string;
   email: string;
   business_name: string | null;
+  contact_name: string | null;
   license_number: string | null;
   ein: string | null;
   website: string | null;

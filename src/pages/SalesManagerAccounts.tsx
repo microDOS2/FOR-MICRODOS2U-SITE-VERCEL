@@ -230,7 +230,7 @@ export function SalesManagerAccounts() {
       const { error: rpcError } = await supabase.rpc('assign_rep_to_account', {
         p_rep_id: repId,
         p_account_id: accountId,
-        p_assigned_by: manager?.id,
+        p_assigned_by: currentUserId,
       });
       if (rpcError) throw rpcError;
       setAccountRepMap(prev => {

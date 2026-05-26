@@ -60,14 +60,33 @@ export function StoreLocator() {
     async function fetchStores() {
       setLoading(true);
       try {
+        // 1. Fetch all active store locations
         const { data, error } = await supabase
           .from('wholesaler_store_locations')
           .select('*')
           .eq('is_active', true)
           .order('created_at', { ascending: false });
         if (error) { console.error('StoreLocator fetch error:', error); setStores([]); setLoading(false); return; }
-        if (data && data.length > 0) {
-          const storesWithCoords = await Promise.all(data.map(async (s: any) => {
+
+        // 2. Filter out distributor locations — only show wholesaler retail stores
+        let filteredData = data || [];
+        if (filteredData.length > 0) {
+          const ownerIds = [...new Set(filteredData.map((s: any) => s.user_id).filter(Boolean))];
+          if (ownerIds.length > 0) {
+            const { data: usersData } = await supabase
+              .from('users')
+              .select('id,role')
+              .in('id', ownerIds);
+            const wholesalerIds = new Set(
+              (usersData || []).filter((u: any) => u.role === 'wholesaler').map((u: any) => u.id)
+            );
+            filteredData = filteredData.filter((s: any) => wholesalerIds.has(s.user_id));
+          }
+        }
+
+        // 3. Geocode and build store list
+        if (filteredData.length > 0) {
+          const storesWithCoords = await Promise.all(filteredData.map(async (s: any) => {
             let lat = s.lat ? parseFloat(s.lat) : null; let lng = s.lng ? parseFloat(s.lng) : null;
             if (!lat || !lng) { const result = await geocodeAddress([s.address, s.city, s.state, s.zip].filter(Boolean).join(', ')); if (result) { lat = result.lat; lng = result.lng; } }
             return { id: s.id, name: s.name ? s.name.replace(/^\d+[a-z]\s*-\s*/, '') : 'Unnamed Store', address: s.address || '', city: s.city || '', state: s.state || '', zip: s.zip || '', lat: lat || 39.7392, lng: lng || -104.9903, phone: s.phone || '', website: s.website || null, store_number: parseStoreNumber(s.name || '') };

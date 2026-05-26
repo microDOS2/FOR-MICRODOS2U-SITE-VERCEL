@@ -90,6 +90,7 @@ export function ApplicationsPage() {
         password,
         options: {
           data: { business_name: app.business_name, role: app.account_type },
+          email_confirm: true,
         },
       })
 
@@ -145,6 +146,7 @@ export function ApplicationsPage() {
         const { error: storeError } = await supabase.from('wholesaler_store_locations').insert({
           user_id: userId,
           name: app.business_name,
+          contact_name: app.contact_name || '',
           address: app.address || '',
           city: app.city || '',
           state: app.state || '',

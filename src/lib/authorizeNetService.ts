@@ -22,6 +22,7 @@ export interface TokenizeResult {
   success: boolean
   opaqueData?: OpaqueData
   errorMessage?: string
+  errorCode?: string
   messages?: any[]
 }
 
@@ -183,6 +184,13 @@ export async function tokenizeCard(
       apiLoginID: config.apiLoginId,
     }
 
+    // DEBUG: Log actual values being sent to Accept.js
+    console.log('[DEBUG] Accept.js config:', {
+      clientKey: authData.clientKey ? `${authData.clientKey.substring(0, 12)}...` : 'MISSING',
+      apiLoginID: authData.apiLoginID || 'MISSING',
+      mode: config.mode,
+    })
+
     const cardDataPayload = {
       cardNumber: cardData.cardNumber.replace(/\s/g, ''),
       month: cardData.month,
@@ -205,11 +213,17 @@ export async function tokenizeCard(
 
     // @ts-ignore
     Accept.dispatchData(secureData, (response: any) => {
+      // DEBUG: Log full response
+      console.log('[DEBUG] Accept.js response:', JSON.stringify(response, null, 2))
+
       if (response.messages.resultCode === 'Error') {
         const errorMsg = response.messages.message?.[0]?.text || 'Card tokenization failed'
+        const errorCode = response.messages.message?.[0]?.code || 'unknown'
+        console.log(`[DEBUG] Accept.js error ${errorCode}: ${errorMsg}`)
         resolve({
           success: false,
           errorMessage: errorMsg,
+          errorCode,
           messages: response.messages.message,
         })
         return

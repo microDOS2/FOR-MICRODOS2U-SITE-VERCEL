@@ -207,8 +207,9 @@ export function ContactPage() {
                   </div>
                   <div>
                     <h3 className="text-white font-semibold mb-1">Email</h3>
-                    <p className="text-gray-400 text-sm">partnerships@microdos2.com</p>
-                    <p className="text-gray-400 text-sm">support@microdos2.com</p>
+                    <a href="mailto:info@microdos2u.com" className="text-gray-400 text-sm hover:text-[#9a02d0] transition-colors">
+                      info@microdos2u.com
+                    </a>
                   </div>
                 </div>
 
@@ -218,8 +219,9 @@ export function ContactPage() {
                   </div>
                   <div>
                     <h3 className="text-white font-semibold mb-1">Phone</h3>
-                    <p className="text-gray-400 text-sm">1-800-MICRODOS</p>
-                    <p className="text-gray-400 text-sm">(1-800-642-7636)</p>
+                    <a href="tel:702-421-5202" className="text-gray-400 text-sm hover:text-[#9a02d0] transition-colors">
+                      702-421-5202
+                    </a>
                   </div>
                 </div>
 
@@ -230,9 +232,9 @@ export function ContactPage() {
                   <div>
                     <h3 className="text-white font-semibold mb-1">Address</h3>
                     <p className="text-gray-400 text-sm">
-                      1234 Innovation Drive
+                      9555 Las Vegas Blvd, Suite 102
                       <br />
-                      Denver, CO 80202
+                      Las Vegas, NV 89123
                       <br />
                       United States
                     </p>
@@ -245,7 +247,7 @@ export function ContactPage() {
                   </div>
                   <div>
                     <h3 className="text-white font-semibold mb-1">Hours</h3>
-                    <p className="text-gray-400 text-sm">Monday - Friday: 9AM - 6PM MST</p>
+                    <p className="text-gray-400 text-sm">Monday - Friday: 9AM - 5PM PCT</p>
                     <p className="text-gray-400 text-sm">Saturday - Sunday: Closed</p>
                   </div>
                 </div>

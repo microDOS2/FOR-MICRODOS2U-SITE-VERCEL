@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { CommissionView } from '@/components/CommissionView'
+import { SalesRepSidebar } from '@/components/sales-rep/SalesRepSidebar'
 import { Loader2 } from 'lucide-react'
 
 export function SalesRepCommissions() {
@@ -38,21 +39,29 @@ export function SalesRepCommissions() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-6 h-6 animate-spin text-psy-neonPurple" />
+      <div className="min-h-screen bg-[#0a0514] flex">
+        <SalesRepSidebar />
+        <main className="flex-1 p-6 lg:p-8 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-[#9a02d0]" />
+        </main>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">My Commissions</h1>
-        <p className="text-gray-400 text-sm mt-1">
-          Track your earnings from account purchases
-        </p>
-      </div>
-      <CommissionView userId={user.id} role="rep" />
+    <div className="min-h-screen bg-[#0a0514] flex">
+      <SalesRepSidebar />
+      <main className="flex-1 p-6 lg:p-8 overflow-auto">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-white">My Commissions</h1>
+            <p className="text-gray-400 text-sm mt-1">
+              Track your earnings from account purchases
+            </p>
+          </div>
+          <CommissionView userId={user.id} role="rep" />
+        </div>
+      </main>
     </div>
   )
 }

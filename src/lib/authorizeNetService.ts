@@ -131,16 +131,25 @@ async function ensureAcceptJsReady(mode?: 'test' | 'live', maxWait = 8000): Prom
 // ─── Fetch Config from Supabase ──────────────────────────────────────
 
 export async function getAuthorizeNetConfig(): Promise<AuthorizeNetConfig> {
-  const { data } = await supabase
-    .from('app_config')
-    .select('key, value')
-    .in('key', [
-      'payment_processor',
-      'payment_mode',
-      'payment_public_client_key',
-      'payment_client_id',
-      'payment_endpoint_url',
-    ])
+  // Bypass Supabase client cache — use direct fetch with cache-busting
+  const keys = [
+    'payment_processor',
+    'payment_mode',
+    'payment_public_client_key',
+    'payment_client_id',
+    'payment_endpoint_url',
+  ]
+  const url = `${SUPABASE_URL}/rest/v1/app_config?select=key,value&key=in.(${keys.join(',')})&_cb=${Date.now()}`
+
+  const resp = await fetch(url, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    cache: 'no-store',
+  })
+
+  const data = resp.ok ? await resp.json() : []
 
   const map = new Map((data || []).map((r: any) => [r.key, r.value]))
   const processor = map.get('payment_processor') || ''

@@ -403,7 +403,7 @@ export function UsersPage() {
         const tempSupabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
           auth: { storage: window.localStorage, autoRefreshToken: false }
         })
-        const { data: signInData, error: signInErr } = await tempSupabase.auth.signInWithPassword({
+        const { data: signInData } = await tempSupabase.auth.signInWithPassword({
           email: newUserEmail,
           password,
         })

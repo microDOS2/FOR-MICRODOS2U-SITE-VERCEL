@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createClient } from '@supabase/supabase-js'
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -379,10 +380,11 @@ export function UsersPage() {
         .eq('email', newUserEmail)
         .maybeSingle()
       if (existingUser) {
-        throw new Error('A user with this email already exists')
+        throw new Error('A user with this email already exists in the database')
       }
 
       // 2. Create auth user via Supabase signUp
+      let userId: string
       const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
         email: newUserEmail,
         password,
@@ -390,10 +392,33 @@ export function UsersPage() {
           data: { business_name: newUserName, role: newUserRole },
         },
       })
-      if (signUpErr || !signUpData.user) {
+
+      if (signUpData?.user) {
+        // New user created successfully
+        userId = signUpData.user.id
+      } else if (signUpErr?.message?.toLowerCase().includes('already') || signUpErr?.code === 'user_already_exists') {
+        // Auth user already exists (orphaned from a previous failed attempt).
+        // Try to sign in with the generated password to recover the auth user ID.
+        // Use a temporary client so we don't disturb the admin's session.
+        const tempSupabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: { storage: window.localStorage, autoRefreshToken: false }
+        })
+        const { data: signInData, error: signInErr } = await tempSupabase.auth.signInWithPassword({
+          email: newUserEmail,
+          password,
+        })
+        if (signInData?.user) {
+          userId = signInData.user.id
+        } else {
+          throw new Error(
+            'This email is already registered with a different password. ' +
+            'If a previous attempt failed, go to Supabase Dashboard → Authentication → Users, ' +
+            'delete "' + newUserEmail + '", then try again. Or use a different email.'
+          )
+        }
+      } else {
         throw new Error(signUpErr?.message || 'Failed to create auth user')
       }
-      const userId = signUpData.user.id
 
       // 3. Insert into public.users table via RPC (bypasses RLS)
       const { error: insertErr } = await supabase.rpc('insert_user_admin', {

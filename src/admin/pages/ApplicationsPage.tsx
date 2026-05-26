@@ -102,25 +102,21 @@ export function ApplicationsPage() {
       }
       const userId = signUpData.user.id
 
-      // 2. Insert into users table (direct query, no RPC)
-      const { error: userError } = await supabase.from('users').insert({
-        id: userId,
-        email: app.email,
-        business_name: app.business_name,
-        contact_name: app.contact_name,
-        role: app.account_type,
-        status: 'approved',
-        phone: app.phone,
-        address: app.address,
-        city: app.city,
-        state: app.state,
-        zip: app.zip,
-        license_number: app.license_number,
-        ein: app.ein,
-        website: app.website,
-        volume_estimate: app.volume_estimate,
-        referral_count: 0,
-        total_referral_sales: 0,
+      // 2. Insert into users table via RPC (bypasses RLS)
+      const { error: userError } = await supabase.rpc('insert_user_admin', {
+        p_id: userId,
+        p_email: app.email,
+        p_business_name: app.business_name,
+        p_contact_name: app.contact_name,
+        p_phone: app.phone,
+        p_address: app.address,
+        p_city: app.city,
+        p_state: app.state,
+        p_zip: app.zip,
+        p_license_number: app.license_number,
+        p_ein: app.ein,
+        p_role: app.account_type,
+        p_status: 'approved',
       })
 
       if (userError) {

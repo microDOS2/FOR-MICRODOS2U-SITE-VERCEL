@@ -68,8 +68,18 @@ serve(async (req) => {
     const txKey = configMap.get('payment_api_key') || ''
     const sandbox = (configMap.get('payment_mode') || 'test') === 'test'
 
+    // DEBUG: Log the credentials being used (masked for security)
+    console.log('[EDGE DEBUG] loginId:', loginId ? `${loginId.substring(0, 6)}...` : 'MISSING')
+    console.log('[EDGE DEBUG] txKey:', txKey ? `${txKey.substring(0, 6)}... (${txKey.length} chars)` : 'MISSING')
+    console.log('[EDGE DEBUG] sandbox:', sandbox)
+    console.log('[EDGE DEBUG] config rows found:', configData?.length || 0)
+
     if (!loginId || !txKey) {
-      return json({ success: false, error: 'Payment processor not configured' }, 500)
+      return json({ 
+        success: false, 
+        error: 'Payment processor not configured',
+        debug: { loginIdPresent: !!loginId, txKeyPresent: !!txKey }
+      }, 500)
     }
 
     const endpoint = sandbox
@@ -107,17 +117,33 @@ serve(async (req) => {
     const result: AuthorizeNetResponse = await resp.json()
     const tx = result.transactionResponse
 
+    // DEBUG: Log Authorize.net response
+    console.log('[EDGE DEBUG] Authorize.net resultCode:', result.messages?.resultCode)
+    console.log('[EDGE DEBUG] Authorize.net responseCode:', tx?.responseCode)
+
     if (result.messages?.resultCode !== 'Ok') {
       const err = result.messages?.message?.[0]
-      return json({ success: false, error: err?.text || 'API error', code: err?.code || 'E00001' }, 400)
+      console.log('[EDGE DEBUG] API Error:', err?.code, err?.text)
+      return json({ 
+        success: false, 
+        error: err?.text || 'API error', 
+        code: err?.code || 'E00001',
+        debug: { loginIdPrefix: loginId.substring(0, 4) }
+      }, 400)
     }
 
     if (tx?.responseCode !== '1') {
       const err = tx?.errors?.[0] || tx?.messages?.[0]
-      return json({ success: false, error: err?.errorText || err?.description || 'Declined', code: err?.errorCode || err?.code || '0' }, 400)
+      console.log('[EDGE DEBUG] Transaction Error:', err)
+      return json({ 
+        success: false, 
+        error: err?.errorText || err?.description || 'Declined', 
+        code: err?.errorCode || err?.code || '0',
+        debug: { loginIdPrefix: loginId.substring(0, 4) }
+      }, 400)
     }
 
-    // SUCCESS - update invoice via service role
+    // SUCCESS
     let updated = false
     try {
       const { error } = await supabaseAdmin

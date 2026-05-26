@@ -221,8 +221,12 @@ export function AccountsPage() {
 
   const handleAssignAccount = async (accountId: string) => {
     const repId = selectedRep[accountId]; if (!repId) { toast.error('Select a Sales Rep'); return }
-    setSaving(accountId); await supabase.from('rep_account_assignments').delete().eq('account_id', accountId)
-    const { error } = await supabase.from('rep_account_assignments').insert([{ account_id: accountId, rep_id: repId }])
+    setSaving(accountId)
+    const { error } = await supabase.rpc('assign_rep_to_account', {
+      p_rep_id: repId,
+      p_account_id: accountId,
+      p_assigned_by: (await supabase.auth.getUser()).data.user?.id,
+    })
     if (error) { toast.error('Failed: ' + error.message) } else {
       const rep = reps.find(r => r.id === repId)
       await logAudit('account_rep_assigned', 'rep_account_assignments', accountId, null, rep?.business_name || rep?.email || repId)

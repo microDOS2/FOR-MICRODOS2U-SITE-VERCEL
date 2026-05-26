@@ -538,10 +538,10 @@ export function UsersPage() {
           const effectiveEditRepId = editRepId === 'none' ? '' : editRepId
           if (effectiveEditRepId !== currentRepId) {
             if (effectiveEditRepId) {
-              await supabase.from('rep_account_assignments').delete().eq('account_id', editingUser.id)
-              const { error: repErr } = await supabase.from('rep_account_assignments').insert({
-                rep_id: effectiveEditRepId,
-                account_id: editingUser.id,
+              const { error: repErr } = await supabase.rpc('assign_rep_to_account', {
+                p_rep_id: effectiveEditRepId,
+                p_account_id: editingUser.id,
+                p_assigned_by: (await supabase.auth.getUser()).data.user?.id,
               })
               if (repErr) {
                 toast.error('Profile updated but rep assignment failed: ' + repErr.message)

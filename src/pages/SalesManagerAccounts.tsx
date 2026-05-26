@@ -226,10 +226,13 @@ export function SalesManagerAccounts() {
     setSavingAccountRep(accountId);
     try {
       const oldRep = accountRepMap.get(accountId);
-      const { error: delError } = await supabase.from('rep_account_assignments').delete().eq('account_id', accountId);
-      if (delError) throw delError;
-      const { error: insError } = await supabase.from('rep_account_assignments').insert([{ account_id: accountId, rep_id: repId }]);
-      if (insError) throw insError;
+      // Use RPC to bypass RLS
+      const { error: rpcError } = await supabase.rpc('assign_rep_to_account', {
+        p_rep_id: repId,
+        p_account_id: accountId,
+        p_assigned_by: manager?.id,
+      });
+      if (rpcError) throw rpcError;
       setAccountRepMap(prev => {
         const next = new Map(prev);
         const rep = allReps.find(r => r.id === repId);

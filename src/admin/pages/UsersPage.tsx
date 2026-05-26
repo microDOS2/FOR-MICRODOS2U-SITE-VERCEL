@@ -1115,6 +1115,9 @@ export function UsersPage() {
                       <tr key={account.id} className="hover:bg-white/5 transition-colors">
                         <td className="px-4 py-3">
                           <span className="text-white font-medium">{displayName}</span>
+                          {(['wholesaler', 'distributor'].includes(role) && account.contact_name && account.contact_name !== account.business_name) && (
+                            <span className="block text-xs text-gray-400 mt-0.5">Contact: {account.contact_name}</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-gray-300 text-sm">{account.email}</td>
                         <td className="px-4 py-3">

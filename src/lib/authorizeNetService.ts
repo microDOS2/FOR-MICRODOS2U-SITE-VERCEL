@@ -6,7 +6,7 @@
  * Edge Function to charge the card server-side.
  */
 
-import { supabase } from '@/lib/supabase'
+import { supabase, SUPABASE_ANON_KEY } from '@/lib/supabase'
 
 // ─── Types ───────────────────────────────────────────────────────────
 

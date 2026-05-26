@@ -15,12 +15,14 @@ import {
   ChevronDown,
   ChevronUp,
   Users,
+  User,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface AccountData {
   id: string
   business_name: string
+  contact_name: string | null
   email: string
   phone: string | null
   role: string
@@ -116,6 +118,7 @@ export function SalesRepAccounts() {
     const accts: AccountData[] = (acctJson || []).map((u: any) => ({
       id: u.id,
       business_name: u.business_name,
+      contact_name: u.contact_name,
       email: u.email,
       phone: u.phone,
       role: u.role,
@@ -203,6 +206,12 @@ export function SalesRepAccounts() {
                               <MapPin className="w-3 h-3" />
                               {acct.city || '—'}, {acct.state || '—'}
                             </span>
+                            {acct.contact_name && (
+                              <span className="text-xs text-gray-400 flex items-center gap-1">
+                                <User className="w-3 h-3" />
+                                Contact: <span className="text-white">{acct.contact_name}</span>
+                              </span>
+                            )}
                             <span className="text-xs text-gray-400 flex items-center gap-1">
                               <Users className="w-3 h-3" />
                               Manager: <a href={`mailto:${acct.manager_email || '#'}`} className="text-[#9a02d0] hover:text-[#ff66c4] underline">{acct.manager_name}</a>

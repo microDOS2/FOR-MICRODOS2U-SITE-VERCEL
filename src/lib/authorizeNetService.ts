@@ -131,9 +131,6 @@ async function ensureAcceptJsReady(mode?: 'test' | 'live', maxWait = 8000): Prom
 // ─── Fetch Config from Supabase ──────────────────────────────────────
 
 export async function getAuthorizeNetConfig(): Promise<AuthorizeNetConfig> {
-  // Use a cache-busting ID to ensure fresh config on every payment attempt
-  const cacheBuster = Date.now()
-
   const { data } = await supabase
     .from('app_config')
     .select('key, value')

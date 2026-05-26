@@ -6,7 +6,7 @@
  * Edge Function to charge the card server-side.
  */
 
-import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -128,29 +128,19 @@ async function ensureAcceptJsReady(mode?: 'test' | 'live', maxWait = 8000): Prom
 // ─── Fetch Config from Supabase ──────────────────────────────────────
 
 export async function getAuthorizeNetConfig(): Promise<AuthorizeNetConfig> {
-  // Bypass Supabase client cache by using raw fetch with no-store
-  const keys = [
-    'payment_processor',
-    'payment_mode',
-    'payment_public_client_key',
-    'payment_client_id',
-    'payment_endpoint_url',
-  ]
-  const url = new URL(`${SUPABASE_URL}/rest/v1/app_config`)
-  url.searchParams.set('select', 'key,value')
-  url.searchParams.set('key', `in.(${keys.join(',')})`)
-  // Add cache-busting timestamp to prevent any HTTP caching
-  url.searchParams.set('_cb', Date.now().toString())
+  // Use a cache-busting ID to ensure fresh config on every payment attempt
+  const cacheBuster = Date.now()
 
-  const resp = await fetch(url.toString(), {
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-    cache: 'no-store',
-  })
-
-  const data = resp.ok ? await resp.json() : []
+  const { data } = await supabase
+    .from('app_config')
+    .select('key, value')
+    .in('key', [
+      'payment_processor',
+      'payment_mode',
+      'payment_public_client_key',
+      'payment_client_id',
+      'payment_endpoint_url',
+    ])
 
   const map = new Map((data || []).map((r: any) => [r.key, r.value]))
   const processor = map.get('payment_processor') || ''

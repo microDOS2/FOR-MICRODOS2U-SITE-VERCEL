@@ -372,28 +372,44 @@ export function UsersPage() {
     setCreatingUser(true)
     const password = generatePassword()
     try {
-      // Create auth user directly via Supabase signUp (no edge function)
-      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-        email: newUserEmail,
-        password,
-        options: {
-          data: { business_name: newUserName, role: newUserRole },
-        },
+      // 1. Create or update auth user via RPC (handles existing users)
+      const { data: userId, error: authErr } = await supabase.rpc('create_or_update_auth_user', {
+        p_email: newUserEmail,
+        p_password: password,
+        p_business_name: newUserName,
+        p_role: newUserRole,
       })
-      if (signUpErr || !signUpData.user) {
-        throw new Error(signUpErr?.message || 'Failed to create auth user')
+      if (authErr || !userId) {
+        throw new Error(authErr?.message || 'Failed to create auth user')
       }
-      const userId = signUpData.user.id
 
-      // Insert into public.users table (direct query, no RPC)
-      const { error: insertErr } = await supabase.from('users').insert({
-        id: userId,
-        email: newUserEmail,
-        business_name: newUserName,
-        role: newUserRole,
-        status: 'approved',
+      // 2. Insert into public.users table via RPC (bypasses RLS)
+      const { error: insertErr } = await supabase.rpc('insert_user_admin', {
+        p_id: userId,
+        p_email: newUserEmail,
+        p_business_name: newUserName,
+        p_role: newUserRole,
+        p_status: 'approved',
       })
       if (insertErr) throw new Error('Failed to insert user record: ' + insertErr.message)
+
+      // 3. Send welcome email via edge function
+      try {
+        await fetch(`${SUPABASE_URL}/functions/v1/notify-application`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({
+            to: newUserEmail,
+            subject: `Your microDOS(2) Account is Ready`,
+            html: `<p>Hi ${newUserName},</p><p>Your microDOS(2) account has been created by an administrator.</p><p><strong>Login:</strong> ${newUserEmail}<br><strong>Password:</strong> ${password}</p><p>Please log in and change your password.</p>`,
+          }),
+        })
+      } catch (e) {
+        console.log('Email send failed (non-critical):', e)
+      }
 
       await fetchAll()
       setSentEmailTo(newUserEmail)

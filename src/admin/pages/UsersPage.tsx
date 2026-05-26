@@ -405,7 +405,7 @@ export function UsersPage() {
       })
       if (insertErr) throw new Error('Failed to insert user record: ' + insertErr.message)
 
-      // 3. Send welcome email via edge function
+      // 4. Send welcome email via edge function
       try {
         await fetch(`${SUPABASE_URL}/functions/v1/notify-application`, {
           method: 'POST',

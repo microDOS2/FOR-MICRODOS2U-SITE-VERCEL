@@ -590,7 +590,7 @@ export function WholesalerDashboard() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-brand-800 border-brand-700 hover:bg-brand-700/50 transition-colors cursor-pointer">
+        <Card className="bg-brand-800 border-brand-700 hover:bg-brand-700/50 transition-colors cursor-pointer" onClick={() => navigate('/products')}>
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-lg bg-psy-neonPurple/20 flex items-center justify-center">
@@ -603,7 +603,7 @@ export function WholesalerDashboard() {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-brand-800 border-brand-700 hover:bg-brand-700/50 transition-colors cursor-pointer">
+        <Card className="bg-brand-800 border-brand-700 hover:bg-brand-700/50 transition-colors cursor-pointer" onClick={() => setActiveTab('invoices')}>
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-lg bg-psy-neonGreen/20 flex items-center justify-center">
@@ -616,7 +616,7 @@ export function WholesalerDashboard() {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-brand-800 border-brand-700 hover:bg-brand-700/50 transition-colors cursor-pointer">
+        <Card className="bg-brand-800 border-brand-700 hover:bg-brand-700/50 transition-colors cursor-pointer" onClick={() => navigate('/products')}>
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-lg bg-psy-neonPink/20 flex items-center justify-center">

@@ -149,9 +149,9 @@ export async function getAuthorizeNetConfig(): Promise<AuthorizeNetConfig> {
     cache: 'no-store',
   })
 
-  const data = resp.ok ? await resp.json() : []
+  const data = resp.ok ? (await resp.json() as Array<{ key: string; value: string | null }>) : []
 
-  const map = new Map((data || []).map((r: any) => [r.key, r.value]))
+  const map = new Map((data || []).map((r) => [r.key, r.value]))
   const processor = map.get('payment_processor') || ''
   const mode = (map.get('payment_mode') as 'test' | 'live') || 'test'
   const publicKey = map.get('payment_public_client_key') || ''

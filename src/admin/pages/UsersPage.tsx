@@ -146,6 +146,7 @@ export function UsersPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingUser, setEditingUser] = useState<UnifiedUser | null>(null)
   const [editName, setEditName] = useState('')
+  const [editContactName, setEditContactName] = useState('')
   const [editPhone, setEditPhone] = useState('')
   const [editCity, setEditCity] = useState('')
   const [editState, setEditState] = useState('')
@@ -227,7 +228,7 @@ export function UsersPage() {
           id: u.id,
           source: 'users',
           business_name: u.business_name || u.email,
-          contact_name: u.business_name || u.email,
+          contact_name: u.contact_name || u.business_name || u.email,
           email: u.email,
           phone: u.phone,
           role: u.role,
@@ -434,6 +435,7 @@ export function UsersPage() {
         id: userId,
         email: accountEmail,
         business_name: accountBusinessName,
+        contact_name: accountContactName,
         phone: accountPhone || null,
         address: accountAddress || null,
         city: accountCity || null,
@@ -465,6 +467,7 @@ export function UsersPage() {
   const openEdit = (user: UnifiedUser) => {
     setEditingUser(user)
     setEditName(user.business_name || '')
+    setEditContactName(user.contact_name || '')
     setEditPhone(user.phone || '')
     setEditCity(user.city || '')
     setEditState(user.state || '')
@@ -488,6 +491,7 @@ export function UsersPage() {
       // Update user directly via admin client
       const updateData: any = {
         business_name: editName,
+        contact_name: editContactName || null,
         phone: editPhone || null,
         city: editCity || null,
         state: editState || null,
@@ -1387,6 +1391,12 @@ export function UsersPage() {
               <Label className="text-gray-300">{(['wholesaler', 'distributor'].includes(editingUser?.role || '')) ? 'Business Name' : 'Full Name'}</Label>
               <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="bg-[#0a0514] border-white/10 text-white" />
             </div>
+            {(['wholesaler', 'distributor'].includes(editingUser?.role || '')) && (
+              <div>
+                <Label className="text-gray-300">Contact Name</Label>
+                <Input value={editContactName} onChange={(e) => setEditContactName(e.target.value)} placeholder="Primary contact person" className="bg-[#0a0514] border-white/10 text-white" />
+              </div>
+            )}
             <div>
               <Label className="text-gray-300">Phone</Label>
               <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="bg-[#0a0514] border-white/10 text-white" />

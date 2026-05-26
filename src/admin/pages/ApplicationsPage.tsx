@@ -105,6 +105,7 @@ export function ApplicationsPage() {
         id: userId,
         email: app.email,
         business_name: app.business_name,
+        contact_name: app.contact_name,
         role: app.account_type,
         status: 'approved',
         phone: app.phone,

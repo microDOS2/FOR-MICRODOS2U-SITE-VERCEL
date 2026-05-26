@@ -372,18 +372,30 @@ export function UsersPage() {
     setCreatingUser(true)
     const password = generatePassword()
     try {
-      // 1. Create or update auth user via RPC (handles existing users)
-      const { data: userId, error: authErr } = await supabase.rpc('create_or_update_auth_user', {
-        p_email: newUserEmail,
-        p_password: password,
-        p_business_name: newUserName,
-        p_role: newUserRole,
-      })
-      if (authErr || !userId) {
-        throw new Error(authErr?.message || 'Failed to create auth user')
+      // 1. Check if email already exists in public.users
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', newUserEmail)
+        .maybeSingle()
+      if (existingUser) {
+        throw new Error('A user with this email already exists')
       }
 
-      // 2. Insert into public.users table via RPC (bypasses RLS)
+      // 2. Create auth user via Supabase signUp
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+        email: newUserEmail,
+        password,
+        options: {
+          data: { business_name: newUserName, role: newUserRole },
+        },
+      })
+      if (signUpErr || !signUpData.user) {
+        throw new Error(signUpErr?.message || 'Failed to create auth user')
+      }
+      const userId = signUpData.user.id
+
+      // 3. Insert into public.users table via RPC (bypasses RLS)
       const { error: insertErr } = await supabase.rpc('insert_user_admin', {
         p_id: userId,
         p_email: newUserEmail,

@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select';
 import {
   ArrowLeft, Search, Loader2, MapPin, Users, Check, Shield,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, User, Phone,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { DBUser } from '@/lib/supabase';
@@ -386,6 +386,18 @@ export function SalesManagerAccounts() {
                             )}
                           </div>
                           <p className="text-gray-400 text-sm">{account.email}</p>
+                          {account.contact_name && account.contact_name !== account.business_name && (
+                            <div className="flex items-center gap-1 text-sm text-gray-400 mt-0.5">
+                              <User className="w-3 h-3" />
+                              Contact: {account.contact_name}
+                            </div>
+                          )}
+                          {account.phone && (
+                            <div className="flex items-center gap-1 text-sm text-gray-400 mt-0.5">
+                              <Phone className="w-3 h-3" />
+                              {account.phone}
+                            </div>
+                          )}
                           <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
                             <MapPin className="w-3 h-3" />
                             {account.city && account.state ? `${account.city}, ${account.state}` : 'No location'}

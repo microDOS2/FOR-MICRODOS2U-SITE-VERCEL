@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -84,7 +85,8 @@ export function ApplicationsPage() {
     const password = generatePassword()
 
     try {
-      // 1. Create auth user directly via Supabase signUp
+      // 1. Create auth user via Supabase signUp (handle orphaned auth users)
+      let userId: string
       const signUpOptions: any = {
         email: app.email,
         password,
@@ -95,12 +97,32 @@ export function ApplicationsPage() {
       }
       const { data: signUpData, error: signUpErr } = await supabase.auth.signUp(signUpOptions)
 
-      if (signUpErr || !signUpData.user) {
+      if (signUpData?.user) {
+        userId = signUpData.user.id
+      } else if (signUpErr?.message?.toLowerCase().includes('already') || signUpErr?.code === 'user_already_exists') {
+        // Orphaned auth user — try to recover via sign-in with temp client
+        const tempSupabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: { storage: window.localStorage, autoRefreshToken: false }
+        })
+        const { data: signInData, error: signInErr } = await tempSupabase.auth.signInWithPassword({
+          email: app.email,
+          password,
+        })
+        if (signInData?.user) {
+          userId = signInData.user.id
+        } else {
+          toast.error(
+            'This email is already registered with a different password. ' +
+            'Go to Supabase Dashboard → Authentication → Users, delete "' + app.email + '", then try again.'
+          )
+          setActionLoading(null)
+          return
+        }
+      } else {
         toast.error('Auth error: ' + (signUpErr?.message || 'Unknown error'))
         setActionLoading(null)
         return
       }
-      const userId = signUpData.user.id
 
       // 2. Insert into users table via RPC (bypasses RLS)
       const { error: userError } = await supabase.rpc('insert_user_admin', {

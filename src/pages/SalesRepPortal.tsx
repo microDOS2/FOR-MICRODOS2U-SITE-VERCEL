@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { User, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 export function SalesRepPortal() {
   const navigate = useNavigate();
@@ -18,28 +19,52 @@ export function SalesRepPortal() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       toast.error('Please enter both email and password');
       return;
     }
 
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    // Email-based redirect
-    if (email.toLowerCase().includes('rep@')) {
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (authError || !authData.user) {
+        toast.error(authError?.message || 'Invalid email or password');
+        setLoading(false);
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('role, also_rep')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (userError || !userData) {
+        await supabase.auth.signOut();
+        toast.error('Account not found');
+        setLoading(false);
+        return;
+      }
+
+      if (userData.role !== 'sales_rep' && !(userData.role === 'sales_manager' && userData.also_rep)) {
+        await supabase.auth.signOut();
+        toast.error('Access denied: Sales Rep account required');
+        setLoading(false);
+        return;
+      }
+
       toast.success('Welcome back!', { description: 'Redirecting to your dashboard...' });
       navigate('/sales-rep-dashboard');
-    } else if (email.toLowerCase().includes('manager@')) {
-      toast.success('Welcome back!', { description: 'Redirecting to your dashboard...' });
-      navigate('/sales-manager-dashboard');
-    } else if (email.toLowerCase().includes('admin@')) {
-      toast.success('Welcome back!', { description: 'Redirecting to admin...' });
-      navigate('/admin');
-    } else {
-      toast.error('Invalid credentials for Sales Rep portal');
+    } catch (err: any) {
+      toast.error(err?.message || 'Login failed');
     }
+
     setLoading(false);
   };
 

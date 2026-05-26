@@ -85,14 +85,15 @@ export function ApplicationsPage() {
 
     try {
       // 1. Create auth user directly via Supabase signUp (no edge function)
-      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+      const signUpOptions: any = {
         email: app.email,
         password,
         options: {
           data: { business_name: app.business_name, role: app.account_type },
           email_confirm: true,
         },
-      })
+      }
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp(signUpOptions)
 
       if (signUpErr || !signUpData.user) {
         toast.error('Auth error: ' + (signUpErr?.message || 'Unknown error'))

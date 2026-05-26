@@ -52,9 +52,21 @@ serve(async (req) => {
 
   try {
     const body: ChargeRequest = await req.json()
-    const loginId = Deno.env.get('AUTHORIZE_NET_API_LOGIN_ID') || ''
-    const txKey = Deno.env.get('AUTHORIZE_NET_TRANSACTION_KEY') || ''
-    const sandbox = (Deno.env.get('AUTHORIZE_NET_MODE') || 'test') === 'test'
+
+    // Read credentials from database instead of env vars
+    const { data: configData } = await supabaseAdmin
+      .from('app_config')
+      .select('key, value')
+      .in('key', [
+        'payment_client_id',
+        'payment_api_key',
+        'payment_mode',
+      ])
+
+    const configMap = new Map((configData || []).map((r: any) => [r.key, r.value]))
+    const loginId = configMap.get('payment_client_id') || ''
+    const txKey = configMap.get('payment_api_key') || ''
+    const sandbox = (configMap.get('payment_mode') || 'test') === 'test'
 
     if (!loginId || !txKey) {
       return json({ success: false, error: 'Payment processor not configured' }, 500)

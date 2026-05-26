@@ -84,7 +84,7 @@ export function ApplicationsPage() {
     const password = generatePassword()
 
     try {
-      // 1. Create auth user directly via Supabase signUp (no edge function)
+      // 1. Create auth user via signUp (handles existing users gracefully)
       const signUpOptions: any = {
         email: app.email,
         password,
@@ -95,12 +95,28 @@ export function ApplicationsPage() {
       }
       const { data: signUpData, error: signUpErr } = await supabase.auth.signUp(signUpOptions)
 
-      if (signUpErr || !signUpData.user) {
+      let userId: string
+      if (signUpData?.user) {
+        userId = signUpData.user.id
+      } else if (signUpErr?.message?.includes('already registered') || signUpErr?.message?.includes('already been registered')) {
+        // User already exists — find them and reuse
+        const { data: existingUsers } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', app.email)
+          .single()
+        if (existingUsers?.id) {
+          userId = existingUsers.id
+        } else {
+          toast.error('User exists but cannot be found. Please contact support.')
+          setActionLoading(null)
+          return
+        }
+      } else {
         toast.error('Auth error: ' + (signUpErr?.message || 'Unknown error'))
         setActionLoading(null)
         return
       }
-      const userId = signUpData.user.id
 
       // 2. Insert into users table via RPC (bypasses RLS)
       const { error: userError } = await supabase.rpc('insert_user_admin', {

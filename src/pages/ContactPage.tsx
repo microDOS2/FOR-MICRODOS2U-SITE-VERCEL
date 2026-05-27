@@ -232,7 +232,7 @@ export function ContactPage() {
                   <div>
                     <h3 className="text-white font-semibold mb-1">Address</h3>
                     <p className="text-gray-400 text-sm">
-                      9555 Las Vegas Blvd, Suite 102
+                      9555 Las Vegas Blvd South, Suite 100
                       <br />
                       Las Vegas, NV 89123
                       <br />

@@ -25,7 +25,7 @@ interface CartContextType {
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
-  placeOrder: () => Promise<OrderResult>;
+  placeOrder: (paymentTransactionId?: string) => Promise<OrderResult>;
   totalItems: number;
   totalPrice: number;
   isOpen: boolean;
@@ -91,7 +91,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems([]);
   }, []);
 
-  const placeOrder = useCallback(async (): Promise<OrderResult> => {
+  const placeOrder = useCallback(async (paymentTransactionId?: string): Promise<OrderResult> => {
     if (!user) throw new Error('You must be logged in to place an order');
     if (items.length === 0) throw new Error('Your cart is empty');
 
@@ -104,6 +104,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       `${item.quantity}x ${item.productName} (${item.packagingName}) — SKU: ${item.sku} — $${item.totalPrice.toFixed(2)}`
     ).join('; ');
 
+    // Determine initial status based on payment
+    const initialStatus = paymentTransactionId ? 'processing' : 'pending';
+
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -111,10 +114,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         user_id: user.id,
         items: itemCount,
         total: total,
-        status: 'pending',
+        status: initialStatus,
         notes: cartDetails,
         shipping_address: [user.address, user.city, user.state, user.zip].filter(Boolean).join(', ') || null,
-        contact_person: user.business_name || null,
+        contact_person: user.contact_name || user.business_name || null,
         contact_phone: user.phone || null,
       })
       .select()
@@ -154,13 +157,36 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       console.error('[placeOrder] order_items insert error:', itemsError);
     }
 
-    // 3. The auto-invoice trigger creates the invoice automatically
-    // Fetch the created invoice for the result
+    // 3. Fetch the auto-created invoice
     const { data: invoiceData } = await supabase
       .from('invoices')
       .select('id')
       .eq('order_id', orderData.id)
       .maybeSingle();
+
+    // 4. If payment was made, update invoice to paid
+    if (paymentTransactionId && invoiceData) {
+      await supabase.from('invoices').update({
+        status: 'paid',
+        transaction_id: paymentTransactionId,
+        paid_date: new Date().toISOString(),
+        paid_method: 'Authorize.net',
+        paid_reference: paymentTransactionId,
+      }).eq('id', invoiceData.id);
+
+      // Send processing notification
+      try {
+        const { sendOrderNotification } = await import('@/lib/orderNotifications');
+        await sendOrderNotification({
+          status: 'processing',
+          poNumber: orderData.po_number,
+          customerEmail: user.email || '',
+          businessName: user.contact_name || user.business_name || 'Valued Customer',
+          total: total,
+          orderDate: orderData.created_at,
+        });
+      } catch (e) { /* silent */ }
+    }
 
     // Clear cart after successful order
     clearCart();

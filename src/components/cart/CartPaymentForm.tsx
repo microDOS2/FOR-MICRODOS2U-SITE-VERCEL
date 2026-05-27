@@ -50,26 +50,30 @@ export function CartPaymentForm({ amount, onSuccess, onError, onBack }: CartPaym
       }
 
       // Tokenize card via Accept.js
-      const tokenResult = await tokenizeCard({
-        cardNumber: card.cardNumber.replace(/\s/g, ''),
-        month: card.month,
-        year: card.year,
-        cardCode: card.cvv,
-        apiLoginID: config.apiLoginId,
-        clientKey: config.clientKey,
-        environment: config.environment,
-      });
+      const tokenResult = await tokenizeCard(
+        {
+          cardNumber: card.cardNumber.replace(/\s/g, ''),
+          month: card.month,
+          year: card.year,
+          cardCode: card.cvv,
+          zip: card.zip,
+          fullName: card.cardholderName,
+        },
+        config
+      );
 
       if (!tokenResult.success || !tokenResult.opaqueData) {
-        throw new Error(tokenResult.message || 'Failed to tokenize card');
+        throw new Error(tokenResult.errorMessage || 'Failed to tokenize card');
       }
 
       // Charge the card via edge function
-      const chargeResult = await chargeCard({
-        amount: amount,
-        dataDescriptor: tokenResult.opaqueData.dataDescriptor,
-        dataValue: tokenResult.opaqueData.dataValue,
-      });
+      const chargeResult = await chargeCard(
+        tokenResult.opaqueData,
+        amount,
+        'cart-checkout',
+        '',
+        'Cart Checkout Payment'
+      );
 
       if (!chargeResult.success) {
         throw new Error(chargeResult.error || 'Payment declined');

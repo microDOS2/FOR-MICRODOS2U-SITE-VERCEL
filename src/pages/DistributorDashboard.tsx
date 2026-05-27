@@ -882,8 +882,6 @@ export function DistributorDashboard() {
         </CardContent>
       </Card>
     </div>
-  )
-    </div>
   );
 
   const renderMyStores = () => (

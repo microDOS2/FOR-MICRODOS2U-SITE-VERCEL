@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { sendOrderNotification } from '@/lib/orderNotifications'
 import { formatCurrency } from '@/lib/utils'
 import {
   Search, Download, CheckCircle, Truck, FileText, ShoppingCart,
@@ -272,9 +273,18 @@ export function OrdersInvoicesPage() {
       toast.success('Marked as paid! Ready for fulfillment.')
       // Send processing notification
       try {
-        await supabase.functions.invoke('send-order-notification', {
-          body: { order_id: orderId, status: 'processing', test_email: 'holtcrowder@gmail.com' },
-        })
+        const order = orders.find((o: any) => o.id === orderId)
+        if (order?.users?.email) {
+          await sendOrderNotification({
+            status: 'processing',
+            poNumber: order.po_number,
+            customerEmail: order.users.email,
+            businessName: order.users.business_name || order.users.contact_name || 'Valued Customer',
+            total: order.total,
+            orderDate: order.created_at,
+            testEmail: 'holtcrowder@gmail.com',
+          })
+        }
       } catch (notifyErr: any) {
         console.error('Notification error:', notifyErr)
       }

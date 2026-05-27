@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
+import { sendOrderNotification } from '@/lib/orderNotifications';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
@@ -139,12 +140,22 @@ export function ShippingDashboard() {
       toast.success('Order marked as shipped!');
       // Send shipment notification email
       try {
-        await supabase.functions.invoke('send-order-notification', {
-          body: { order_id: orderId, status: 'shipped', test_email: 'holtcrowder@gmail.com' },
-        });
+        const order = orders.find((o) => o.id === orderId);
+        if (order?.users?.email) {
+          await sendOrderNotification({
+            status: 'shipped',
+            poNumber: order.po_number,
+            customerEmail: order.users.email,
+            businessName: order.users.business_name || order.users.contact_name || 'Valued Customer',
+            total: order.total,
+            orderDate: order.created_at,
+            trackingNumber: inputs.tracking,
+            carrier: inputs.carrier,
+            testEmail: 'holtcrowder@gmail.com',
+          });
+        }
       } catch (notifyErr: any) {
         console.error('Notification error:', notifyErr);
-        // Don't block the UI on notification failure
       }
       await fetchOrders();
     }

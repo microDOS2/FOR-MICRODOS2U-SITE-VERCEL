@@ -53,26 +53,21 @@ serve(async (req) => {
   try {
     const body: ChargeRequest = await req.json()
 
-    // Read credentials from database instead of env vars
+    // Read ONLY mode from database; login ID and transaction key from env vars
     const { data: configData } = await supabaseAdmin
       .from('app_config')
       .select('key, value')
-      .in('key', [
-        'payment_client_id',
-        'payment_api_key',
-        'payment_mode',
-      ])
+      .in('key', ['payment_mode'])
 
     const configMap = new Map((configData || []).map((r: any) => [r.key, r.value]))
-    const loginId = configMap.get('payment_client_id') || ''
-    const txKey = configMap.get('payment_api_key') || ''
+    // BOTH credentials from env vars - guaranteed paired correctly
+    const loginId = Deno.env.get('AUTHORIZE_NET_API_LOGIN_ID') || ''
+    const txKey = Deno.env.get('AUTHORIZE_NET_TRANSACTION_KEY') || ''
     const sandbox = (configMap.get('payment_mode') || 'test') === 'test'
 
-    // DEBUG: Log the credentials being used (masked for security)
     console.log('[EDGE DEBUG] loginId:', loginId ? `${loginId.substring(0, 6)}...` : 'MISSING')
-    console.log('[EDGE DEBUG] txKey:', txKey ? `${txKey.substring(0, 6)}... (${txKey.length} chars)` : 'MISSING')
+    console.log('[EDGE DEBUG] txKey length:', txKey ? txKey.length : 0)
     console.log('[EDGE DEBUG] sandbox:', sandbox)
-    console.log('[EDGE DEBUG] config rows found:', configData?.length || 0)
 
     if (!loginId || !txKey) {
       return json({ 
@@ -117,7 +112,6 @@ serve(async (req) => {
     const result: AuthorizeNetResponse = await resp.json()
     const tx = result.transactionResponse
 
-    // DEBUG: Log Authorize.net response
     console.log('[EDGE DEBUG] Authorize.net resultCode:', result.messages?.resultCode)
     console.log('[EDGE DEBUG] Authorize.net responseCode:', tx?.responseCode)
 
@@ -128,7 +122,6 @@ serve(async (req) => {
         success: false, 
         error: err?.text || 'API error', 
         code: err?.code || 'E00001',
-        debug: { loginIdPrefix: loginId.substring(0, 4) }
       }, 400)
     }
 
@@ -139,11 +132,9 @@ serve(async (req) => {
         success: false, 
         error: err?.errorText || err?.description || 'Declined', 
         code: err?.errorCode || err?.code || '0',
-        debug: { loginIdPrefix: loginId.substring(0, 4) }
       }, 400)
     }
 
-    // SUCCESS
     let updated = false
     try {
       const { error } = await supabaseAdmin

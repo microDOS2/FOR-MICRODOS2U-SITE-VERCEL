@@ -29,7 +29,7 @@ interface FulfillmentOrder {
   payment_reference: string | null
   forwarded_to_fulfillment_at: string | null
   fulfilled_at: string | null
-  users?: { business_name: string; email: string; phone: string }
+  users?: { business_name: string; email: string; phone: string; contact_name: string | null }
   invoices?: { id: string; invoice_number: string; amount: number; status: string; due_date: string }[]
 }
 
@@ -45,7 +45,7 @@ interface FulfillmentInvoice {
   paid_date: string | null
   paid_method: string | null
   paid_reference: string | null
-  users?: { business_name: string; email: string; phone: string }
+  users?: { business_name: string; email: string; phone: string; contact_name: string | null }
   orders?: { po_number: string; shipping_address: string; contact_person: string; contact_phone: string }
 }
 
@@ -131,7 +131,7 @@ export function OrdersInvoicesPage() {
       supabase.from('orders')
         .select(`
           *,
-          users!user_id (business_name, email, phone),
+          users!user_id (business_name, email, phone, contact_name),
           invoices(id, invoice_number, amount, status, due_date)
         `)
         .order('created_at', { ascending: false })
@@ -139,7 +139,7 @@ export function OrdersInvoicesPage() {
       supabase.from('invoices')
         .select(`
           *,
-          users!user_id (business_name, email, phone),
+          users!user_id (business_name, email, phone, contact_name),
           orders:order_id (po_number, shipping_address, contact_person, contact_phone)
         `)
         .order('created_at', { ascending: false })

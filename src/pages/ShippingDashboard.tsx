@@ -7,7 +7,7 @@ import {
   LogOut,
   Search,
   Eye,
-  CheckCircle,
+
   Clock,
   AlertCircle,
   Settings as SettingsIcon,
@@ -15,7 +15,7 @@ import {
   ChevronDown,
   ChevronUp,
   Box,
-  CheckCheck,
+
   MapPin,
   Phone,
   Mail,
@@ -40,7 +40,7 @@ import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 
 // Types
-type OrderStatus = 'pending' | 'paid' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+type OrderStatus = 'pending' | 'processing' | 'shipped' | 'cancelled';
 
 const CARRIERS = ['UPS', 'FedEx', 'USPS', 'DHL', 'OnTrac', 'Amazon Logistics', 'Other'];
 
@@ -89,12 +89,12 @@ export function ShippingDashboard() {
       .select(`
         id, po_number, items, total, status, notes, created_at, updated_at,
         shipping_address, contact_person, contact_phone,
-        forwarded_to_fulfillment_at, shipped_date, delivered_date,
+        forwarded_to_fulfillment_at, shipped_date,
         tracking_number, carrier,
         order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total),
         users!orders_user_id_fkey(business_name, email, phone)
       `)
-      .in('status', ['processing', 'shipped', 'delivered'])
+      .in('status', ['processing', 'shipped'])
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -142,33 +142,11 @@ export function ShippingDashboard() {
     setProcessingId(null);
   };
 
-  const handleMarkDelivered = async (orderId: string) => {
-    setProcessingId(orderId);
-    const { error } = await supabase
-      .from('orders')
-      .update({
-        status: 'delivered',
-        delivered_date: new Date().toISOString(),
-      })
-      .eq('id', orderId);
-
-    if (error) {
-      console.error('Mark delivered error:', error);
-      toast.error('Failed to mark as delivered: ' + error.message);
-    } else {
-      toast.success('Order marked as delivered!');
-      await fetchOrders();
-    }
-    setProcessingId(null);
-  };
-
   const getStatusBadge = (status: OrderStatus) => {
     const styles: Record<string, string> = {
       pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-      paid: 'bg-green-500/10 text-green-400 border-green-500/20',
       processing: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
       shipped: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-      delivered: 'bg-green-500/10 text-green-400 border-green-500/20',
       cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
     };
     return styles[status] || styles.pending;
@@ -177,10 +155,8 @@ export function ShippingDashboard() {
   const getStatusIcon = (status: OrderStatus) => {
     const icons: Record<string, React.ElementType> = {
       pending: Clock,
-      paid: CheckCircle,
       processing: Package,
       shipped: Truck,
-      delivered: CheckCheck,
       cancelled: AlertCircle,
     };
     return icons[status] || Clock;
@@ -190,7 +166,7 @@ export function ShippingDashboard() {
   const stats = {
     processing: orders.filter((o) => o.status === 'processing').length,
     shippedToday: orders.filter((o) => o.status === 'shipped' && o.shipped_date?.startsWith(today)).length,
-    deliveredToday: orders.filter((o) => o.status === 'delivered' && o.delivered_date?.startsWith(today)).length,
+    totalShipped: orders.filter((o) => o.status === 'shipped').length,
     totalActive: orders.filter((o) => o.status === 'processing' || o.status === 'shipped').length,
   };
 
@@ -232,11 +208,11 @@ export function ShippingDashboard() {
         </Card>
         <Card className="bg-brand-800 border-brand-700">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400">Delivered Today</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-400">In Transit</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-400">{stats.deliveredToday}</div>
-            <p className="text-xs text-gray-500 mt-1">Completed today</p>
+            <div className="text-3xl font-bold text-green-400">{stats.totalShipped}</div>
+            <p className="text-xs text-gray-500 mt-1">Currently shipped</p>
           </CardContent>
         </Card>
         <Card className="bg-brand-800 border-brand-700">
@@ -279,7 +255,7 @@ export function ShippingDashboard() {
               </div>
               <div>
                 <h3 className="font-bold text-white">In Transit</h3>
-                <p className="text-sm text-gray-400">Mark shipped orders as delivered</p>
+                <p className="text-sm text-gray-400">View all shipped orders</p>
               </div>
             </div>
           </CardContent>
@@ -362,7 +338,7 @@ export function ShippingDashboard() {
             <option value="all">All Status</option>
             <option value="processing">Processing</option>
             <option value="shipped">Shipped</option>
-            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
           </select>
         </div>
       </div>
@@ -538,29 +514,14 @@ export function ShippingDashboard() {
                                       <span className="font-mono text-gray-300">— Tracking: {order.tracking_number} ({order.carrier})</span>
                                     )}
                                   </div>
-                                  <Button
-                                    onClick={() => handleMarkDelivered(order.id)}
-                                    disabled={isProcessingAction}
-                                    className="bg-green-600 hover:bg-green-700 text-white font-semibold"
-                                  >
-                                    {isProcessingAction ? (
-                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    ) : (
-                                      <CheckCheck className="w-4 h-4 mr-2" />
-                                    )}
-                                    Mark as Delivered
-                                  </Button>
                                 </div>
                               )}
 
-                              {order.status === 'delivered' && (
+                              {order.status === 'cancelled' && (
                                 <div className="pt-2 border-t border-brand-700">
-                                  <div className="flex items-center gap-2 text-sm text-green-400">
-                                    <CheckCheck className="w-4 h-4" />
-                                    <span>Delivered {order.delivered_date ? new Date(order.delivered_date).toLocaleDateString() : ''}</span>
-                                    {order.tracking_number && (
-                                      <span className="text-gray-500">— Tracking: {order.tracking_number} ({order.carrier})</span>
-                                    )}
+                                  <div className="flex items-center gap-2 text-sm text-red-400">
+                                    <AlertCircle className="w-4 h-4" />
+                                    <span>Order cancelled</span>
                                   </div>
                                 </div>
                               )}

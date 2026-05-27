@@ -92,7 +92,7 @@ export interface Order {
   user_id: string | null;
   items: number;
   total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'pending' | 'processing' | 'shipped' | 'cancelled';
   notes: string | null;
   referral_code: string | null;
   created_at: string;

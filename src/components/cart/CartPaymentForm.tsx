@@ -76,7 +76,15 @@ export function CartPaymentForm({ amount, onSuccess, onError, onBack }: CartPaym
       );
 
       if (!chargeResult.success) {
-        throw new Error(chargeResult.error || 'Payment declined');
+        const errMsg = chargeResult.error || 'Payment declined';
+        // Provide clearer error messages for common Authorize.net errors
+        if (errMsg.includes('E00007') || errMsg.includes('invalid authentication')) {
+          throw new Error('Payment system not configured. Please contact support.');
+        }
+        if (errMsg.includes('declined') || errMsg.includes('rejected')) {
+          throw new Error('Card declined. Please check your details and try again.');
+        }
+        throw new Error(errMsg);
       }
 
       onSuccess(chargeResult.transactionId || 'unknown');

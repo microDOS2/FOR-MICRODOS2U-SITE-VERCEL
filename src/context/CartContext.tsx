@@ -164,15 +164,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       .eq('order_id', orderData.id)
       .maybeSingle();
 
-    // 4. If payment was made, update invoice to paid
+    // 4. If payment was made, update invoice to paid via RPC (bypasses RLS)
     if (paymentTransactionId && invoiceData) {
-      await supabase.from('invoices').update({
-        status: 'paid',
-        transaction_id: paymentTransactionId,
-        paid_date: new Date().toISOString(),
-        paid_method: 'Authorize.net',
-        paid_reference: paymentTransactionId,
-      }).eq('id', invoiceData.id);
+      await supabase.rpc('mark_invoice_paid', {
+        p_invoice_id: invoiceData.id,
+        p_transaction_id: paymentTransactionId,
+        p_paid_method: 'Authorize.net',
+        p_paid_reference: paymentTransactionId,
+      });
 
       // Send processing notification
       try {

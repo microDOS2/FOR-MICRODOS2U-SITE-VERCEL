@@ -10,7 +10,7 @@ import {
   ChevronRight,
   Search,
   Eye,
-  XCircle,
+
   Clock,
   Truck,
   AlertCircle,

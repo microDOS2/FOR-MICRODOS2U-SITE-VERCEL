@@ -312,9 +312,8 @@ export function OrdersInvoicesPage() {
       paid: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
       processing: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
       shipped: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-      cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
       overdue: 'bg-red-500/10 text-red-400 border-red-500/20',
-      cancelled: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+      cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
     }
     return map[status] || 'bg-gray-500/10 text-gray-400'
   }

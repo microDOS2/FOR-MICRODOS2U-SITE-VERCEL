@@ -263,7 +263,7 @@ export function OrdersInvoicesPage() {
         paid_method: method,
         paid_reference: `Manual: ${method}`,
       }).eq('id', invoiceId),
-      supabase.from('orders').update({ status: 'paid' }).eq('id', orderId),
+      supabase.from('orders').update({ status: 'processing' }).eq('id', orderId),
     ])
     setProcessingId(null)
     if (invErr || ordErr) {
@@ -336,7 +336,7 @@ export function OrdersInvoicesPage() {
             <ShoppingCart className="w-4 h-4" />
             Purchase Orders
             <span className="ml-1 text-xs bg-[#9a02d0]/30 px-2 py-0.5 rounded-full">
-              {orders.filter(o => o.status === 'pending' || o.status === 'paid').length}
+              {orders.filter(o => o.status === 'pending' || o.status === 'processing').length}
             </span>
           </button>
           <button
@@ -906,7 +906,7 @@ function OrderCard({
             </button>
           </>
         )}
-        {order.status === 'paid' && !order.forwarded_to_fulfillment_at && (
+        {order.status === 'processing' && !order.forwarded_to_fulfillment_at && (
           <button
             onClick={onForward}
             disabled={isProcessing}

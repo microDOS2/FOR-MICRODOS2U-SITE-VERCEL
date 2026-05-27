@@ -137,6 +137,15 @@ export function ShippingDashboard() {
       toast.error('Failed to mark as shipped: ' + error.message);
     } else {
       toast.success('Order marked as shipped!');
+      // Send shipment notification email
+      try {
+        await supabase.functions.invoke('send-order-notification', {
+          body: { order_id: orderId, status: 'shipped', test_email: 'holtcrowder@gmail.com' },
+        });
+      } catch (notifyErr: any) {
+        console.error('Notification error:', notifyErr);
+        // Don't block the UI on notification failure
+      }
       await fetchOrders();
     }
     setProcessingId(null);

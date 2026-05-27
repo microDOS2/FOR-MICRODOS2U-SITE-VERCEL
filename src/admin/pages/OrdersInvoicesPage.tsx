@@ -270,6 +270,14 @@ export function OrdersInvoicesPage() {
       toast.error('Failed to mark paid: ' + ((invErr || ordErr)?.message || ''))
     } else {
       toast.success('Marked as paid! Ready for fulfillment.')
+      // Send processing notification
+      try {
+        await supabase.functions.invoke('send-order-notification', {
+          body: { order_id: orderId, status: 'processing', test_email: 'holtcrowder@gmail.com' },
+        })
+      } catch (notifyErr: any) {
+        console.error('Notification error:', notifyErr)
+      }
       fetchData()
     }
   }

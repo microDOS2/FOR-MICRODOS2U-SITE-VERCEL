@@ -878,7 +878,7 @@ export function DistributorDashboard() {
           <div className="h-px bg-white/10" />
 
           {/* Assigned Sales Rep — uses same component as Overview */}
-          <AccountRepCard accountId={user.id} />
+          {user && <AccountRepCard accountId={user.id} />}
 
           <div className="pt-2">
             <p className="text-xs text-gray-500">

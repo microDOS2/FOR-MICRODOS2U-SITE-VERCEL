@@ -27,7 +27,6 @@ import {
   Phone,
   Store,
   Globe,
-  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -106,8 +105,7 @@ export function DistributorDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
-  const [assignedRep, setAssignedRep] = useState<any>(null);
-  const [repLoading, setRepLoading] = useState(false);
+
 
   // Orders filter state
   const [orderSearch, setOrderSearch] = useState('');
@@ -212,27 +210,6 @@ export function DistributorDashboard() {
   const [myStores, setMyStores] = useState<any[]>([]);
   const [myStoresLoading, setMyStoresLoading] = useState(false);
   const [showStoreUploadModal, setShowStoreUploadModal] = useState(false);
-
-  // Fetch assigned sales rep
-  useEffect(() => {
-    if (!user) return;
-    const fetchAssignedRep = async () => {
-      setRepLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('rep_account_assignments')
-          .select('rep_id,users!rep_id(contact_name,email,phone)')
-          .eq('account_id', user.id)
-          .maybeSingle();
-        if (error) console.error(error);
-        if (data && data.users) {
-          setAssignedRep(data.users);
-        }
-      } catch (e) { console.error(e); }
-      setRepLoading(false);
-    };
-    fetchAssignedRep();
-  }, [user]);
 
   useEffect(() => {
     if (!user || activeTab !== 'my-stores') return;
@@ -900,36 +877,8 @@ export function DistributorDashboard() {
 
           <div className="h-px bg-white/10" />
 
-          {/* Assigned Sales Rep */}
-          <div className="space-y-4">
-            <h4 className="text-white font-medium flex items-center gap-2">
-              <User className="w-4 h-4 text-[#9a02d0]" />
-              Your Sales Rep
-            </h4>
-            {repLoading ? (
-              <div className="flex items-center gap-2 text-gray-400">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Loading...
-              </div>
-            ) : assignedRep ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Name</p>
-                  <p className="text-gray-300">{assignedRep.contact_name || 'Not available'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Email</p>
-                  <p className="text-gray-300">{assignedRep.email || 'Not set'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Phone</p>
-                  <p className="text-gray-300">{assignedRep.phone || 'Not set'}</p>
-                </div>
-              </div>
-            ) : (
-              <p className="text-gray-400 text-sm">No sales rep assigned yet. Contact your administrator.</p>
-            )}
-          </div>
+          {/* Assigned Sales Rep — uses same component as Overview */}
+          <AccountRepCard accountId={user.id} />
 
           <div className="pt-2">
             <p className="text-xs text-gray-500">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Phone, Mail, MapPin, Users, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 

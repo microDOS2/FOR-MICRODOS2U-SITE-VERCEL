@@ -5,92 +5,86 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import {
-  DollarSign,
-  Loader2,
-  Calendar,
-  TrendingUp,
-  CheckCircle,
-  AlertTriangle,
-  Settings,
-  Users,
-  Shield,
-  UserCog,
-  Store,
-  Warehouse,
+  DollarSign, Loader2, Calendar, TrendingUp, CheckCircle, AlertTriangle,
+  Settings, Users, Shield, UserCog, Store, Warehouse, List, LayoutGrid,
+  CreditCard, Printer, X
 } from 'lucide-react'
+
+// ─── Types ──────────────────────────────────────────────────────
 
 interface CommissionEntry {
   id: string
   order_id: string
   account_id: string
   rep_id: string
-  manager_id: string | null
+  role_type: string
+  account_type: string
   order_amount: number
-  rep_earnings: number
-  manager_earnings: number | null
+  amount: number
+  rate_percent: number
   period: string
   status: 'accrued' | 'processing' | 'paid'
   paid_at: string | null
+  paid_method: string | null
+  paid_reference: string | null
   created_at: string
   rep_name?: string
-  manager_name?: string
   account_name?: string
 }
 
 interface RepPerformance {
-  id: string
-  name: string
-  email: string
-  accounts: number
-  orders: number
-  commission: number
-  pending: number
-  rate_wholesaler: number
-  rate_distributor: number
+  id: string; name: string; email: string
+  accounts: number; orders: number
+  commission: number; pending: number
+  rate_wholesaler: number; rate_distributor: number
 }
 
 interface ManagerPerformance {
-  id: string
-  name: string
-  email: string
-  team_size: number
-  overrides: number
-  pending: number
-  rate_wholesaler: number
-  rate_distributor: number
+  id: string; name: string; email: string
+  team_size: number; overrides: number; pending: number
+  rate_wholesaler: number; rate_distributor: number
 }
 
 interface UserRateRow {
-  id: string
-  name: string
-  email: string
-  role: string
-  wholesaler_rate: number
-  distributor_rate: number
-  has_wholesaler_override: boolean
-  has_distributor_override: boolean
+  id: string; name: string; email: string; role: string
+  wholesaler_rate: number; distributor_rate: number
+  has_wholesaler_override: boolean; has_distributor_override: boolean
 }
+
+const PAY_METHODS = ['Check', 'ACH', 'PayPal', 'Venmo', 'Zelle', 'Cash App', 'Other']
+
+function getNextPayoutDate(): string {
+  const now = new Date()
+  const next = new Date(now.getFullYear(), now.getMonth() + 1, 15)
+  return next.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
+function getPeriodFromDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+// ─── Component ──────────────────────────────────────────────────
 
 export function CommissionsPage() {
   const [entries, setEntries] = useState<CommissionEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [payingPeriod, setPayingPeriod] = useState<string | null>(null)
   const [filterPeriod, setFilterPeriod] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [viewMode, setViewMode] = useState<'flat' | 'grouped'>('flat')
 
-  // 4 default rates: rep_wholesaler, rep_distributor, manager_wholesaler, manager_distributor
+  // Settings
   const [settings, setSettings] = useState({
-    rep_wholesaler: 10,
-    rep_distributor: 12,
-    manager_wholesaler: 3,
-    manager_distributor: 4,
+    rep_wholesaler: 10, rep_distributor: 12,
+    manager_wholesaler: 3, manager_distributor: 4,
   })
   const [savingSettings, setSavingSettings] = useState(false)
 
+  // Performance directories
   const [reps, setReps] = useState<RepPerformance[]>([])
   const [managers, setManagers] = useState<ManagerPerformance[]>([])
   const [directoryLoading, setDirectoryLoading] = useState(true)
 
+  // User overrides
   const [userRates, setUserRates] = useState<UserRateRow[]>([])
   const [userRatesLoading, setUserRatesLoading] = useState(true)
   const [editingUser, setEditingUser] = useState<UserRateRow | null>(null)
@@ -98,18 +92,43 @@ export function CommissionsPage() {
   const [editDistributorRate, setEditDistributorRate] = useState('')
   const [savingUserRate, setSavingUserRate] = useState(false)
 
+  // Period workflow
+  const [approvingPeriod, setApprovingPeriod] = useState<string | null>(null)
+  const [payDialogOpen, setPayDialogOpen] = useState(false)
+  const [payDialogPeriod, setPayDialogPeriod] = useState('')
+  const [payDate, setPayDate] = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 2).padStart(2, '0')}-15`
+  })
+  const [payMethod, setPayMethod] = useState('Check')
+  const [payReference, setPayReference] = useState('')
+  const [paying, setPaying] = useState(false)
+
+  // Individual pay dialog
+  const [indPayOpen, setIndPayOpen] = useState(false)
+  const [indPayEntry, setIndPayEntry] = useState<CommissionEntry | null>(null)
+  const [indPayDate, setIndPayDate] = useState('')
+  const [indPayMethod, setIndPayMethod] = useState('Check')
+  const [indPayReference, setIndPayReference] = useState('')
+  const [indPaying, setIndPaying] = useState(false)
+
+  // Statement view
+  const [statementPeriod, setStatementPeriod] = useState<string | null>(null)
+
   const now = new Date()
   const periods = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    return getPeriodFromDate(d)
   })
+
+  // ─── Fetch ────────────────────────────────────────────────────
 
   const fetchCommissions = async () => {
     setLoading(true)
     try {
       let query = supabase
         .from('commission_payments')
-        .select('*, orders!inner(total)')
+        .select('*, orders!inner(total), users!commission_payments_user_id_fkey(business_name, email)')
         .order('created_at', { ascending: false })
 
       if (filterPeriod !== 'all') {
@@ -124,334 +143,296 @@ export function CommissionsPage() {
       const { data, error } = await query
       if (error) throw error
 
-      const mappedEntries = (data || []).map((row: any) => ({
-        id: row.id,
-        order_id: row.order_id || '',
-        account_id: row.account_id || '',
-        rep_id: row.user_id || '',
-        manager_id: null,
-        order_amount: row.orders?.total || row.order_amount || 0,
-        rep_earnings: row.role_type === 'sales_rep' ? (row.amount || 0) : 0,
-        manager_earnings: row.role_type === 'sales_manager' ? (row.amount || 0) : null,
-        period: `${row.period_year}-${String(row.period_month).padStart(2, '0')}`,
-        status: (row.status === 'pending' ? 'accrued' : row.status === 'approved' ? 'processing' : row.status) as CommissionEntry['status'],
-        paid_at: row.paid_at,
-        created_at: row.created_at,
-      }))
-      const entriesWithNames = await enrichWithNames(mappedEntries)
-      setEntries(entriesWithNames)
+      const mapped: CommissionEntry[] = (data || []).map((row: any) => {
+        const user = row.users || {}
+        return {
+          id: row.id,
+          order_id: row.order_id || '',
+          account_id: row.account_id || '',
+          rep_id: row.user_id || '',
+          role_type: row.role_type || 'sales_rep',
+          account_type: row.account_type || 'wholesaler',
+          order_amount: row.order_amount || row.orders?.total || 0,
+          amount: row.amount || 0,
+          rate_percent: row.rate_percent || 0,
+          period: `${row.period_year}-${String(row.period_month).padStart(2, '0')}`,
+          status: (row.status === 'pending' ? 'accrued' : row.status === 'approved' ? 'processing' : row.status) as CommissionEntry['status'],
+          paid_at: row.paid_at,
+          paid_method: row.paid_method,
+          paid_reference: row.paid_reference,
+          created_at: row.created_at,
+          rep_name: user.business_name || user.email || row.user_id?.slice(0, 8),
+          account_name: row.account_id?.slice(0, 8),
+        }
+      })
+
+      // Enrich account names
+      const accountIds = [...new Set(mapped.filter(e => e.account_id).map(e => e.account_id))]
+      if (accountIds.length > 0) {
+        const { data: accts } = await supabase.from('users').select('id, business_name, email').in('id', accountIds)
+        const acctMap = new Map((accts || []).map((a: any) => [a.id, a.business_name || a.email]))
+        mapped.forEach(e => { e.account_name = acctMap.get(e.account_id) || e.account_id.slice(0, 8) })
+      }
+
+      setEntries(mapped)
     } catch (e: any) {
       toast.error('Failed to fetch commissions: ' + e.message)
     }
     setLoading(false)
   }
 
-  const enrichWithNames = async (entries: CommissionEntry[]): Promise<CommissionEntry[]> => {
-    const userIds = new Set<string>()
-    entries.forEach(e => {
-      userIds.add(e.rep_id)
-      if (e.manager_id) userIds.add(e.manager_id)
-      if (e.account_id) userIds.add(e.account_id)
-    })
-
-    if (userIds.size === 0) return entries
-
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, business_name, email')
-      .in('id', Array.from(userIds))
-
-    const userMap = new Map(users?.map(u => [u.id, u.business_name || u.email]) || [])
-
-    return entries.map(e => ({
-      ...e,
-      rep_name: userMap.get(e.rep_id) || e.rep_id.slice(0, 8),
-      manager_name: e.manager_id ? (userMap.get(e.manager_id) || e.manager_id.slice(0, 8)) : null,
-      account_name: userMap.get(e.account_id) || e.account_id.slice(0, 8),
-    }))
-  }
-
   const fetchSettings = async () => {
     try {
-      const { data: rules } = await supabase
-        .from('commission_rules')
-        .select('role, account_type, rate_percent')
-
+      const { data: rules } = await supabase.from('commission_rules').select('role, account_type, rate_percent')
       if (rules && rules.length > 0) {
         const next = { ...settings }
         rules.forEach((r: any) => {
           const key = `${r.role}_${r.account_type}`.replace(/-/g, '_') as keyof typeof next
-          if (key in next) {
-            (next as any)[key] = r.rate_percent
-          }
+          if (key in next) (next as any)[key] = r.rate_percent
         })
         setSettings(next)
       }
-    } catch (e: any) {
-      // Silently fail
-    }
+    } catch { /* silent */ }
   }
+
+  const fetchUserRates = async () => {
+    setUserRatesLoading(true)
+    try {
+      const { data: allUsers } = await supabase.from('users').select('id, business_name, email, role').in('role', ['sales_rep', 'sales_manager']).eq('status', 'approved')
+      const { data: overrides } = await supabase.from('user_commission_overrides').select('user_id, role_type, account_type, override_rate_percent')
+      const oMap = new Map((overrides || []).map((o: any) => [`${o.user_id}-${o.role_type}-${o.account_type}`, o.override_rate_percent]))
+
+      setUserRates((allUsers || []).map((u: any) => {
+        const rt = u.role === 'sales_manager' ? 'sales_manager' : 'sales_rep'
+        const ow = oMap.get(`${u.id}-${rt}-wholesaler`)
+        const od = oMap.get(`${u.id}-${rt}-distributor`)
+        return {
+          id: u.id, name: u.business_name || u.email, email: u.email, role: u.role,
+          wholesaler_rate: ow ?? (rt === 'sales_manager' ? settings.manager_wholesaler : settings.rep_wholesaler),
+          distributor_rate: od ?? (rt === 'sales_manager' ? settings.manager_distributor : settings.rep_distributor),
+          has_wholesaler_override: ow !== undefined, has_distributor_override: od !== undefined,
+        }
+      }))
+    } catch { /* silent */ }
+    setUserRatesLoading(false)
+  }
+
+  const fetchDirectory = async () => {
+    setDirectoryLoading(true)
+    try {
+      const [{ data: repsData }, { data: managersData }, { data: allEntries }, { data: assignments }, { data: overrides }] = await Promise.all([
+        supabase.from('users').select('id, business_name, email, manager_id').eq('role', 'sales_rep').eq('status', 'approved'),
+        supabase.from('users').select('id, business_name, email').eq('role', 'sales_manager').eq('status', 'approved'),
+        supabase.from('commission_payments').select('user_id, amount, status, role_type, account_type'),
+        supabase.from('rep_account_assignments').select('rep_id, account_id'),
+        supabase.from('user_commission_overrides').select('user_id, role_type, account_type, override_rate_percent'),
+      ])
+      const oMap = new Map((overrides || []).map((o: any) => [`${o.user_id}-${o.role_type}-${o.account_type}`, o.override_rate_percent]))
+
+      const repMap = new Map<string, RepPerformance>()
+      ;(repsData || []).forEach((r: any) => {
+        const re = (allEntries || []).filter((e: any) => e.user_id === r.id && e.role_type === 'sales_rep')
+        const ra = new Set((assignments || []).filter((a: any) => a.rep_id === r.id).map((a: any) => a.account_id))
+        repMap.set(r.id, {
+          id: r.id, name: r.business_name || r.email, email: r.email,
+          accounts: ra.size, orders: re.length,
+          commission: re.reduce((s: number, e: any) => s + (e.amount || 0), 0),
+          pending: re.filter((e: any) => e.status === 'pending').reduce((s: number, e: any) => s + (e.amount || 0), 0),
+          rate_wholesaler: oMap.get(`${r.id}-sales_rep-wholesaler`) ?? settings.rep_wholesaler,
+          rate_distributor: oMap.get(`${r.id}-sales_rep-distributor`) ?? settings.rep_distributor,
+        })
+      })
+      setReps(Array.from(repMap.values()))
+
+      const mgrMap = new Map<string, ManagerPerformance>()
+      ;(managersData || []).forEach((m: any) => {
+        const tr = (repsData || []).filter((r: any) => r.manager_id === m.id)
+        const me = (allEntries || []).filter((e: any) => e.user_id === m.id && e.role_type === 'sales_manager')
+        mgrMap.set(m.id, {
+          id: m.id, name: m.business_name || m.email, email: m.email,
+          team_size: tr.length,
+          overrides: me.reduce((s: number, e: any) => s + (e.amount || 0), 0),
+          pending: me.filter((e: any) => e.status === 'pending').reduce((s: number, e: any) => s + (e.amount || 0), 0),
+          rate_wholesaler: oMap.get(`${m.id}-sales_manager-wholesaler`) ?? settings.manager_wholesaler,
+          rate_distributor: oMap.get(`${m.id}-sales_manager-distributor`) ?? settings.manager_distributor,
+        })
+      })
+      setManagers(Array.from(mgrMap.values()))
+    } catch { /* silent */ }
+    setDirectoryLoading(false)
+  }
+
+  useEffect(() => { fetchCommissions(); fetchSettings() }, [filterPeriod, filterStatus])
+  useEffect(() => { fetchDirectory(); fetchUserRates() }, [settings])
+
+  // ─── Settings Save ────────────────────────────────────────────
 
   const handleSaveSettings = async () => {
     setSavingSettings(true)
     try {
-      const rulesToSave = [
+      for (const rule of [
         { role: 'sales_rep', account_type: 'wholesaler', rate_percent: settings.rep_wholesaler },
         { role: 'sales_rep', account_type: 'distributor', rate_percent: settings.rep_distributor },
         { role: 'sales_manager', account_type: 'wholesaler', rate_percent: settings.manager_wholesaler },
         { role: 'sales_manager', account_type: 'distributor', rate_percent: settings.manager_distributor },
-      ]
-
-      for (const rule of rulesToSave) {
-        const { data: existing } = await supabase
-          .from('commission_rules')
-          .select('id')
-          .eq('role', rule.role)
-          .eq('account_type', rule.account_type)
-          .limit(1)
-
+      ]) {
+        const { data: existing } = await supabase.from('commission_rules').select('id').eq('role', rule.role).eq('account_type', rule.account_type).limit(1)
         if (existing && existing.length > 0) {
-          const { error } = await supabase.from('commission_rules').update({
-            rate_percent: rule.rate_percent,
-            effective_from: new Date().toISOString(),
-          }).eq('id', existing[0].id)
-          if (error) throw error
+          await supabase.from('commission_rules').update({ rate_percent: rule.rate_percent, effective_from: new Date().toISOString() }).eq('id', existing[0].id)
         } else {
-          const { error } = await supabase.from('commission_rules').insert({
-            role: rule.role,
-            account_type: rule.account_type,
-            rate_percent: rule.rate_percent,
-            tier: 'standard',
-          }).select('id').single()
-          if (error) throw error
+          await supabase.from('commission_rules').insert({ role: rule.role, account_type: rule.account_type, rate_percent: rule.rate_percent, tier: 'standard' })
         }
       }
       toast.success('Commission settings saved!')
-      await fetchUserRates()
-      await fetchDirectory()
     } catch (e: any) {
       toast.error('Failed to save settings: ' + e.message)
     }
     setSavingSettings(false)
   }
 
-  const fetchUserRates = async () => {
-    setUserRatesLoading(true)
-    try {
-      const { data: allUsers } = await supabase
-        .from('users')
-        .select('id, business_name, email, role')
-        .in('role', ['sales_rep', 'sales_manager'])
-        .eq('status', 'approved')
-
-      const { data: overrides } = await supabase
-        .from('user_commission_overrides')
-        .select('user_id, role_type, account_type, override_rate_percent')
-
-      const overrideMap = new Map(
-        (overrides || []).map((o: any) => [`${o.user_id}-${o.role_type}-${o.account_type}`, o.override_rate_percent])
-      )
-
-      const rows: UserRateRow[] = (allUsers || []).map((u: any) => {
-        const roleType = u.role === 'sales_manager' ? 'sales_manager' : 'sales_rep'
-        const defW = roleType === 'sales_manager' ? settings.manager_wholesaler : settings.rep_wholesaler
-        const defD = roleType === 'sales_manager' ? settings.manager_distributor : settings.rep_distributor
-        const owKey = `${u.id}-${roleType}-wholesaler`
-        const odKey = `${u.id}-${roleType}-distributor`
-        const ow = overrideMap.get(owKey)
-        const od = overrideMap.get(odKey)
-
-        return {
-          id: u.id,
-          name: u.business_name || u.email,
-          email: u.email,
-          role: u.role,
-          wholesaler_rate: ow ?? defW,
-          distributor_rate: od ?? defD,
-          has_wholesaler_override: ow !== undefined,
-          has_distributor_override: od !== undefined,
-        }
-      })
-
-      setUserRates(rows)
-    } catch (e: any) {
-      // Silently fail
-    }
-    setUserRatesLoading(false)
-  }
+  // ─── User Overrides ───────────────────────────────────────────
 
   const handleSaveUserOverrides = async (userId: string, roleType: string) => {
     setSavingUserRate(true)
     try {
-      // Wholesaler override
       const wVal = editWholesalerRate === '' ? null : parseFloat(editWholesalerRate)
       if (wVal === null) {
-        await supabase.from('user_commission_overrides')
-          .delete()
-          .eq('user_id', userId)
-          .eq('role_type', roleType)
-          .eq('account_type', 'wholesaler')
+        await supabase.from('user_commission_overrides').delete().eq('user_id', userId).eq('role_type', roleType).eq('account_type', 'wholesaler')
       } else {
-        await supabase.from('user_commission_overrides').upsert({
-          user_id: userId, role_type: roleType, account_type: 'wholesaler', override_rate_percent: wVal,
-        }, { onConflict: 'user_id,role_type,account_type' })
+        await supabase.from('user_commission_overrides').upsert({ user_id: userId, role_type: roleType, account_type: 'wholesaler', override_rate_percent: wVal }, { onConflict: 'user_id,role_type,account_type' })
       }
-
-      // Distributor override
       const dVal = editDistributorRate === '' ? null : parseFloat(editDistributorRate)
       if (dVal === null) {
-        await supabase.from('user_commission_overrides')
-          .delete()
-          .eq('user_id', userId)
-          .eq('role_type', roleType)
-          .eq('account_type', 'distributor')
+        await supabase.from('user_commission_overrides').delete().eq('user_id', userId).eq('role_type', roleType).eq('account_type', 'distributor')
       } else {
-        await supabase.from('user_commission_overrides').upsert({
-          user_id: userId, role_type: roleType, account_type: 'distributor', override_rate_percent: dVal,
-        }, { onConflict: 'user_id,role_type,account_type' })
+        await supabase.from('user_commission_overrides').upsert({ user_id: userId, role_type: roleType, account_type: 'distributor', override_rate_percent: dVal }, { onConflict: 'user_id,role_type,account_type' })
       }
-
       toast.success('Rate overrides saved!')
       setEditingUser(null)
-      setEditWholesalerRate('')
-      setEditDistributorRate('')
-      await fetchUserRates()
-      await fetchDirectory()
+      setEditWholesalerRate(''); setEditDistributorRate('')
+      await fetchUserRates(); await fetchDirectory()
     } catch (e: any) {
       toast.error('Failed to save override: ' + e.message)
     }
     setSavingUserRate(false)
   }
 
-  const fetchDirectory = async () => {
-    setDirectoryLoading(true)
-    try {
-      const { data: repsData } = await supabase
-        .from('users')
-        .select('id, business_name, email, manager_id')
-        .eq('role', 'sales_rep')
-        .eq('status', 'approved')
+  // ─── Approve Period ───────────────────────────────────────────
 
-      const { data: managersData } = await supabase
-        .from('users')
-        .select('id, business_name, email')
-        .eq('role', 'sales_manager')
-        .eq('status', 'approved')
-
-      const { data: allEntries } = await supabase
-        .from('commission_payments')
-        .select('user_id, amount, status, role_type, account_type')
-
-      const { data: assignments } = await supabase
-        .from('rep_account_assignments')
-        .select('rep_id, account_id')
-
-      const { data: overrides } = await supabase
-        .from('user_commission_overrides')
-        .select('user_id, role_type, account_type, override_rate_percent')
-
-      const overrideMap = new Map(
-        (overrides || []).map((o: any) => [`${o.user_id}-${o.role_type}-${o.account_type}`, o.override_rate_percent])
-      )
-
-      // Build rep performance
-      const repMap = new Map<string, RepPerformance>()
-      ;(repsData || []).forEach((r: any) => {
-        const repEntries = (allEntries || []).filter((e: any) => e.user_id === r.id && e.role_type === 'sales_rep')
-        const repAccounts = new Set((assignments || []).filter((a: any) => a.rep_id === r.id).map((a: any) => a.account_id))
-        const ow = overrideMap.get(`${r.id}-sales_rep-wholesaler`)
-        const od = overrideMap.get(`${r.id}-sales_rep-distributor`)
-        repMap.set(r.id, {
-          id: r.id,
-          name: r.business_name || r.email,
-          email: r.email,
-          accounts: repAccounts.size,
-          orders: repEntries.length,
-          commission: repEntries.reduce((sum: number, e: any) => sum + (e.amount || 0), 0),
-          pending: repEntries.filter((e: any) => e.status === 'pending').reduce((sum: number, e: any) => sum + (e.amount || 0), 0),
-          rate_wholesaler: ow ?? settings.rep_wholesaler,
-          rate_distributor: od ?? settings.rep_distributor,
-        })
-      })
-      setReps(Array.from(repMap.values()))
-
-      // Build manager performance
-      const mgrMap = new Map<string, ManagerPerformance>()
-      ;(managersData || []).forEach((m: any) => {
-        const teamReps = (repsData || []).filter((r: any) => r.manager_id === m.id)
-        const mgrEntries = (allEntries || []).filter((e: any) => e.user_id === m.id && e.role_type === 'sales_manager')
-        const ow = overrideMap.get(`${m.id}-sales_manager-wholesaler`)
-        const od = overrideMap.get(`${m.id}-sales_manager-distributor`)
-        mgrMap.set(m.id, {
-          id: m.id,
-          name: m.business_name || m.email,
-          email: m.email,
-          team_size: teamReps.length,
-          overrides: mgrEntries.reduce((sum: number, e: any) => sum + (e.amount || 0), 0),
-          pending: mgrEntries.filter((e: any) => e.status === 'pending').reduce((sum: number, e: any) => sum + (e.amount || 0), 0),
-          rate_wholesaler: ow ?? settings.manager_wholesaler,
-          rate_distributor: od ?? settings.manager_distributor,
-        })
-      })
-      setManagers(Array.from(mgrMap.values()))
-    } catch (e: any) {
-      // Silently fail
-    }
-    setDirectoryLoading(false)
-  }
-
-  useEffect(() => {
-    fetchCommissions()
-    fetchSettings()
-  }, [filterPeriod, filterStatus])
-
-  useEffect(() => {
-    fetchDirectory()
-    fetchUserRates()
-  }, [settings.rep_wholesaler, settings.rep_distributor, settings.manager_wholesaler, settings.manager_distributor])
-
-  const handlePayPeriod = async (period: string) => {
-    if (!confirm(`Pay all accrued commissions for ${period}? This will mark them as "processing" and then "paid".`)) return
-
-    setPayingPeriod(period)
+  const handleApprovePeriod = async (period: string) => {
+    if (!confirm(`Approve all accrued commissions for ${period}?\n\nThis locks them for payment processing.`)) return
+    setApprovingPeriod(period)
     try {
       const [year, month] = period.split('-')
+      const { data, error } = await supabase.rpc('approve_commissions_for_period', {
+        p_period_year: parseInt(year),
+        p_period_month: parseInt(month),
+      })
+      if (error) throw error
+      toast.success(`${data || 0} commissions approved for ${period}! Ready to pay.`)
+      await fetchCommissions()
+    } catch (e: any) {
+      toast.error('Approval failed: ' + e.message)
+    }
+    setApprovingPeriod(null)
+  }
 
-      const { error: procErr } = await supabase
-        .from('commission_payments')
-        .update({ status: 'approved', approved_at: new Date().toISOString() })
-        .eq('period_year', parseInt(year))
-        .eq('period_month', parseInt(month))
-        .eq('status', 'pending')
+  // ─── Pay Period Dialog ────────────────────────────────────────
 
-      if (procErr) throw procErr
+  const openPayDialog = (period: string) => {
+    setPayDialogPeriod(period)
+    setPayDate(() => {
+      const [y, m] = period.split('-').map(Number)
+      const next = new Date(y, m, 15) // 15th of following month
+      return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-15`
+    })
+    setPayMethod('Check')
+    setPayReference('')
+    setPayDialogOpen(true)
+  }
 
-      const { error: payErr } = await supabase
-        .from('commission_payments')
-        .update({ status: 'paid', paid_at: new Date().toISOString() })
-        .eq('period_year', parseInt(year))
-        .eq('period_month', parseInt(month))
-        .eq('status', 'approved')
-
-      if (payErr) throw payErr
-
-      toast.success(`Commissions for ${period} have been paid!`)
+  const handlePayPeriodConfirm = async () => {
+    if (!payMethod) { toast.error('Select a payment method'); return }
+    setPaying(true)
+    try {
+      const [year, month] = payDialogPeriod.split('-')
+      const { data, error } = await supabase.rpc('pay_commissions_for_period', {
+        p_period_year: parseInt(year),
+        p_period_month: parseInt(month),
+        p_paid_method: payMethod,
+        p_paid_reference: payReference || null,
+      })
+      if (error) throw error
+      toast.success(`${data || 0} commissions paid for ${payDialogPeriod}!`)
+      setPayDialogOpen(false)
       await fetchCommissions()
     } catch (e: any) {
       toast.error('Payment failed: ' + e.message)
     }
-    setPayingPeriod(null)
+    setPaying(false)
   }
 
-  const totalRepEarnings = entries.reduce((sum, e) => sum + (e.rep_earnings || 0), 0)
-  const totalManagerEarnings = entries.reduce((sum, e) => sum + (e.manager_earnings || 0), 0)
+  // ─── Individual Pay ───────────────────────────────────────────
+
+  const openIndPayDialog = (entry: CommissionEntry) => {
+    setIndPayEntry(entry)
+    setIndPayDate(new Date().toISOString().split('T')[0])
+    setIndPayMethod('Check')
+    setIndPayReference('')
+    setIndPayOpen(true)
+  }
+
+  const handleIndPayConfirm = async () => {
+    if (!indPayEntry || !indPayMethod) return
+    setIndPaying(true)
+    try {
+      const { data, error } = await supabase.rpc('pay_single_commission', {
+        p_commission_id: indPayEntry.id,
+        p_paid_method: indPayMethod,
+        p_paid_reference: indPayReference || null,
+      })
+      if (error) throw error
+      if (data) {
+        toast.success(`Commission paid: $${indPayEntry.amount.toFixed(2)} for ${indPayEntry.rep_name}`)
+      } else {
+        toast.error('Commission not found or already paid')
+      }
+      setIndPayOpen(false)
+      setIndPayEntry(null)
+      await fetchCommissions()
+    } catch (e: any) {
+      toast.error('Payment failed: ' + e.message)
+    }
+    setIndPaying(false)
+  }
+
+  // ─── Statement View ───────────────────────────────────────────
+
+  const openStatement = (period: string) => { setStatementPeriod(period) }
+  const closeStatement = () => { setStatementPeriod(null) }
+
+  // ─── Derived ──────────────────────────────────────────────────
+
+  const totalRepEarnings = entries.filter(e => e.role_type === 'sales_rep').reduce((s, e) => s + e.amount, 0)
+  const totalManagerEarnings = entries.filter(e => e.role_type === 'sales_manager').reduce((s, e) => s + e.amount, 0)
   const accruedCount = entries.filter(e => e.status === 'accrued').length
-  const accruedAmount = entries
-    .filter(e => e.status === 'accrued')
-    .reduce((sum, e) => sum + e.rep_earnings + (e.manager_earnings || 0), 0)
+  const accruedAmount = entries.filter(e => e.status === 'accrued').reduce((s, e) => s + e.amount, 0)
+
+  // Group entries by rep for grouped view
+  const groupedEntries = viewMode === 'grouped'
+    ? Object.entries(entries.reduce((acc, e) => {
+        const name = e.rep_name || 'Unknown'
+        if (!acc[name]) acc[name] = []
+        acc[name].push(e)
+        return acc
+      }, {} as Record<string, CommissionEntry[]>))
+    : null
+
+  // ─── Render ───────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">Commission Report</h2>
@@ -459,129 +440,61 @@ export function CommissionsPage() {
         </div>
       </div>
 
-      {/* Default Commission Rate Settings — 4 Rates */}
+      {/* Payout Date Banner */}
+      <div className="bg-[#44f80c]/10 border border-[#44f80c]/30 rounded-lg p-4 flex items-center gap-3">
+        <Calendar className="w-5 h-5 text-[#44f80c] shrink-0" />
+        <div>
+          <p className="text-sm text-[#44f80c] font-medium">
+            Next Payout Date: {getNextPayoutDate()}
+          </p>
+          <p className="text-xs text-gray-400">
+            Commissions are paid on the 15th of the following month. Current period: {getPeriodFromDate(now)}
+          </p>
+        </div>
+      </div>
+
+      {/* Default Rate Settings */}
       <Card className="bg-[#150f24] border-[#9a02d0]/20">
         <CardContent className="p-4">
           <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-1">
             <Settings className="w-4 h-4 text-[#9a02d0]" />
             Default Commission Rates
           </h3>
-          <p className="text-xs text-gray-400 mb-4">
-            Set default rates for each role + account type combination. Per-user overrides can be set below.
-          </p>
-
+          <p className="text-xs text-gray-400 mb-4">Set default rates for each role + account type combination.</p>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            {/* Rep - Wholesaler */}
-            <div className="bg-[#0a0514] rounded-lg p-3 border border-white/10">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Users className="w-3.5 h-3.5 text-[#44f80c]" />
-                <span className="text-xs text-gray-300 font-medium">Rep</span>
-                <span className="text-gray-600">/</span>
-                <Store className="w-3.5 h-3.5 text-blue-400" />
-                <span className="text-xs text-gray-300">Wholesale</span>
+            {[
+              { label: 'Rep', icon: Users, color: 'text-[#44f80c]', type: 'Wholesale', icon2: Store, val: settings.rep_wholesaler, key: 'rep_wholesaler' as const },
+              { label: 'Rep', icon: Users, color: 'text-[#44f80c]', type: 'Distributor', icon2: Warehouse, val: settings.rep_distributor, key: 'rep_distributor' as const },
+              { label: 'Manager', icon: Shield, color: 'text-[#9a02d0]', type: 'Wholesale', icon2: Store, val: settings.manager_wholesaler, key: 'manager_wholesaler' as const },
+              { label: 'Manager', icon: Shield, color: 'text-[#9a02d0]', type: 'Distributor', icon2: Warehouse, val: settings.manager_distributor, key: 'manager_distributor' as const },
+            ].map((r) => (
+              <div key={r.key} className="bg-[#0a0514] rounded-lg p-3 border border-white/10">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <r.icon className={`w-3.5 h-3.5 ${r.color}`} />
+                  <span className="text-xs text-gray-300 font-medium">{r.label}</span>
+                  <span className="text-gray-600">/</span>
+                  <r.icon2 className={`w-3.5 h-3.5 ${r.type === 'Wholesale' ? 'text-blue-400' : 'text-[#ff66c4]'}`} />
+                  <span className="text-xs text-gray-300">{r.type}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="number" min="0" max="100" step="0.5" value={r.val}
+                    onChange={(e) => setSettings({ ...settings, [r.key]: parseFloat(e.target.value) || 0 })}
+                    className="flex-1 px-2 py-1.5 rounded bg-[#150f24] border border-white/10 text-white text-sm text-center focus:border-[#44f80c] focus:outline-none" />
+                  <span className="text-gray-400 text-sm">%</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  value={settings.rep_wholesaler}
-                  onChange={(e) => setSettings({ ...settings, rep_wholesaler: parseFloat(e.target.value) || 0 })}
-                  className="flex-1 px-2 py-1.5 rounded bg-[#150f24] border border-white/10 text-white text-sm text-center focus:border-[#44f80c] focus:outline-none"
-                />
-                <span className="text-gray-400 text-sm">%</span>
-              </div>
-            </div>
-
-            {/* Rep - Distributor */}
-            <div className="bg-[#0a0514] rounded-lg p-3 border border-white/10">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Users className="w-3.5 h-3.5 text-[#44f80c]" />
-                <span className="text-xs text-gray-300 font-medium">Rep</span>
-                <span className="text-gray-600">/</span>
-                <Warehouse className="w-3.5 h-3.5 text-[#ff66c4]" />
-                <span className="text-xs text-gray-300">Distributor</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  value={settings.rep_distributor}
-                  onChange={(e) => setSettings({ ...settings, rep_distributor: parseFloat(e.target.value) || 0 })}
-                  className="flex-1 px-2 py-1.5 rounded bg-[#150f24] border border-white/10 text-white text-sm text-center focus:border-[#44f80c] focus:outline-none"
-                />
-                <span className="text-gray-400 text-sm">%</span>
-              </div>
-            </div>
-
-            {/* Manager - Wholesaler */}
-            <div className="bg-[#0a0514] rounded-lg p-3 border border-white/10">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Shield className="w-3.5 h-3.5 text-[#9a02d0]" />
-                <span className="text-xs text-gray-300 font-medium">Manager</span>
-                <span className="text-gray-600">/</span>
-                <Store className="w-3.5 h-3.5 text-blue-400" />
-                <span className="text-xs text-gray-300">Wholesale</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  value={settings.manager_wholesaler}
-                  onChange={(e) => setSettings({ ...settings, manager_wholesaler: parseFloat(e.target.value) || 0 })}
-                  className="flex-1 px-2 py-1.5 rounded bg-[#150f24] border border-white/10 text-white text-sm text-center focus:border-[#44f80c] focus:outline-none"
-                />
-                <span className="text-gray-400 text-sm">%</span>
-              </div>
-            </div>
-
-            {/* Manager - Distributor */}
-            <div className="bg-[#0a0514] rounded-lg p-3 border border-white/10">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Shield className="w-3.5 h-3.5 text-[#9a02d0]" />
-                <span className="text-xs text-gray-300 font-medium">Manager</span>
-                <span className="text-gray-600">/</span>
-                <Warehouse className="w-3.5 h-3.5 text-[#ff66c4]" />
-                <span className="text-xs text-gray-300">Distributor</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  value={settings.manager_distributor}
-                  onChange={(e) => setSettings({ ...settings, manager_distributor: parseFloat(e.target.value) || 0 })}
-                  className="flex-1 px-2 py-1.5 rounded bg-[#150f24] border border-white/10 text-white text-sm text-center focus:border-[#44f80c] focus:outline-none"
-                />
-                <span className="text-gray-400 text-sm">%</span>
-              </div>
-            </div>
+            ))}
           </div>
-
           <div className="flex justify-end">
-            <Button
-              onClick={handleSaveSettings}
-              disabled={savingSettings}
-              className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]"
-            >
-              {savingSettings ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <DollarSign className="w-4 h-4 mr-2" />
-              )}
+            <Button onClick={handleSaveSettings} disabled={savingSettings} className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]">
+              {savingSettings ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DollarSign className="w-4 h-4 mr-2" />}
               Save Default Rates
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Per-User Commission Rate Overrides */}
+      {/* Per-User Overrides */}
       <div>
         <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
           <UserCog className="w-5 h-5 text-[#44f80c]" />
@@ -590,14 +503,9 @@ export function CommissionsPage() {
         <Card className="bg-[#150f24] border-white/10">
           <CardContent className="p-0">
             {userRatesLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-5 h-5 animate-spin text-[#9a02d0]" />
-              </div>
+              <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#9a02d0]" /></div>
             ) : userRates.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Users className="w-10 h-10 mx-auto mb-2 text-gray-600" />
-                <p className="text-sm">No sales reps or managers found</p>
-              </div>
+              <div className="text-center py-8 text-gray-500"><Users className="w-10 h-10 mx-auto mb-2 text-gray-600" /><p className="text-sm">No sales reps or managers found</p></div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -605,94 +513,36 @@ export function CommissionsPage() {
                     <tr className="border-b border-white/10 text-left">
                       <th className="px-4 py-3 text-xs font-medium text-gray-400">User</th>
                       <th className="px-4 py-3 text-xs font-medium text-gray-400">Role</th>
-                      <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center">
-                        <span className="flex items-center justify-center gap-1"><Store className="w-3 h-3 text-blue-400" />Wholesale</span>
-                      </th>
-                      <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center">
-                        <span className="flex items-center justify-center gap-1"><Warehouse className="w-3 h-3 text-[#ff66c4]" />Distributor</span>
-                      </th>
+                      <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center"><Store className="w-3 h-3 inline text-blue-400" />Wholesale</th>
+                      <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center"><Warehouse className="w-3 h-3 inline text-[#ff66c4]" />Distributor</th>
                       <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {userRates.map((user) => (
                       <tr key={user.id} className="hover:bg-white/5">
-                        <td className="px-4 py-3">
-                          <div className="text-gray-200 font-medium">{user.name}</div>
-                          <div className="text-xs text-gray-500">{user.email}</div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <RoleBadge role={user.role} />
+                        <td className="px-4 py-3"><div className="text-gray-200 font-medium">{user.name}</div><div className="text-xs text-gray-500">{user.email}</div></td>
+                        <td className="px-4 py-3"><RoleBadge role={user.role} /></td>
+                        <td className="px-4 py-3 text-center">
+                          {editingUser?.id === user.id ? (
+                            <input type="number" min="0" max="100" step="0.5" value={editWholesalerRate} onChange={(e) => setEditWholesalerRate(e.target.value)} placeholder="Default"
+                              className="w-20 px-2 py-1 rounded bg-[#0a0514] border border-white/20 text-white text-center text-sm focus:border-[#44f80c] focus:outline-none" />
+                          ) : (<span className={`font-medium ${user.has_wholesaler_override ? 'text-[#ff66c4]' : 'text-blue-400'}`}>{user.wholesaler_rate}%</span>)}
                         </td>
                         <td className="px-4 py-3 text-center">
                           {editingUser?.id === user.id ? (
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.5"
-                              value={editWholesalerRate}
-                              onChange={(e) => setEditWholesalerRate(e.target.value)}
-                              placeholder={`${user.wholesaler_rate}`}
-                              className="w-20 px-2 py-1 rounded bg-[#0a0514] border border-white/20 text-white text-center text-sm focus:border-[#44f80c] focus:outline-none"
-                            />
-                          ) : (
-                            <span className={`font-medium ${user.has_wholesaler_override ? 'text-[#ff66c4]' : 'text-blue-400'}`}>
-                              {user.wholesaler_rate}%
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {editingUser?.id === user.id ? (
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.5"
-                              value={editDistributorRate}
-                              onChange={(e) => setEditDistributorRate(e.target.value)}
-                              placeholder={`${user.distributor_rate}`}
-                              className="w-20 px-2 py-1 rounded bg-[#0a0514] border border-white/20 text-white text-center text-sm focus:border-[#44f80c] focus:outline-none"
-                            />
-                          ) : (
-                            <span className={`font-medium ${user.has_distributor_override ? 'text-[#ff66c4]' : 'text-[#ff66c4]'}`}>
-                              {user.distributor_rate}%
-                            </span>
-                          )}
+                            <input type="number" min="0" max="100" step="0.5" value={editDistributorRate} onChange={(e) => setEditDistributorRate(e.target.value)} placeholder="Default"
+                              className="w-20 px-2 py-1 rounded bg-[#0a0514] border border-white/20 text-white text-center text-sm focus:border-[#44f80c] focus:outline-none" />
+                          ) : (<span className={`font-medium ${user.has_distributor_override ? 'text-[#ff66c4]' : 'text-[#ff66c4]'}`}>{user.distributor_rate}%</span>)}
                         </td>
                         <td className="px-4 py-3 text-right">
                           {editingUser?.id === user.id ? (
                             <div className="flex items-center justify-end gap-2">
-                              <Button
-                                size="sm"
-                                onClick={() => handleSaveUserOverrides(user.id, user.role === 'sales_manager' ? 'sales_manager' : 'sales_rep')}
-                                disabled={savingUserRate}
-                                className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514] h-7 text-xs px-2"
-                              >
-                                {savingUserRate ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => { setEditingUser(null); setEditWholesalerRate(''); setEditDistributorRate('') }}
-                                className="text-gray-400 hover:text-white h-7 text-xs px-2"
-                              >
-                                Cancel
-                              </Button>
+                              <Button size="sm" onClick={() => handleSaveUserOverrides(user.id, user.role === 'sales_manager' ? 'sales_manager' : 'sales_rep')} disabled={savingUserRate} className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514] h-7 text-xs px-2">{savingUserRate ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}</Button>
+                              <Button size="sm" variant="ghost" onClick={() => { setEditingUser(null); setEditWholesalerRate(''); setEditDistributorRate('') }} className="text-gray-400 hover:text-white h-7 text-xs px-2">Cancel</Button>
                             </div>
                           ) : (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setEditingUser(user)
-                                setEditWholesalerRate(user.has_wholesaler_override ? String(user.wholesaler_rate) : '')
-                                setEditDistributorRate(user.has_distributor_override ? String(user.distributor_rate) : '')
-                              }}
-                              className="text-[#9a02d0] hover:text-[#ff66c4] h-7 text-xs px-2"
-                            >
-                              Edit
-                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => { setEditingUser(user); setEditWholesalerRate(user.has_wholesaler_override ? String(user.wholesaler_rate) : ''); setEditDistributorRate(user.has_distributor_override ? String(user.distributor_rate) : '') }} className="text-[#9a02d0] hover:text-[#ff66c4] h-7 text-xs px-2">Edit</Button>
                           )}
                         </td>
                       </tr>
@@ -703,110 +553,81 @@ export function CommissionsPage() {
             )}
           </CardContent>
         </Card>
-        <p className="text-xs text-gray-500 mt-2 ml-1">
-          Pink = custom override. Blue/Neon = using default. Leave blank to revert to default.
-        </p>
+        <p className="text-xs text-gray-500 mt-2 ml-1">Pink = custom override. Leave blank to revert to default.</p>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-[#150f24] border-white/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-[#44f80c]" />
-              Total Rep Earnings
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2"><DollarSign className="w-4 h-4 text-[#44f80c]" />Total Rep Earnings</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">${totalRepEarnings.toFixed(2)}</div>
-          </CardContent>
+          <CardContent><div className="text-2xl font-bold text-white">${totalRepEarnings.toFixed(2)}</div></CardContent>
         </Card>
-
         <Card className="bg-[#150f24] border-white/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-[#9a02d0]" />
-              Total Manager Overrides
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-[#9a02d0]" />Total Manager Overrides</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">${totalManagerEarnings.toFixed(2)}</div>
-          </CardContent>
+          <CardContent><div className="text-2xl font-bold text-white">${totalManagerEarnings.toFixed(2)}</div></CardContent>
         </Card>
-
         <Card className="bg-[#150f24] border-white/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-yellow-400" />
-              Pending (Accrued)
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-yellow-400" />Pending (Accrued)</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">${accruedAmount.toFixed(2)}</div>
-            <p className="text-xs text-gray-500">{accruedCount} entries</p>
-          </CardContent>
+          <CardContent><div className="text-2xl font-bold text-white">${accruedAmount.toFixed(2)}</div><p className="text-xs text-gray-500">{accruedCount} entries</p></CardContent>
         </Card>
-
         <Card className="bg-[#150f24] border-white/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-[#44f80c]" />
-              Entries Shown
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2"><CheckCircle className="w-4 h-4 text-[#44f80c]" />Entries Shown</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">{entries.length}</div>
-          </CardContent>
+          <CardContent><div className="text-2xl font-bold text-white">{entries.length}</div></CardContent>
         </Card>
       </div>
 
-      {/* Pay Period Buttons */}
+      {/* Period Workflow Buttons */}
       <div className="flex flex-wrap gap-2">
         {periods.map(period => {
-          const periodEntries = entries.filter(e => e.period === period && e.status === 'accrued')
-          const periodAmount = periodEntries.reduce((sum, e) => sum + e.rep_earnings + (e.manager_earnings || 0), 0)
-          if (periodEntries.length === 0) return null
+          const accrued = entries.filter(e => e.period === period && e.status === 'accrued')
+          const processing = entries.filter(e => e.period === period && e.status === 'processing')
+          const accruedAmt = accrued.reduce((s, e) => s + e.amount, 0)
+          const procAmt = processing.reduce((s, e) => s + e.amount, 0)
 
           return (
-            <Button
-              key={period}
-              onClick={() => handlePayPeriod(period)}
-              disabled={payingPeriod === period}
-              className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]"
-            >
-              {payingPeriod === period ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Calendar className="w-4 h-4 mr-2" />
+            <div key={period} className="flex items-center gap-2">
+              {accrued.length > 0 && (
+                <Button onClick={() => handleApprovePeriod(period)} disabled={approvingPeriod === period}
+                  className="bg-yellow-500 hover:bg-yellow-400 text-[#0a0514]">
+                  {approvingPeriod === period ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                  Approve {period} (${accruedAmt.toFixed(0)})
+                </Button>
               )}
-              Pay {period} (${periodAmount.toFixed(0)})
-            </Button>
+              {processing.length > 0 && (
+                <Button onClick={() => openPayDialog(period)} className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]">
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Pay {period} (${procAmt.toFixed(0)})
+                </Button>
+              )}
+            </div>
           )
         })}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4">
+      {/* Filters + View Toggle */}
+      <div className="flex flex-wrap items-end gap-4">
         <div>
           <label className="text-sm text-gray-400 mb-1 block">Period</label>
           <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-            <SelectTrigger className="w-[140px] bg-[#150f24] border-white/10 text-white">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="w-[140px] bg-[#150f24] border-white/10 text-white"><SelectValue /></SelectTrigger>
             <SelectContent className="bg-[#150f24] border-white/10">
               <SelectItem value="all">All Periods</SelectItem>
-              {periods.map(p => (
-                <SelectItem key={p} value={p}>{p}</SelectItem>
-              ))}
+              {periods.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <div>
           <label className="text-sm text-gray-400 mb-1 block">Status</label>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[140px] bg-[#150f24] border-white/10 text-white">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="w-[140px] bg-[#150f24] border-white/10 text-white"><SelectValue /></SelectTrigger>
             <SelectContent className="bg-[#150f24] border-white/10">
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="accrued">Accrued</SelectItem>
@@ -815,158 +636,106 @@ export function CommissionsPage() {
             </SelectContent>
           </Select>
         </div>
-      </div>
-
-      {/* Sales Rep Performance Directory */}
-      <div>
-        <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-          <Users className="w-5 h-5 text-[#44f80c]" />
-          Sales Rep Performance
-        </h3>
-        <Card className="bg-[#150f24] border-white/10">
-          <CardContent className="p-0">
-            {directoryLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-5 h-5 animate-spin text-[#9a02d0]" />
-              </div>
-            ) : reps.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Users className="w-10 h-10 mx-auto mb-2 text-gray-600" />
-                <p className="text-sm">No sales reps found</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-white/10 text-left">
-                      <th className="px-4 py-3 text-xs font-medium text-gray-400">Rep</th>
-                      <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center"><Store className="w-3 h-3 inline text-blue-400" /> W</th>
-                      <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center"><Warehouse className="w-3 h-3 inline text-[#ff66c4]" /> D</th>
-                      <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center">Accounts</th>
-                      <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center">Orders</th>
-                      <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Commission</th>
-                      <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Pending</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {reps.map((rep) => (
-                      <tr key={rep.id} className="hover:bg-white/5">
-                        <td className="px-4 py-3">
-                          <div className="text-gray-200 font-medium">{rep.name}</div>
-                          <div className="text-xs text-gray-500">{rep.email}</div>
-                        </td>
-                        <td className="px-4 py-3 text-center text-blue-400">{rep.rate_wholesaler}%</td>
-                        <td className="px-4 py-3 text-center text-[#ff66c4]">{rep.rate_distributor}%</td>
-                        <td className="px-4 py-3 text-center text-gray-300">{rep.accounts}</td>
-                        <td className="px-4 py-3 text-center text-gray-300">{rep.orders}</td>
-                        <td className="px-4 py-3 text-right text-[#44f80c] font-medium">${rep.commission.toFixed(2)}</td>
-                        <td className="px-4 py-3 text-right text-yellow-400">${rep.pending.toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Sales Manager Performance Directory */}
-      <div>
-        <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-          <Shield className="w-5 h-5 text-[#9a02d0]" />
-          Sales Manager Performance
-        </h3>
-        <Card className="bg-[#150f24] border-white/10">
-          <CardContent className="p-0">
-            {directoryLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-5 h-5 animate-spin text-[#9a02d0]" />
-              </div>
-            ) : managers.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Shield className="w-10 h-10 mx-auto mb-2 text-gray-600" />
-                <p className="text-sm">No sales managers found</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-white/10 text-left">
-                      <th className="px-4 py-3 text-xs font-medium text-gray-400">Manager</th>
-                      <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center"><Store className="w-3 h-3 inline text-blue-400" /> W</th>
-                      <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center"><Warehouse className="w-3 h-3 inline text-[#ff66c4]" /> D</th>
-                      <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center">Team Size</th>
-                      <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Overrides</th>
-                      <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Pending</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {managers.map((mgr) => (
-                      <tr key={mgr.id} className="hover:bg-white/5">
-                        <td className="px-4 py-3">
-                          <div className="text-gray-200 font-medium">{mgr.name}</div>
-                          <div className="text-xs text-gray-500">{mgr.email}</div>
-                        </td>
-                        <td className="px-4 py-3 text-center text-blue-400">{mgr.rate_wholesaler}%</td>
-                        <td className="px-4 py-3 text-center text-[#ff66c4]">{mgr.rate_distributor}%</td>
-                        <td className="px-4 py-3 text-center text-gray-300">{mgr.team_size}</td>
-                        <td className="px-4 py-3 text-right text-[#9a02d0] font-medium">${mgr.overrides.toFixed(2)}</td>
-                        <td className="px-4 py-3 text-right text-yellow-400">${mgr.pending.toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <div>
+          <label className="text-sm text-gray-400 mb-1 block">View</label>
+          <div className="flex bg-[#0a0514] rounded-lg border border-white/10 overflow-hidden">
+            <button onClick={() => setViewMode('flat')} className={`px-3 py-2 text-xs flex items-center gap-1 ${viewMode === 'flat' ? 'bg-[#9a02d0] text-white' : 'text-gray-400 hover:text-white'}`}><List className="w-3 h-3" /> Flat</button>
+            <button onClick={() => setViewMode('grouped')} className={`px-3 py-2 text-xs flex items-center gap-1 ${viewMode === 'grouped' ? 'bg-[#9a02d0] text-white' : 'text-gray-400 hover:text-white'}`}><LayoutGrid className="w-3 h-3" /> By Rep</button>
+          </div>
+        </div>
+        {filterPeriod !== 'all' && (
+          <Button size="sm" variant="ghost" onClick={() => openStatement(filterPeriod)} className="text-[#44f80c] hover:text-[#3ad60a] h-9">
+            <Printer className="w-4 h-4 mr-1" /> View Statement
+          </Button>
+        )}
       </div>
 
       {/* Commission Entry Table */}
       <Card className="bg-[#150f24] border-white/10">
         <CardHeader className="pb-2">
-          <CardTitle className="text-white text-lg flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-[#44f80c]" />
-            Commission Entries
-          </CardTitle>
+          <CardTitle className="text-white text-lg flex items-center gap-2"><DollarSign className="w-5 h-5 text-[#44f80c]" />Commission Entries</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-[#9a02d0]" />
-            </div>
+            <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[#9a02d0]" /></div>
           ) : entries.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <DollarSign className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-              <p>No commission entries found</p>
-              <p className="text-xs text-gray-600 mt-1">Commissions are auto-generated when orders are marked as paid.</p>
+            <div className="text-center py-12 text-gray-500"><DollarSign className="w-12 h-12 mx-auto mb-3 text-gray-600" /><p>No commission entries found</p><p className="text-xs text-gray-600 mt-1">Commissions are auto-generated when orders are marked as paid.</p></div>
+          ) : viewMode === 'grouped' && groupedEntries ? (
+            // Grouped view
+            <div className="divide-y divide-white/5">
+              {groupedEntries.map(([repName, repEntries]) => (
+                <div key={repName} className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-white font-medium">{repName}</h4>
+                    <span className="text-[#44f80c] font-medium">${repEntries.reduce((s, e) => s + e.amount, 0).toFixed(2)}</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead><tr className="border-b border-white/10 text-left">
+                        <th className="px-3 py-2 text-xs font-medium text-gray-400">Period</th>
+                        <th className="px-3 py-2 text-xs font-medium text-gray-400">Account</th>
+                        <th className="px-3 py-2 text-xs font-medium text-gray-400">Type</th>
+                        <th className="px-3 py-2 text-xs font-medium text-gray-400 text-right">Order</th>
+                        <th className="px-3 py-2 text-xs font-medium text-gray-400 text-right">Rate</th>
+                        <th className="px-3 py-2 text-xs font-medium text-gray-400 text-right">Earns</th>
+                        <th className="px-3 py-2 text-xs font-medium text-gray-400">Status</th>
+                        <th className="px-3 py-2 text-xs font-medium text-gray-400 text-right">Action</th>
+                      </tr></thead>
+                      <tbody className="divide-y divide-white/5">
+                        {repEntries.map((entry) => (
+                          <tr key={entry.id} className="hover:bg-white/5">
+                            <td className="px-3 py-2 text-gray-300">{entry.period}</td>
+                            <td className="px-3 py-2 text-gray-300">{entry.account_name}</td>
+                            <td className="px-3 py-2"><AccountTypeBadge type={entry.account_type} /></td>
+                            <td className="px-3 py-2 text-gray-300 text-right">${entry.order_amount.toFixed(2)}</td>
+                            <td className="px-3 py-2 text-gray-400 text-right">{entry.rate_percent}%</td>
+                            <td className="px-3 py-2 text-[#44f80c] font-medium text-right">${entry.amount.toFixed(2)}</td>
+                            <td className="px-3 py-2"><StatusBadge status={entry.status} /></td>
+                            <td className="px-3 py-2 text-right">
+                              {(entry.status === 'accrued' || entry.status === 'processing') && (
+                                <Button size="sm" variant="ghost" onClick={() => openIndPayDialog(entry)} className="text-[#44f80c] hover:text-[#3ad60a] h-6 text-xs px-1">Pay</Button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
+            // Flat view
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/10 text-left">
-                    <th className="px-4 py-3 text-xs font-medium text-gray-400">Period</th>
-                    <th className="px-4 py-3 text-xs font-medium text-gray-400">Account</th>
-                    <th className="px-4 py-3 text-xs font-medium text-gray-400">Sales Rep</th>
-                    <th className="px-4 py-3 text-xs font-medium text-gray-400">Order Amt</th>
-                    <th className="px-4 py-3 text-xs font-medium text-gray-400">Earns</th>
-                    <th className="px-4 py-3 text-xs font-medium text-gray-400">Status</th>
-                  </tr>
-                </thead>
+                <thead><tr className="border-b border-white/10 text-left">
+                  <th className="px-4 py-3 text-xs font-medium text-gray-400">Period</th>
+                  <th className="px-4 py-3 text-xs font-medium text-gray-400">Account</th>
+                  <th className="px-4 py-3 text-xs font-medium text-gray-400">Sales Rep</th>
+                  <th className="px-4 py-3 text-xs font-medium text-gray-400">Type</th>
+                  <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Order Amt</th>
+                  <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Rate</th>
+                  <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Earns</th>
+                  <th className="px-4 py-3 text-xs font-medium text-gray-400">Status</th>
+                  <th className="px-4 py-3 text-xs font-medium text-gray-400">Paid Via</th>
+                  <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Action</th>
+                </tr></thead>
                 <tbody className="divide-y divide-white/5">
                   {entries.map((entry) => (
                     <tr key={entry.id} className="hover:bg-white/5">
                       <td className="px-4 py-3 text-gray-300">{entry.period}</td>
                       <td className="px-4 py-3 text-gray-300">{entry.account_name}</td>
                       <td className="px-4 py-3 text-gray-300">{entry.rep_name}</td>
-                      <td className="px-4 py-3 text-gray-300">${Number(entry.order_amount).toFixed(2)}</td>
-                      <td className="px-4 py-3 text-[#44f80c] font-medium">
-                        ${Number(entry.rep_earnings + (entry.manager_earnings || 0)).toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={entry.status} />
+                      <td className="px-4 py-3"><AccountTypeBadge type={entry.account_type} /></td>
+                      <td className="px-4 py-3 text-gray-300 text-right">${entry.order_amount.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-gray-400 text-right">{entry.rate_percent}%</td>
+                      <td className="px-4 py-3 text-[#44f80c] font-medium text-right">${entry.amount.toFixed(2)}</td>
+                      <td className="px-4 py-3"><StatusBadge status={entry.status} /></td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">{entry.paid_method || '—'}</td>
+                      <td className="px-4 py-3 text-right">
+                        {(entry.status === 'accrued' || entry.status === 'processing') && (
+                          <Button size="sm" variant="ghost" onClick={() => openIndPayDialog(entry)} className="text-[#44f80c] hover:text-[#3ad60a] h-6 text-xs px-1">Pay</Button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -976,35 +745,277 @@ export function CommissionsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Rep Performance */}
+      <div>
+        <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2"><Users className="w-5 h-5 text-[#44f80c]" />Sales Rep Performance</h3>
+        <Card className="bg-[#150f24] border-white/10">
+          <CardContent className="p-0">
+            {directoryLoading ? (<div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#9a02d0]" /></div>
+            ) : reps.length === 0 ? (<div className="text-center py-8 text-gray-500"><Users className="w-10 h-10 mx-auto mb-2 text-gray-600" /><p className="text-sm">No sales reps found</p></div>
+            ) : (<div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-white/10 text-left">
+              <th className="px-4 py-3 text-xs font-medium text-gray-400">Rep</th>
+              <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center"><Store className="w-3 h-3 inline text-blue-400" />W</th>
+              <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center"><Warehouse className="w-3 h-3 inline text-[#ff66c4]" />D</th>
+              <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center">Accounts</th>
+              <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center">Orders</th>
+              <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Commission</th>
+              <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Pending</th>
+            </tr></thead><tbody className="divide-y divide-white/5">
+              {reps.map((rep) => (<tr key={rep.id} className="hover:bg-white/5">
+                <td className="px-4 py-3"><div className="text-gray-200 font-medium">{rep.name}</div><div className="text-xs text-gray-500">{rep.email}</div></td>
+                <td className="px-4 py-3 text-center text-blue-400">{rep.rate_wholesaler}%</td>
+                <td className="px-4 py-3 text-center text-[#ff66c4]">{rep.rate_distributor}%</td>
+                <td className="px-4 py-3 text-center text-gray-300">{rep.accounts}</td>
+                <td className="px-4 py-3 text-center text-gray-300">{rep.orders}</td>
+                <td className="px-4 py-3 text-right text-[#44f80c] font-medium">${rep.commission.toFixed(2)}</td>
+                <td className="px-4 py-3 text-right text-yellow-400">${rep.pending.toFixed(2)}</td>
+              </tr>))}
+            </tbody></table></div>)}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Manager Performance */}
+      <div>
+        <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2"><Shield className="w-5 h-5 text-[#9a02d0]" />Sales Manager Performance</h3>
+        <Card className="bg-[#150f24] border-white/10">
+          <CardContent className="p-0">
+            {directoryLoading ? (<div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#9a02d0]" /></div>
+            ) : managers.length === 0 ? (<div className="text-center py-8 text-gray-500"><Shield className="w-10 h-10 mx-auto mb-2 text-gray-600" /><p className="text-sm">No sales managers found</p></div>
+            ) : (<div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-white/10 text-left">
+              <th className="px-4 py-3 text-xs font-medium text-gray-400">Manager</th>
+              <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center"><Store className="w-3 h-3 inline text-blue-400" />W</th>
+              <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center"><Warehouse className="w-3 h-3 inline text-[#ff66c4]" />D</th>
+              <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center">Team Size</th>
+              <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Overrides</th>
+              <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Pending</th>
+            </tr></thead><tbody className="divide-y divide-white/5">
+              {managers.map((mgr) => (<tr key={mgr.id} className="hover:bg-white/5">
+                <td className="px-4 py-3"><div className="text-gray-200 font-medium">{mgr.name}</div><div className="text-xs text-gray-500">{mgr.email}</div></td>
+                <td className="px-4 py-3 text-center text-blue-400">{mgr.rate_wholesaler}%</td>
+                <td className="px-4 py-3 text-center text-[#ff66c4]">{mgr.rate_distributor}%</td>
+                <td className="px-4 py-3 text-center text-gray-300">{mgr.team_size}</td>
+                <td className="px-4 py-3 text-right text-[#9a02d0] font-medium">${mgr.overrides.toFixed(2)}</td>
+                <td className="px-4 py-3 text-right text-yellow-400">${mgr.pending.toFixed(2)}</td>
+              </tr>))}
+            </tbody></table></div>)}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════
+          PAY PERIOD DIALOG
+          ═══════════════════════════════════════════════════════════ */}
+      {payDialogOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#150f24] border border-white/20 rounded-xl w-full max-w-lg max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2"><CreditCard className="w-5 h-5 text-[#44f80c]" />Pay Commissions for {payDialogPeriod}</h3>
+              <button onClick={() => setPayDialogOpen(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-4 space-y-4">
+              {/* Summary */}
+              {(() => {
+                const processingEntries = entries.filter(e => e.period === payDialogPeriod && e.status === 'processing')
+                const byRep = processingEntries.reduce((acc, e) => {
+                  const name = e.rep_name || 'Unknown'
+                  if (!acc[name]) acc[name] = 0
+                  acc[name] += e.amount
+                  return acc
+                }, {} as Record<string, number>)
+                return (
+                  <div className="bg-[#0a0514] rounded-lg p-3 border border-white/10">
+                    <p className="text-xs text-gray-400 mb-2">Payment Summary ({processingEntries.length} commissions)</p>
+                    {Object.entries(byRep).map(([name, amt]) => (
+                      <div key={name} className="flex justify-between text-sm py-0.5"><span className="text-gray-300">{name}</span><span className="text-[#44f80c]">${amt.toFixed(2)}</span></div>
+                    ))}
+                    <div className="border-t border-white/10 mt-2 pt-2 flex justify-between font-medium"><span className="text-white">Total</span><span className="text-[#44f80c]">${processingEntries.reduce((s, e) => s + e.amount, 0).toFixed(2)}</span></div>
+                  </div>
+                )
+              })()}
+
+              {/* Pay Date */}
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Pay Date</label>
+                <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0514] border border-white/10 text-white text-sm focus:border-[#44f80c] focus:outline-none" />
+              </div>
+
+              {/* Payment Method */}
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Payment Method</label>
+                <Select value={payMethod} onValueChange={setPayMethod}>
+                  <SelectTrigger className="w-full bg-[#0a0514] border-white/10 text-white"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-[#0a0514] border-white/10">
+                    {PAY_METHODS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Reference */}
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Reference # (optional)</label>
+                <input type="text" value={payReference} onChange={(e) => setPayReference(e.target.value)} placeholder="Check #1234, Confirmation code, etc."
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0514] border border-white/10 text-white text-sm focus:border-[#44f80c] focus:outline-none" />
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <Button onClick={handlePayPeriodConfirm} disabled={paying} className="flex-1 bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]">
+                  {paying ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DollarSign className="w-4 h-4 mr-2" />}
+                  Confirm Payment
+                </Button>
+                <Button variant="ghost" onClick={() => setPayDialogOpen(false)} className="text-gray-400 hover:text-white">Cancel</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          INDIVIDUAL PAY DIALOG
+          ═══════════════════════════════════════════════════════════ */}
+      {indPayOpen && indPayEntry && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#150f24] border border-white/20 rounded-xl w-full max-w-md">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white">Pay Commission</h3>
+              <button onClick={() => setIndPayOpen(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="bg-[#0a0514] rounded-lg p-3 border border-white/10">
+                <p className="text-sm text-gray-300"><span className="text-white font-medium">{indPayEntry.rep_name}</span> — {indPayEntry.period}</p>
+                <p className="text-xs text-gray-400">{indPayEntry.account_name} | {indPayEntry.account_type}</p>
+                <p className="text-lg text-[#44f80c] font-bold mt-1">${indPayEntry.amount.toFixed(2)} <span className="text-xs text-gray-400 font-normal">at {indPayEntry.rate_percent}%</span></p>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Pay Date</label>
+                <input type="date" value={indPayDate} onChange={(e) => setIndPayDate(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-[#0a0514] border border-white/10 text-white text-sm focus:border-[#44f80c] focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Payment Method</label>
+                <Select value={indPayMethod} onValueChange={setIndPayMethod}>
+                  <SelectTrigger className="w-full bg-[#0a0514] border-white/10 text-white"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-[#0a0514] border-white/10">{PAY_METHODS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Reference #</label>
+                <input type="text" value={indPayReference} onChange={(e) => setIndPayReference(e.target.value)} placeholder="Check #, confirmation code"
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0514] border border-white/10 text-white text-sm focus:border-[#44f80c] focus:outline-none" />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button onClick={handleIndPayConfirm} disabled={indPaying} className="flex-1 bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]">
+                  {indPaying ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DollarSign className="w-4 h-4 mr-2" />}
+                  Pay ${indPayEntry.amount.toFixed(2)}
+                </Button>
+                <Button variant="ghost" onClick={() => setIndPayOpen(false)} className="text-gray-400 hover:text-white">Cancel</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          STATEMENT VIEW
+          ═══════════════════════════════════════════════════════════ */}
+      {statementPeriod && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#150f24] border border-white/20 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between p-4 border-b border-white/10 print:hidden">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2"><Printer className="w-5 h-5 text-[#44f80c]" />Commission Statement — {statementPeriod}</h3>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => window.print()} className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514] text-xs"><Printer className="w-3 h-3 mr-1" />Print</Button>
+                <button onClick={closeStatement} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+              </div>
+            </div>
+            <div className="p-6 space-y-4" id="commission-statement">
+              {(() => {
+                const stmtEntries = entries.filter(e => e.period === statementPeriod)
+                const byRep = stmtEntries.reduce((acc, e) => {
+                  const name = e.rep_name || 'Unknown'
+                  if (!acc[name]) acc[name] = []
+                  acc[name].push(e)
+                  return acc
+                }, {} as Record<string, CommissionEntry[]>)
+                return (
+                  <>
+                    <div className="text-center mb-6">
+                      <h2 className="text-2xl font-bold text-white">Commission Statement</h2>
+                      <p className="text-gray-400">Period: {statementPeriod}</p>
+                      <p className="text-[#44f80c] font-medium mt-1">Payout Date: {getNextPayoutDate()}</p>
+                    </div>
+                    {Object.entries(byRep).map(([name, repEntries]) => (
+                      <div key={name} className="mb-6">
+                        <h4 className="text-white font-semibold border-b border-white/20 pb-1 mb-2">{name}</h4>
+                        <table className="w-full text-sm">
+                          <thead><tr className="text-left text-gray-400 text-xs">
+                            <th className="py-1">Account</th><th className="py-1 text-right">Order</th><th className="py-1 text-right">Rate</th><th className="py-1 text-right">Commission</th><th className="py-1">Status</th>
+                          </tr></thead>
+                          <tbody>
+                            {repEntries.map(e => (
+                              <tr key={e.id} className="border-b border-white/5">
+                                <td className="py-1 text-gray-300">{e.account_name}</td>
+                                <td className="py-1 text-gray-300 text-right">${e.order_amount.toFixed(2)}</td>
+                                <td className="py-1 text-gray-400 text-right">{e.rate_percent}%</td>
+                                <td className="py-1 text-[#44f80c] text-right">${e.amount.toFixed(2)}</td>
+                                <td className="py-1"><StatusBadge status={e.status} /></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <div className="flex justify-end mt-1">
+                          <span className="text-white font-medium text-sm">Subtotal: ${repEntries.reduce((s, e) => s + e.amount, 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="border-t-2 border-[#44f80c] pt-3 mt-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-white text-lg font-bold">Grand Total</span>
+                        <span className="text-[#44f80c] text-2xl font-bold">${stmtEntries.reduce((s, e) => s + e.amount, 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
+// ─── Sub-components ─────────────────────────────────────────────
+
 function StatusBadge({ status }: { status: string }) {
-  const styles = {
+  const styles: Record<string, string> = {
     accrued: 'bg-blue-500/20 text-blue-400',
     processing: 'bg-yellow-500/20 text-yellow-400',
     paid: 'bg-[#44f80c]/20 text-[#44f80c]',
   }
   return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status as keyof typeof styles] || 'bg-gray-500/20 text-gray-400'}`}>
+    <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-500/20 text-gray-400'}`}>
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
   )
 }
 
 function RoleBadge({ role }: { role: string }) {
-  const styles: Record<string, string> = {
-    sales_rep: 'bg-[#44f80c]/20 text-[#44f80c]',
-    sales_manager: 'bg-[#9a02d0]/20 text-[#9a02d0]',
-  }
-  const labels: Record<string, string> = {
-    sales_rep: 'Rep',
-    sales_manager: 'Manager',
-  }
+  const styles: Record<string, string> = { sales_rep: 'bg-[#44f80c]/20 text-[#44f80c]', sales_manager: 'bg-[#9a02d0]/20 text-[#9a02d0]' }
+  const labels: Record<string, string> = { sales_rep: 'Rep', sales_manager: 'Manager' }
   return (
     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[role] || 'bg-gray-500/20 text-gray-400'}`}>
       {labels[role] || role}
+    </span>
+  )
+}
+
+function AccountTypeBadge({ type }: { type: string }) {
+  return (
+    <span className={`text-xs font-medium ${type === 'distributor' ? 'text-[#ff66c4]' : 'text-blue-400'}`}>
+      {type === 'distributor' ? 'D' : 'W'}
     </span>
   )
 }

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { CommissionView } from '@/components/CommissionView'
 import { SalesRepSidebar } from '@/components/sales-rep/SalesRepSidebar'
-import { Loader2 } from 'lucide-react'
+import { Loader2, FileText } from 'lucide-react'
 
 export function SalesRepCommissions() {
   const navigate = useNavigate()
@@ -18,7 +18,6 @@ export function SalesRepCommissions() {
         return
       }
 
-      // Verify role
       const { data: profile } = await supabase
         .from('users')
         .select('role,also_rep')
@@ -54,7 +53,10 @@ export function SalesRepCommissions() {
       <main className="flex-1 p-6 lg:p-8 overflow-auto">
         <div className="max-w-7xl mx-auto">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-white">My Commissions</h1>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <FileText className="w-6 h-6 text-[#44f80c]" />
+              My Commissions
+            </h1>
             <p className="text-gray-400 text-sm mt-1">
               Track your earnings from account purchases
             </p>

@@ -23,7 +23,7 @@ interface CommissionEntry {
   amount: number
   rate_percent: number
   period: string
-  status: 'accrued' | 'processing' | 'paid'
+  status: 'accrued' | 'processing' | 'paid' | 'disputed'
   paid_at: string | null
   paid_method: string | null
   paid_reference: string | null
@@ -105,6 +105,12 @@ export function CommissionsPage() {
   const [approvingSelected, setApprovingSelected] = useState(false)
   const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null)
 
+  // Dispute
+  const [disputeDialogOpen, setDisputeDialogOpen] = useState(false)
+  const [disputeEntryId, setDisputeEntryId] = useState('')
+  const [disputeReason, setDisputeReason] = useState('')
+  const [disputing, setDisputing] = useState(false)
+
   // Period workflow
   const [payDialogOpen, setPayDialogOpen] = useState(false)
   const [payDialogPeriod, setPayDialogPeriod] = useState('')
@@ -115,14 +121,6 @@ export function CommissionsPage() {
   const [payMethod, setPayMethod] = useState('Check')
   const [payReference, setPayReference] = useState('')
   const [paying, setPaying] = useState(false)
-
-  // Individual pay dialog
-  const [indPayOpen, setIndPayOpen] = useState(false)
-  const [indPayEntry, setIndPayEntry] = useState<CommissionEntry | null>(null)
-  const [indPayDate, setIndPayDate] = useState('')
-  const [indPayMethod, setIndPayMethod] = useState('Check')
-  const [indPayReference, setIndPayReference] = useState('')
-  const [indPaying, setIndPaying] = useState(false)
 
   // Statement view
   const [statementPeriod, setStatementPeriod] = useState<string | null>(null)
@@ -148,7 +146,7 @@ export function CommissionsPage() {
         query = query.eq('period_year', parseInt(year)).eq('period_month', parseInt(month))
       }
       if (filterStatus !== 'all') {
-        const dbStatus = filterStatus === 'accrued' ? 'pending' : filterStatus === 'processing' ? 'approved' : filterStatus
+        const dbStatus = filterStatus === 'accrued' ? 'pending' : filterStatus === 'processing' ? 'approved' : filterStatus === 'disputed' ? 'cancelled' : filterStatus
         query = query.eq('status', dbStatus)
       }
 
@@ -168,7 +166,7 @@ export function CommissionsPage() {
           amount: row.amount || 0,
           rate_percent: row.rate_percent || 0,
           period: `${row.period_year}-${String(row.period_month).padStart(2, '0')}`,
-          status: (row.status === 'pending' ? 'accrued' : row.status === 'approved' ? 'processing' : row.status) as CommissionEntry['status'],
+          status: (row.status === 'pending' ? 'accrued' : row.status === 'approved' ? 'processing' : row.status === 'cancelled' ? 'disputed' : row.status) as CommissionEntry['status'],
           paid_at: row.paid_at,
           paid_method: row.paid_method,
           paid_reference: row.paid_reference,
@@ -406,6 +404,30 @@ export function CommissionsPage() {
     setDeletingReviewId(null)
   }
 
+  const openDisputeDialog = (id: string) => {
+    setDisputeEntryId(id)
+    setDisputeReason('')
+    setDisputeDialogOpen(true)
+  }
+
+  const handleDisputeConfirm = async () => {
+    if (!disputeReason.trim()) { toast.error('Enter a reason for the dispute'); return }
+    setDisputing(true)
+    try {
+      const { error } = await supabase
+        .from('commission_payments')
+        .update({ status: 'cancelled', notes: `Disputed: ${disputeReason}` })
+        .eq('id', disputeEntryId)
+      if (error) throw error
+      toast.success('Commission marked as disputed')
+      setDisputeDialogOpen(false)
+      setReviewEntries(prev => prev.filter(re => re.entry.id !== disputeEntryId))
+    } catch (e: any) {
+      toast.error('Dispute failed: ' + e.message)
+    }
+    setDisputing(false)
+  }
+
   const handleApproveSelected = async () => {
     const selectedIds = reviewEntries.filter(re => re.selected).map(re => re.entry.id)
     if (selectedIds.length === 0) { toast.error('Select at least one commission to approve'); return }
@@ -466,40 +488,6 @@ export function CommissionsPage() {
       toast.error('Payment failed: ' + e.message)
     }
     setPaying(false)
-  }
-
-  // ─── Individual Pay ───────────────────────────────────────────
-
-  const openIndPayDialog = (entry: CommissionEntry) => {
-    setIndPayEntry(entry)
-    setIndPayDate(new Date().toISOString().split('T')[0])
-    setIndPayMethod('Check')
-    setIndPayReference('')
-    setIndPayOpen(true)
-  }
-
-  const handleIndPayConfirm = async () => {
-    if (!indPayEntry || !indPayMethod) return
-    setIndPaying(true)
-    try {
-      const { data, error } = await supabase.rpc('pay_single_commission', {
-        p_commission_id: indPayEntry.id,
-        p_paid_method: indPayMethod,
-        p_paid_reference: indPayReference || null,
-      })
-      if (error) throw error
-      if (data) {
-        toast.success(`Commission paid: $${indPayEntry.amount.toFixed(2)} for ${indPayEntry.rep_name}`)
-      } else {
-        toast.error('Commission not found or already paid')
-      }
-      setIndPayOpen(false)
-      setIndPayEntry(null)
-      await fetchCommissions()
-    } catch (e: any) {
-      toast.error('Payment failed: ' + e.message)
-    }
-    setIndPaying(false)
   }
 
   // ─── Statement View ───────────────────────────────────────────
@@ -742,6 +730,7 @@ export function CommissionsPage() {
               <SelectItem value="accrued">Accrued</SelectItem>
               <SelectItem value="processing">Processing</SelectItem>
               <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="disputed">Disputed</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -795,7 +784,6 @@ export function CommissionsPage() {
                         <th className="px-3 py-2 text-xs font-medium text-gray-400 text-right">Earns</th>
                         <th className="px-3 py-2 text-xs font-medium text-gray-400">Status</th>
                         <th className="px-3 py-2 text-xs font-medium text-gray-400">Paid Via</th>
-                        <th className="px-3 py-2 text-xs font-medium text-gray-400 text-right">Action</th>
                       </tr></thead>
                       <tbody className="divide-y divide-white/5">
                         {repEntries.map((entry) => (
@@ -808,13 +796,6 @@ export function CommissionsPage() {
                             <td className="px-3 py-2 text-[#44f80c] font-medium text-right">${entry.amount.toFixed(2)}</td>
                             <td className="px-3 py-2"><StatusBadge status={entry.status} /></td>
                             <td className="px-3 py-2 text-gray-500 text-xs">{entry.paid_method || '—'}</td>
-                            <td className="px-3 py-2 text-right">
-                              {(entry.status === 'accrued' || entry.status === 'processing') && (
-                                <span title="Pay this single commission immediately instead of waiting for batch payout.">
-                                  <Button size="sm" variant="ghost" onClick={() => openIndPayDialog(entry)} className="text-[#44f80c] hover:text-[#3ad60a] h-6 text-xs px-1">Pay</Button>
-                                </span>
-                              )}
-                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -837,7 +818,6 @@ export function CommissionsPage() {
                   <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Earns</th>
                   <th className="px-4 py-3 text-xs font-medium text-gray-400">Status</th>
                   <th className="px-4 py-3 text-xs font-medium text-gray-400">Paid Via</th>
-                  <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Action</th>
                 </tr></thead>
                 <tbody className="divide-y divide-white/5">
                   {entries.map((entry) => (
@@ -851,13 +831,6 @@ export function CommissionsPage() {
                       <td className="px-4 py-3 text-[#44f80c] font-medium text-right">${entry.amount.toFixed(2)}</td>
                       <td className="px-4 py-3"><StatusBadge status={entry.status} /></td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{entry.paid_method || '—'}</td>
-                      <td className="px-4 py-3 text-right">
-                        {(entry.status === 'accrued' || entry.status === 'processing') && (
-                          <span title="Pay this single commission immediately instead of waiting for batch payout.">
-                            <Button size="sm" variant="ghost" onClick={() => openIndPayDialog(entry)} className="text-[#44f80c] hover:text-[#3ad60a] h-6 text-xs px-1">Pay</Button>
-                          </span>
-                        )}
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -987,7 +960,13 @@ export function CommissionsPage() {
                           <td className="px-3 py-2 text-gray-300 text-right">${re.entry.order_amount.toFixed(2)}</td>
                           <td className="px-3 py-2 text-gray-400 text-right">{re.entry.rate_percent}%</td>
                           <td className="px-3 py-2 text-[#44f80c] font-medium text-right">${re.entry.amount.toFixed(2)}</td>
-                          <td className="px-3 py-2 text-center">
+                          <td className="px-3 py-2 text-center flex items-center gap-1 justify-center">
+                            <span title="Dispute this commission. It will be marked as disputed and excluded from payment.">
+                              <button onClick={() => openDisputeDialog(re.entry.id)}
+                                className="text-orange-400 hover:text-orange-300 p-1">
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                              </button>
+                            </span>
                             <span title="Permanently delete this commission entry. Use only for bad data or test orders.">
                               <button onClick={() => deleteReviewEntry(re.entry.id)} disabled={deletingReviewId === re.entry.id}
                                 className="text-red-400 hover:text-red-300 disabled:opacity-50 p-1">
@@ -1021,6 +1000,49 @@ export function CommissionsPage() {
                 </span>
                 <span title="Close without approving anything.">
                   <Button variant="ghost" onClick={() => setReviewDialogOpen(false)} className="text-gray-400 hover:text-white">Cancel</Button>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          DISPUTE DIALOG
+          ═══════════════════════════════════════════════════════════ */}
+      {disputeDialogOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#150f24] border border-white/20 rounded-xl w-full max-w-md">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-orange-400" />
+                Dispute Commission
+              </h3>
+              <button onClick={() => setDisputeDialogOpen(false)} className="text-gray-400 hover:text-white" title="Close without disputing."><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
+                <p className="text-xs text-orange-300">
+                  Disputing this commission will mark it as cancelled and exclude it from all future payment batches.
+                  The rep will be able to see it was disputed but will not be paid for it.
+                </p>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Reason for Dispute *</label>
+                <textarea value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)}
+                  placeholder="e.g., Order was cancelled, commission rate was incorrect, test order, etc."
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0514] border border-white/10 text-white text-sm focus:border-[#44f80c] focus:outline-none resize-none" />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <span title="Mark this commission as disputed and exclude it from payment.">
+                  <Button onClick={handleDisputeConfirm} disabled={disputing} className="bg-orange-500 hover:bg-orange-400 text-white">
+                    {disputing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <AlertTriangle className="w-4 h-4 mr-2" />}
+                    Mark as Disputed
+                  </Button>
+                </span>
+                <span title="Close without disputing.">
+                  <Button variant="ghost" onClick={() => setDisputeDialogOpen(false)} className="text-gray-400 hover:text-white">Cancel</Button>
                 </span>
               </div>
             </div>
@@ -1099,49 +1121,6 @@ export function CommissionsPage() {
           ═══════════════════════════════════════════════════════════ */}
       {indPayOpen && indPayEntry && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#150f24] border border-white/20 rounded-xl w-full max-w-md">
-            <div className="flex items-center justify-between p-4 border-b border-white/10">
-              <h3 className="text-lg font-semibold text-white">Pay Commission</h3>
-              <button onClick={() => setIndPayOpen(false)} className="text-gray-400 hover:text-white" title="Close without paying this commission."><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-4 space-y-4">
-              <div className="bg-[#0a0514] rounded-lg p-3 border border-white/10">
-                <p className="text-sm text-gray-300"><span className="text-white font-medium">{indPayEntry.rep_name}</span> — {indPayEntry.period}</p>
-                <p className="text-xs text-gray-400">{indPayEntry.account_name} | {indPayEntry.account_type}</p>
-                <p className="text-lg text-[#44f80c] font-bold mt-1">${indPayEntry.amount.toFixed(2)} <span className="text-xs text-gray-400 font-normal">at {indPayEntry.rate_percent}%</span></p>
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Pay Date</label>
-                <input type="date" value={indPayDate} onChange={(e) => setIndPayDate(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-[#0a0514] border border-white/10 text-white text-sm focus:border-[#44f80c] focus:outline-none" />
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Payment Method</label>
-                <Select value={indPayMethod} onValueChange={setIndPayMethod}>
-                  <SelectTrigger className="w-full bg-[#0a0514] border-white/10 text-white"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-[#0a0514] border-white/10">{PAY_METHODS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Reference #</label>
-                <input type="text" value={indPayReference} onChange={(e) => setIndPayReference(e.target.value)} placeholder="Check #, confirmation code"
-                  className="w-full px-3 py-2 rounded-lg bg-[#0a0514] border border-white/10 text-white text-sm focus:border-[#44f80c] focus:outline-none" />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <span title="Pay this single commission now.">
-                  <Button onClick={handleIndPayConfirm} disabled={indPaying} className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]">
-                    {indPaying ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DollarSign className="w-4 h-4 mr-2" />}
-                    Pay ${indPayEntry.amount.toFixed(2)}
-                  </Button>
-                </span>
-                <span title="Close without paying.">
-                  <Button variant="ghost" onClick={() => setIndPayOpen(false)} className="text-gray-400 hover:text-white">Cancel</Button>
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ═══════════════════════════════════════════════════════════
           STATEMENT VIEW
           ═══════════════════════════════════════════════════════════ */}
@@ -1219,6 +1198,7 @@ function StatusBadge({ status }: { status: string }) {
     accrued: 'bg-blue-500/20 text-blue-400',
     processing: 'bg-yellow-500/20 text-yellow-400',
     paid: 'bg-[#44f80c]/20 text-[#44f80c]',
+    disputed: 'bg-red-500/20 text-red-400',
   }
   return (
     <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-500/20 text-gray-400'}`}>

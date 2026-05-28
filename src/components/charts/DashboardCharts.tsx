@@ -100,10 +100,10 @@ export function DashboardCharts({ mode, managerId, repId }: DashboardChartsProps
     return () => { mounted = false; };
   }, [mode, managerId, repId]);
 
-  // Determine which data to display
-  const displayStatusData = (hasRealData || !useDemo) ? statusData : DEMO_STATUS_DATA;
-  const displayRevenueData = (hasRealData || !useDemo) ? revenueData : DEMO_REVENUE_DATA;
-  const displayAccountsData = (hasRealData || !useDemo)
+  // Determine which data to display — per-chart, independent decision
+  const displayStatusData = (statusData.length > 0 || !useDemo) ? statusData : DEMO_STATUS_DATA;
+  const displayRevenueData = (revenueData.length > 0 || !useDemo) ? revenueData : DEMO_REVENUE_DATA;
+  const displayAccountsData = (accountsData.length > 0 || !useDemo)
     ? accountsData
     : (mode === 'manager' ? DEMO_TEAM_DATA : DEMO_ACCOUNTS_DATA);
 

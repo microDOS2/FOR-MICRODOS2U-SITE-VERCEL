@@ -5,6 +5,7 @@ import { RegionalStats } from '@/components/sales-manager/RegionalStats';
 import { DashboardCharts } from '@/components/charts/DashboardCharts';
 import { TeamOverview } from '@/components/sales-manager/TeamOverview';
 import { AssignmentDialog } from '@/components/sales-manager/AssignmentDialog';
+import { AddRepDialog } from '@/components/sales-manager/AddRepDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -72,6 +73,7 @@ export function SalesManagerDashboard() {
   const [accounts, setAccounts] = useState<DBUser[]>([]);
   const [assignments, setAssignments] = useState<AssignmentData[]>([]);
   const [assignmentDialogOpen, setAssignmentDialogOpen] = useState(false);
+  const [addRepDialogOpen, setAddRepDialogOpen] = useState(false);
   const [selectedRep, setSelectedRep] = useState<DBUser | null>(null);
   const [monthlyVolume, setMonthlyVolume] = useState(0);
   const [pendingOrders, setPendingOrders] = useState(0);
@@ -587,7 +589,7 @@ export function SalesManagerDashboard() {
                 assignments={assignments}
                 onAssign={handleAssign}
                 onView={handleView}
-                onAddRep={() => navigate('/sales-manager-team')}
+                onAddRep={() => setAddRepDialogOpen(true)}
               />
             </div>
 
@@ -834,6 +836,28 @@ export function SalesManagerDashboard() {
         allAccounts={accounts}
         existingAssignments={assignments}
         onAssignmentsChanged={(newAssignments) => setAssignments(newAssignments)}
+      />
+
+      {/* Add Rep Dialog */}
+      <AddRepDialog
+        isOpen={addRepDialogOpen}
+        onClose={() => setAddRepDialogOpen(false)}
+        managerId={manager?.id || ''}
+        onRepAdded={() => {
+          // Refresh the sales reps list
+          const refresh = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.user) return;
+            const { data: repsData } = await supabase
+              .from('users')
+              .select('*')
+              .eq('role', 'sales_rep')
+              .eq('manager_id', session.user.id)
+              .order('business_name', { ascending: true });
+            setSalesReps(repsData || []);
+          };
+          refresh();
+        }}
       />
     </div>
   );

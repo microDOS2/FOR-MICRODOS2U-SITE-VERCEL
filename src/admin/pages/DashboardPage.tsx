@@ -29,7 +29,7 @@ interface Stats {
   totalOrders: number
   totalRevenue: number
   totalProducts: number
-  pendingApprovals: number
+  pendingOrders: number
   recentOrders: any[]
 }
 
@@ -39,7 +39,7 @@ export function DashboardPage() {
     totalOrders: 0,
     totalRevenue: 0,
     totalProducts: 0,
-    pendingApprovals: 0,
+    pendingOrders: 0,
     recentOrders: []
   })
   const [loading, setLoading] = useState(true)
@@ -75,7 +75,7 @@ export function DashboardPage() {
         totalOrders: orderCount || 0,
         totalRevenue,
         totalProducts: productCount || 0,
-        pendingApprovals: approvalCount || 0,
+        pendingOrders: approvalCount || 0,
         recentOrders: ordersData?.slice(0, 5) || []
       })
 
@@ -113,7 +113,7 @@ export function DashboardPage() {
     { label: 'Total Orders', value: stats.totalOrders, icon: ShoppingCart, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
     { label: 'Revenue', value: formatCurrency(stats.totalRevenue), icon: DollarSign, color: 'text-amber-400', bg: 'bg-amber-400/10' },
     { label: 'Products', value: stats.totalProducts, icon: Package, color: 'text-purple-400', bg: 'bg-purple-400/10' },
-    { label: 'Pending Approvals', value: stats.pendingApprovals, icon: FileText, color: 'text-rose-400', bg: 'bg-rose-400/10' },
+    { label: 'Pending Orders', value: stats.pendingOrders, icon: FileText, color: 'text-rose-400', bg: 'bg-rose-400/10' },
   ]
 
   const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#6366f1']

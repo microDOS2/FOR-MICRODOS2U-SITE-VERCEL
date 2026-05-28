@@ -157,7 +157,7 @@ export function DashboardPage() {
     }
   }
 
-  const checkOverdueInvoices = async (ordersData: any[], invoicesData: any[]) => {
+  const checkOverdueInvoices = async (ordersData: any[], _invoicesData: any[]) => {
     try {
       // Find invoices with status=pending, created more than 5 days ago
       const now = new Date()
@@ -166,7 +166,7 @@ export function DashboardPage() {
       // Get full invoice data with created_at
       const { data: pendingInvoices } = await supabase
         .from('invoices')
-        .select('id, invoice_number, total, created_at, reminder_sent_at, order_id')
+        .select('id, invoice_number, total, created_at, reminder_sent_at, reminder_count, order_id')
         .eq('status', 'pending')
         .order('created_at', { ascending: true })
 

@@ -86,11 +86,13 @@ export function DashboardPage() {
       const [
         { data: allUsers, error: usersErr },
         { data: allOrders, error: ordersErr },
+        { data: allInvoices, error: invoicesErr },
         { count: productCount },
         { data: pendingAppsData }
       ] = await Promise.all([
         supabase.rpc('get_all_users'),
         supabase.rpc('get_all_orders'),
+        supabase.from('invoices').select('id, status').limit(1000),
         supabase.from('products').select('*', { count: 'exact', head: true }),
         supabase
           .from('applications')
@@ -102,9 +104,11 @@ export function DashboardPage() {
 
       if (usersErr) console.error('Users error:', usersErr)
       if (ordersErr) console.error('Orders error:', ordersErr)
+      if (invoicesErr) console.error('Invoices error:', invoicesErr)
 
       const usersData = allUsers || []
       const ordersData = allOrders || []
+      const invoicesData = allInvoices || []
 
       const totalRevenue = ordersData.reduce((sum: number, o: any) => sum + (o.total || 0), 0)
 
@@ -114,7 +118,7 @@ export function DashboardPage() {
         totalRevenue,
         totalProducts: productCount || 0,
         pendingApplications: pendingAppsData?.length || 0,
-        pendingPayment: ordersData.filter((o: any) => o.status === 'pending').length,
+        pendingPayment: invoicesData.filter((i: any) => i.status === 'pending').length,
         readyToShip: ordersData.filter((o: any) => o.status === 'processing').length,
         inTransit: ordersData.filter((o: any) => o.status === 'shipped').length,
       })
@@ -218,22 +222,22 @@ export function DashboardPage() {
             </Link>
           </TooltipCard>
 
-          {/* Orders Pending Payment */}
-          <TooltipCard tooltip="Orders with 'pending' status — need invoice created and payment collected before processing. Click to manage.">
+          {/* Invoices Pending Payment */}
+          <TooltipCard tooltip="Invoices with 'pending' status — payment not yet collected. Click to manage invoices and mark as paid.">
             <Link
               to="/admin/orders-invoices"
               className="block bg-[#150f24] border border-yellow-500/20 rounded-xl p-4 hover:border-yellow-500/40 hover:translate-y-[-2px] transition-all duration-200 group"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-yellow-400 text-xs font-medium">Orders Pending Payment</span>
+                <span className="text-yellow-400 text-xs font-medium">Invoices Pending Payment</span>
                 <div className="p-1.5 rounded-lg bg-yellow-500/10">
                   <CreditCard className="w-3.5 h-3.5 text-yellow-400" />
                 </div>
               </div>
               <div className="text-3xl font-bold text-white">{stats.pendingPayment}</div>
-              <div className="text-gray-500 text-xs mt-1">Create invoice, collect payment</div>
+              <div className="text-gray-500 text-xs mt-1">Unpaid invoices awaiting collection</div>
               <div className="flex items-center gap-1 mt-2 text-yellow-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                <span>Create invoice</span>
+                <span>Collect payment</span>
                 <ArrowRight className="w-3 h-3" />
               </div>
             </Link>

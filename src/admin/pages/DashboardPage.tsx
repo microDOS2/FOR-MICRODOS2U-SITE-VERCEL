@@ -42,10 +42,11 @@ interface Stats {
 interface PendingApp {
   id: string
   business_name: string | null
+  contact_name: string | null
   email: string
-  role: string
+  account_type: string
   state: string | null
-  created_at: string
+  submitted_at: string
 }
 
 export function DashboardPage() {
@@ -75,16 +76,16 @@ export function DashboardPage() {
         { data: allUsers, error: usersErr },
         { data: allOrders, error: ordersErr },
         { count: productCount },
-        { data: pendingUsersData }
+        { data: pendingAppsData }
       ] = await Promise.all([
         supabase.rpc('get_all_users'),
         supabase.rpc('get_all_orders'),
         supabase.from('products').select('*', { count: 'exact', head: true }),
         supabase
-          .from('users')
-          .select('id, business_name, email, role, state, created_at')
+          .from('applications')
+          .select('id, business_name, contact_name, email, account_type, state, submitted_at')
           .eq('status', 'pending')
-          .order('created_at', { ascending: false })
+          .order('submitted_at', { ascending: false })
           .limit(5)
       ])
 
@@ -103,11 +104,11 @@ export function DashboardPage() {
         totalRevenue,
         totalProducts: productCount || 0,
         pendingOrders: pendingCount,
-        pendingApplications: pendingUsersData?.length || 0,
+        pendingApplications: pendingAppsData?.length || 0,
         recentOrders: ordersData.slice(0, 5)
       })
 
-      setPendingApps(pendingUsersData || [])
+      setPendingApps(pendingAppsData || [])
 
       // Revenue chart (last 7 days)
       const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -297,8 +298,9 @@ export function DashboardPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-medium truncate">{app.business_name || app.email}</p>
+                    <p className="text-gray-500 text-xs">{app.contact_name}</p>
                     <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                      <span className="bg-white/5 px-1.5 py-0.5 rounded">{ROLE_LABELS[app.role] || app.role}</span>
+                      <span className="bg-white/5 px-1.5 py-0.5 rounded capitalize">{app.account_type || 'Unknown'}</span>
                       {app.state && <span>{app.state}</span>}
                     </div>
                   </div>

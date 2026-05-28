@@ -35,6 +35,7 @@ interface Stats {
   totalRevenue: number
   totalProducts: number
   pendingOrders: number
+  pendingInvoices: number
   pendingApplications: number
   recentOrders: any[]
 }
@@ -56,6 +57,7 @@ export function DashboardPage() {
     totalRevenue: 0,
     totalProducts: 0,
     pendingOrders: 0,
+    pendingInvoices: 0,
     pendingApplications: 0,
     recentOrders: []
   })
@@ -76,7 +78,8 @@ export function DashboardPage() {
         { data: allUsers, error: usersErr },
         { data: allOrders, error: ordersErr },
         { count: productCount },
-        { data: pendingAppsData }
+        { data: pendingAppsData },
+        { data: allInvoices, error: invoicesErr }
       ] = await Promise.all([
         supabase.rpc('get_all_users'),
         supabase.rpc('get_all_orders'),
@@ -86,24 +89,29 @@ export function DashboardPage() {
           .select('id, business_name, contact_name, email, account_type, state, submitted_at')
           .eq('status', 'pending')
           .order('submitted_at', { ascending: false })
-          .limit(5)
+          .limit(5),
+        supabase.from('invoices').select('id, status, total').limit(1000)
       ])
 
       if (usersErr) console.error('Users RPC error:', usersErr)
       if (ordersErr) console.error('Orders RPC error:', ordersErr)
+      if (invoicesErr) console.error('Invoices error:', invoicesErr)
 
       const usersData = allUsers || []
       const ordersData = allOrders || []
+      const invoicesData = allInvoices || []
 
       const totalRevenue = ordersData.reduce((sum: number, o: any) => sum + (o.total || 0), 0)
-      const pendingCount = ordersData.filter((o: any) => o.status === 'pending').length
+      const pendingOrdersCount = ordersData.filter((o: any) => o.status === 'pending').length
+      const pendingInvoicesCount = invoicesData.filter((i: any) => i.status === 'pending').length
 
       setStats({
         totalUsers: usersData.length,
         totalOrders: ordersData.length,
         totalRevenue,
         totalProducts: productCount || 0,
-        pendingOrders: pendingCount,
+        pendingOrders: pendingOrdersCount,
+        pendingInvoices: pendingInvoicesCount,
         pendingApplications: pendingAppsData?.length || 0,
         recentOrders: ordersData.slice(0, 5)
       })
@@ -145,7 +153,8 @@ export function DashboardPage() {
     { label: 'Total Orders', value: stats.totalOrders, icon: ShoppingCart, color: 'text-[#9a02d0]', bg: 'bg-[#9a02d0]/10', border: 'border-[#9a02d0]/20', link: '/admin/orders-invoices', desc: 'Manage orders' },
     { label: 'Revenue', value: formatCurrency(stats.totalRevenue), icon: DollarSign, color: 'text-[#ff66c4]', bg: 'bg-[#ff66c4]/10', border: 'border-[#ff66c4]/20', link: '/admin/orders-invoices', desc: 'Order history' },
     { label: 'Products', value: stats.totalProducts, icon: Package, color: 'text-purple-400', bg: 'bg-purple-400/10', border: 'border-purple-400/20', link: '/admin/products', desc: 'Manage catalog' },
-    { label: 'Pending Orders', value: stats.pendingOrders, icon: FileText, color: 'text-yellow-400', bg: 'bg-yellow-400/10', border: 'border-yellow-400/20', link: '/admin/orders-invoices', desc: 'Needs processing' },
+    { label: 'Pending Orders', value: stats.pendingOrders, icon: FileText, color: 'text-yellow-400', bg: 'bg-yellow-400/10', border: 'border-yellow-400/20', link: '/admin/orders-invoices', desc: 'Needs payment' },
+    { label: 'Pending Invoices', value: stats.pendingInvoices, icon: DollarSign, color: 'text-orange-400', bg: 'bg-orange-400/10', border: 'border-orange-400/20', link: '/admin/orders-invoices', desc: 'Unpaid invoices' },
     { label: 'Pending Approvals', value: stats.pendingApplications, icon: ClipboardList, color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/20', link: '/admin/applications', desc: 'Signup requests' },
   ]
 

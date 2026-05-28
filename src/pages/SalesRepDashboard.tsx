@@ -58,6 +58,7 @@ export function SalesRepDashboard() {
   })
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([])
   const [notifications, setNotifications] = useState(0)
+  const [userId, setUserId] = useState<string>('')
 
   const fetchData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -67,6 +68,7 @@ export function SalesRepDashboard() {
       return
     }
     const repId = session.user.id
+    setUserId(repId)
 
     // Verify role
     const { data: me } = await supabase
@@ -257,7 +259,7 @@ export function SalesRepDashboard() {
 
           {/* Charts */}
           <div className="mb-6">
-            <DashboardCharts mode="rep" repId={session.user.id} />
+            <DashboardCharts mode="rep" repId={userId} />
           </div>
 
           {/* Order Summary */}

@@ -15,7 +15,6 @@ import {
   Users,
   Shield,
   UserCog,
-  Percent,
   Store,
   Warehouse,
 } from 'lucide-react'
@@ -70,11 +69,6 @@ interface UserRateRow {
   distributor_rate: number
   has_wholesaler_override: boolean
   has_distributor_override: boolean
-}
-
-const ACCOUNT_TYPE_LABELS: Record<string, string> = {
-  wholesaler: 'Wholesaler',
-  distributor: 'Distributor',
 }
 
 export function CommissionsPage() {
@@ -385,7 +379,6 @@ export function CommissionsPage() {
       const mgrMap = new Map<string, ManagerPerformance>()
       ;(managersData || []).forEach((m: any) => {
         const teamReps = (repsData || []).filter((r: any) => r.manager_id === m.id)
-        const teamRepIds = new Set(teamReps.map((r: any) => r.id))
         const mgrEntries = (allEntries || []).filter((e: any) => e.user_id === m.id && e.role_type === 'sales_manager')
         const ow = overrideMap.get(`${m.id}-sales_manager-wholesaler`)
         const od = overrideMap.get(`${m.id}-sales_manager-distributor`)

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import {
   Users,
@@ -61,7 +61,6 @@ function TooltipCard({ children, tooltip }: { children: React.ReactNode; tooltip
 }
 
 export function DashboardPage() {
-  const navigate = useNavigate()
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
     totalOrders: 0,

@@ -146,6 +146,7 @@ export function OrdersInvoicesPage() {
           users!user_id (business_name, email, phone, contact_name),
           orders:order_id (po_number, shipping_address, contact_person, contact_phone)
         `)
+        .in('status', ['pending', 'overdue'])
         .order('created_at', { ascending: false })
         .limit(100),
     ])
@@ -361,7 +362,7 @@ export function OrdersInvoicesPage() {
             <FileText className="w-4 h-4" />
             Invoices
             <span className="ml-1 text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
-              {invoices.filter(i => i.status === 'pending').length}
+              {invoices.length}
             </span>
           </button>
         </div>

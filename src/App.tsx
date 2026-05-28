@@ -24,6 +24,7 @@ import { SalesRepOrders } from './pages/SalesRepOrders';
 import { SalesRepNotifications } from './pages/SalesRepNotifications';
 import { SalesRepSettings } from './pages/SalesRepSettings';
 import { SalesRepCommissions } from './pages/SalesRepCommissions';
+import SalesRepVisits from './pages/SalesRepVisits';
 import { AdminPortal } from './pages/AdminPortal';
 import { Products } from './pages/Products';
 import { ShippingPortal } from './pages/ShippingPortal';
@@ -135,6 +136,7 @@ function AppContent() {
           <Route path="/sales-rep-commissions" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepCommissions /></RequireAuth>} />
           <Route path="/sales-rep-notifications" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepNotifications /></RequireAuth>} />
           <Route path="/sales-rep-settings" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepSettings /></RequireAuth>} />
+          <Route path="/sales-rep-visits" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepVisits /></RequireAuth>} />
           <Route path="/admin-portal" element={<AdminPortal />} />
           <Route path="/products" element={<RequireAuth><Products /></RequireAuth>} />
           <Route path="/shipping-portal" element={<RequireAuth allowedRoles={['shipping_fulfillment', 'admin']}><ShippingPortal /></RequireAuth>} />

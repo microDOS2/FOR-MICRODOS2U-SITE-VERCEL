@@ -11,12 +11,14 @@ import {
   Settings,
   LogOut,
   DollarSign,
+  MapPin,
 } from 'lucide-react'
 
 const navItems = [
   { name: 'Dashboard', path: '/sales-rep-dashboard', icon: TrendingUp },
   { name: 'My Accounts', path: '/sales-rep-accounts', icon: Building2 },
   { name: 'My Stores', path: '/sales-rep-stores', icon: Store },
+  { name: 'Store Visits', path: '/sales-rep-visits', icon: MapPin },
   { name: 'My Orders', path: '/sales-rep-orders', icon: ShoppingCart },
   { name: 'Commissions', path: '/sales-rep-commissions', icon: DollarSign },
   { name: 'Notifications', path: '/sales-rep-notifications', icon: Bell },

@@ -13,7 +13,7 @@ export async function getOrderStatusCounts() {
   return Object.entries(counts).map(([status, count]) => ({ status, count }));
 }
 
-export async function getRevenueTrend(months = 6) {
+export async function getRevenueTrend(_months = 6) {
   const { data, error } = await supabase
     .from('orders')
     .select('total, created_at')

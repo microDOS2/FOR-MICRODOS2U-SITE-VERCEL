@@ -257,7 +257,7 @@ export function SalesRepDashboard() {
 
           {/* Charts */}
           <div className="mb-6">
-            <DashboardCharts mode="rep" repId={user?.id} />
+            <DashboardCharts mode="rep" repId={session.user.id} />
           </div>
 
           {/* Order Summary */}

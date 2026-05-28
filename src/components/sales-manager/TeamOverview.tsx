@@ -17,9 +17,10 @@ interface TeamOverviewProps {
   assignments: AssignmentData[];
   onAssign: (salesRepId: string) => void;
   onView: (salesRepId: string) => void;
+  onAddRep?: () => void;
 }
 
-export function TeamOverview({ salesReps, accounts, assignments, onAssign, onView }: TeamOverviewProps) {
+export function TeamOverview({ salesReps, accounts, assignments, onAssign, onView, onAddRep }: TeamOverviewProps) {
   // Get accounts assigned to a specific rep
   const getRepAccounts = (repId: string) => {
     const assignmentAccountIds = assignments
@@ -35,7 +36,7 @@ export function TeamOverview({ salesReps, accounts, assignments, onAssign, onVie
           <Users className="w-5 h-5 text-[#9a02d0]" />
           My Sales Team ({salesReps.length})
         </h3>
-        <Button variant="outline" size="sm" className="border-white/10 text-gray-300 hover:bg-white/5">
+        <Button variant="outline" size="sm" className="border-white/10 text-gray-300 hover:bg-white/5" onClick={onAddRep}>
           <UserPlus className="w-4 h-4 mr-1" />
           Add Rep
         </Button>

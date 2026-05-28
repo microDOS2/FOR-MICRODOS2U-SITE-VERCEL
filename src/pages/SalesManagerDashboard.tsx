@@ -587,6 +587,7 @@ export function SalesManagerDashboard() {
                 assignments={assignments}
                 onAssign={handleAssign}
                 onView={handleView}
+                onAddRep={() => navigate('/sales-manager-team')}
               />
             </div>
 

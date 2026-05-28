@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { SalesManagerSidebar } from '@/components/sales-manager/SalesManagerSidebar';
 import { RegionalStats } from '@/components/sales-manager/RegionalStats';
+import { DashboardCharts } from '@/components/charts/DashboardCharts';
 import { TeamOverview } from '@/components/sales-manager/TeamOverview';
 import { AssignmentDialog } from '@/components/sales-manager/AssignmentDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -502,6 +503,13 @@ export function SalesManagerDashboard() {
               pendingOrders={pendingOrders}
             />
           </div>
+
+          {/* Charts */}
+          {manager && (
+            <div className="mb-8">
+              <DashboardCharts mode="manager" managerId={manager.id} />
+            </div>
+          )}
 
           {/* Incoming Transfers */}
           {pendingTransfers.length > 0 && (

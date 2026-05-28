@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { SalesRepSidebar } from '@/components/sales-rep/SalesRepSidebar'
+import { DashboardCharts } from '@/components/charts/DashboardCharts'
 import { UserInfoBar } from '@/components/UserInfoBar'
 import { toast } from 'sonner'
 import {
@@ -252,6 +253,11 @@ export function SalesRepDashboard() {
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Charts */}
+          <div className="mb-6">
+            <DashboardCharts mode="rep" repId={user?.id} />
           </div>
 
           {/* Order Summary */}

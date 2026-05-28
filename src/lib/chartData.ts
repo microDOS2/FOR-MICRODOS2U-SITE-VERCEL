@@ -55,7 +55,7 @@ export async function getTopAccounts(limit = 5) {
 }
 
 export async function getTeamPerformance(managerId: string) {
-  // Get reps under this manager
+  // Single query: get reps + their account assignments + order totals
   const { data: reps } = await supabase
     .from('users')
     .select('id, contact_name, business_name')
@@ -64,30 +64,39 @@ export async function getTeamPerformance(managerId: string) {
 
   if (!reps || reps.length === 0) return [];
 
-  // For each rep, find their assigned accounts, then sum those accounts' orders
-  const results = [];
-  for (const rep of reps) {
-    // Get accounts assigned to this rep
-    const { data: assignments } = await supabase
-      .from('rep_account_assignments')
-      .select('account_id')
-      .eq('rep_id', rep.id);
+  // Get all assignments for these reps in one query
+  const repIds = reps.map((r: any) => r.id);
+  const { data: allAssignments } = await supabase
+    .from('rep_account_assignments')
+    .select('rep_id, account_id')
+    .in('rep_id', repIds);
 
-    const accountIds = (assignments || []).map((a: any) => a.account_id);
-    let total = 0;
-
-    if (accountIds.length > 0) {
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('total')
-        .in('user_id', accountIds);
-      total = (orders || []).reduce((sum, o) => sum + o.total, 0);
-    }
-
-    const displayName = rep.contact_name || rep.business_name || 'Unknown';
-    results.push({ name: displayName, total });
+  // Get all orders for those accounts in one query
+  const accountIds = [...new Set((allAssignments || []).map((a: any) => a.account_id))];
+  let allOrders: any[] = [];
+  if (accountIds.length > 0) {
+    const { data: orders } = await supabase
+      .from('orders')
+      .select('total, user_id')
+      .in('user_id', accountIds);
+    allOrders = orders || [];
   }
-  return results.sort((a, b) => b.total - a.total);
+
+  // Calculate totals per rep
+  const orderTotals: Record<string, number> = {};
+  for (const o of allOrders) {
+    orderTotals[o.user_id] = (orderTotals[o.user_id] || 0) + o.total;
+  }
+
+  const repTotals: Record<string, number> = {};
+  for (const a of allAssignments || []) {
+    repTotals[a.rep_id] = (repTotals[a.rep_id] || 0) + (orderTotals[a.account_id] || 0);
+  }
+
+  return reps.map((rep: any) => ({
+    name: rep.contact_name || rep.business_name || 'Unknown',
+    total: repTotals[rep.id] || 0,
+  })).sort((a: any, b: any) => b.total - a.total);
 }
 
 export async function getPersonalSales(repId: string) {
@@ -100,11 +109,15 @@ export async function getPersonalSales(repId: string) {
   const accountIds = (assignments || []).map((a: any) => a.account_id);
   if (accountIds.length === 0) return [];
 
-  // Get orders from those accounts
+  // Get orders from those accounts - limit to last 6 months for performance
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  
   const { data, error } = await supabase
     .from('orders')
     .select('total, created_at')
     .in('user_id', accountIds)
+    .gte('created_at', sixMonthsAgo.toISOString())
     .order('created_at', { ascending: true });
   if (error) throw error;
 

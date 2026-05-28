@@ -57,11 +57,20 @@ export function AccountRepCard({ userId, managerId }: AccountRepCardProps) {
 
   if (loading) {
     return (
-      <Card className="bg-[#150f24] border-white/10">
-        <CardContent className="p-6 flex items-center justify-center">
-          <Loader2 className="w-5 h-5 animate-spin text-[#9a02d0]" />
-        </CardContent>
-      </Card>
+      <>
+        <Card className="bg-[#150f24] border-white/10">
+          <CardContent className="p-6 flex items-center justify-center h-32">
+            <Loader2 className="w-5 h-5 animate-spin text-[#44f80c]" />
+          </CardContent>
+        </Card>
+        {managerId && (
+          <Card className="bg-[#150f24] border-white/10">
+            <CardContent className="p-6 flex items-center justify-center h-32">
+              <Loader2 className="w-5 h-5 animate-spin text-[#9a02d0]" />
+            </CardContent>
+          </Card>
+        )}
+      </>
     );
   }
 
@@ -69,21 +78,21 @@ export function AccountRepCard({ userId, managerId }: AccountRepCardProps) {
   if (!repData && !managerData) return null;
 
   return (
-    <Card className="bg-[#150f24] border-white/10">
-      <CardContent className="p-6 space-y-4">
-        {/* Sales Rep Section */}
-        {repData && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
+    <>
+      {/* Sales Rep Card */}
+      {repData && (
+        <Card className="bg-[#150f24] border-white/10">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-lg bg-[#44f80c]/10 flex items-center justify-center">
                 <Users className="w-4 h-4 text-[#44f80c]" />
               </div>
               <div>
                 <h3 className="font-semibold text-white">Your Sales Rep</h3>
-                <p className="text-sm text-gray-400">Direct point of contact</p>
+                <p className="text-xs text-gray-400">Direct point of contact</p>
               </div>
             </div>
-            <div className="pl-10 space-y-2">
+            <div className="space-y-2">
               <p className="text-white font-medium">{repData.contact_name || repData.business_name || 'Not assigned'}</p>
               {repData.email && (
                 <a href={`mailto:${repData.email}`} className="flex items-center gap-2 text-sm text-gray-400 hover:text-[#44f80c] transition-colors">
@@ -101,24 +110,24 @@ export function AccountRepCard({ userId, managerId }: AccountRepCardProps) {
                 </p>
               )}
             </div>
-            {/* Divider */}
-            {managerData && <div className="border-t border-white/10 mt-4 pt-4" />}
-          </div>
-        )}
+          </CardContent>
+        </Card>
+      )}
 
-        {/* Sales Manager Section */}
-        {managerData && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
+      {/* Sales Manager Card */}
+      {managerData && (
+        <Card className="bg-[#150f24] border-white/10">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-lg bg-[#9a02d0]/10 flex items-center justify-center">
                 <Users className="w-4 h-4 text-[#9a02d0]" />
               </div>
               <div>
                 <h3 className="font-semibold text-white">Sales Manager</h3>
-                <p className="text-sm text-gray-400">Territory oversight</p>
+                <p className="text-xs text-gray-400">Territory oversight</p>
               </div>
             </div>
-            <div className="pl-10 space-y-2">
+            <div className="space-y-2">
               <p className="text-white font-medium">{managerData.contact_name || managerData.business_name || 'Not assigned'}</p>
               {managerData.email && (
                 <a href={`mailto:${managerData.email}`} className="flex items-center gap-2 text-sm text-gray-400 hover:text-[#9a02d0] transition-colors">
@@ -136,9 +145,9 @@ export function AccountRepCard({ userId, managerId }: AccountRepCardProps) {
                 </p>
               )}
             </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      )}
+    </>
   );
 }

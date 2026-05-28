@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { StoreVisit, getStoreVisits, getMyStoreVisits, getTeamVisits } from '@/lib/storeVisits';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { StoreVisit } from '@/lib/storeVisits';
+import { getStoreVisits, getMyStoreVisits, getTeamVisits } from '@/lib/storeVisits';
+import { Card, CardContent } from '@/components/ui/card';
 import { MapPin, Calendar, User, Loader2, FileText, Camera } from 'lucide-react';
 import { format } from 'date-fns';
 

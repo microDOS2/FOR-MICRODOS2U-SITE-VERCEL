@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
 import { logStoreVisit } from '@/lib/storeVisits';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,7 +19,6 @@ interface StoreVisitFormProps {
 }
 
 export function StoreVisitForm({ stores, onSuccess }: StoreVisitFormProps) {
-  const { user } = useAuth();
   const [storeId, setStoreId] = useState('');
   const [visitDate, setVisitDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');

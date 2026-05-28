@@ -64,9 +64,9 @@ export function DashboardPage() {
   const [revenueData, setRevenueData] = useState<any[]>([])
   const [orderStatusData, setOrderStatusData] = useState<any[]>([])
   const [pendingApps, setPendingApps] = useState<PendingApp[]>([])
-  const [pendingInvoices, setPendingInvoices] = useState<PendingInvoice[]>([])
-  const [processingOrders, setProcessingOrders] = useState<OrderItem[]>([])
-  const [shippedOrders, setShippedOrders] = useState<OrderItem[]>([])
+  const [pendingInvoices, setPendingInvoices] = useState<any[]>([])
+  const [processingOrders, setProcessingOrders] = useState<any[]>([])
+  const [shippedOrders, setShippedOrders] = useState<any[]>([])
   const [payProcessingId, setPayProcessingId] = useState<string | null>(null)
 
   useEffect(() => { fetchDashboardData() }, [])
@@ -79,7 +79,7 @@ export function DashboardPage() {
       const [
         { data: allUsers, error: usersErr },
         { data: allOrders, error: ordersErr },
-        { data: allInvoices, error: invoicesErr },
+        { data: allInvoices, error: _invoicesErr },
         { count: productCount },
         { data: pendingAppsData },
         { data: pendingInvData },
@@ -122,9 +122,9 @@ export function DashboardPage() {
       })
 
       setPendingApps(pendingAppsData || [])
-      setPendingInvoices((pendingInvData || []) as PendingInvoice[])
-      setProcessingOrders((procOrders || []) as OrderItem[])
-      setShippedOrders((shipOrders || []) as OrderItem[])
+      setPendingInvoices(pendingInvData || [])
+      setProcessingOrders(procOrders || [])
+      setShippedOrders(shipOrders || [])
 
       // Revenue chart
       const last7Days = Array.from({ length: 7 }, (_, i) => {

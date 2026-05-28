@@ -68,12 +68,6 @@ function getPeriodFromDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-// ─── Tooltip Wrapper ────────────────────────────────────────────
-
-function TooltipButton({ title, children, ...props }: any) {
-  return <span title={title}><Button {...props}>{children}</Button></span>
-}
-
 // ─── Component ──────────────────────────────────────────────────
 
 export function CommissionsPage() {

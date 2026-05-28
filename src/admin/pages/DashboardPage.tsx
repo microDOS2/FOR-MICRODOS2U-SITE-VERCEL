@@ -140,15 +140,6 @@ export function DashboardPage() {
     }
   }
 
-  const ROLE_LABELS: Record<string, string> = {
-    wholesaler: 'Wholesaler',
-    distributor: 'Distributor',
-    sales_rep: 'Sales Rep',
-    sales_manager: 'Sales Manager',
-    admin: 'Admin',
-    shipping_fulfillment: 'Shipping'
-  }
-
   const statCards = [
     { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-[#44f80c]', bg: 'bg-[#44f80c]/10', border: 'border-[#44f80c]/20', link: '/admin/users', desc: 'View all accounts' },
     { label: 'Total Orders', value: stats.totalOrders, icon: ShoppingCart, color: 'text-[#9a02d0]', bg: 'bg-[#9a02d0]/10', border: 'border-[#9a02d0]/20', link: '/admin/orders-invoices', desc: 'Manage orders' },

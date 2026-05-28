@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/utils'
 import {
@@ -7,7 +8,11 @@ import {
   FileText,
   DollarSign,
   TrendingUp,
-  Package
+  Package,
+  ArrowRight,
+  ClipboardList,
+  AlertTriangle,
+  Loader2
 } from 'lucide-react'
 import {
   AreaChart,
@@ -30,7 +35,17 @@ interface Stats {
   totalRevenue: number
   totalProducts: number
   pendingOrders: number
+  pendingApplications: number
   recentOrders: any[]
+}
+
+interface PendingApp {
+  id: string
+  business_name: string | null
+  email: string
+  role: string
+  state: string | null
+  created_at: string
 }
 
 export function DashboardPage() {
@@ -40,11 +55,13 @@ export function DashboardPage() {
     totalRevenue: 0,
     totalProducts: 0,
     pendingOrders: 0,
+    pendingApplications: 0,
     recentOrders: []
   })
   const [loading, setLoading] = useState(true)
   const [revenueData, setRevenueData] = useState<any[]>([])
   const [orderStatusData, setOrderStatusData] = useState<any[]>([])
+  const [pendingApps, setPendingApps] = useState<PendingApp[]>([])
 
   useEffect(() => {
     fetchDashboardData()
@@ -53,25 +70,31 @@ export function DashboardPage() {
   const fetchDashboardData = async () => {
     setLoading(true)
     try {
-      // Single fetch for orders — used consistently for stats AND charts
+      // Fetch all orders for charts and stats
       const { data: allOrders, error: ordersError } = await supabase
         .from('orders')
         .select('total, status, created_at')
         .order('created_at', { ascending: false })
 
       if (ordersError) throw ordersError
-
       const ordersData = allOrders || []
 
-      // Fetch other counts in parallel
+      // Fetch counts and pending applications in parallel
       const [
         { count: userCount },
         { count: orderCount },
-        { count: productCount }
+        { count: productCount },
+        { data: pendingUsersData }
       ] = await Promise.all([
         supabase.from('users').select('*', { count: 'exact', head: true }),
         supabase.from('orders').select('*', { count: 'exact', head: true }),
-        supabase.from('products').select('*', { count: 'exact', head: true })
+        supabase.from('products').select('*', { count: 'exact', head: true }),
+        supabase
+          .from('users')
+          .select('id, business_name, email, role, state, created_at')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(5)
       ])
 
       const totalRevenue = ordersData.reduce((sum, o) => sum + (o.total || 0), 0)
@@ -83,10 +106,13 @@ export function DashboardPage() {
         totalRevenue,
         totalProducts: productCount || 0,
         pendingOrders: pendingCount,
+        pendingApplications: pendingUsersData?.length || 0,
         recentOrders: ordersData.slice(0, 5)
       })
 
-      // Generate revenue chart data (last 7 days)
+      setPendingApps(pendingUsersData || [])
+
+      // Revenue chart (last 7 days)
       const last7Days = Array.from({ length: 7 }, (_, i) => {
         const d = new Date()
         d.setDate(d.getDate() - (6 - i))
@@ -94,7 +120,7 @@ export function DashboardPage() {
       })
 
       const revenueByDay = last7Days.map(date => {
-        const dayOrders = ordersData?.filter(o => o.created_at?.startsWith(date)) || []
+        const dayOrders = ordersData.filter(o => o.created_at?.startsWith(date))
         return {
           name: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
           revenue: dayOrders.reduce((sum, o) => sum + (o.total || 0), 0),
@@ -105,22 +131,33 @@ export function DashboardPage() {
 
       // Order status breakdown
       const statusCounts: Record<string, number> = {}
-      ordersData?.forEach(o => {
+      ordersData.forEach(o => {
         statusCounts[o.status] = (statusCounts[o.status] || 0) + 1
       })
       setOrderStatusData(Object.entries(statusCounts).map(([name, value]) => ({ name, value })))
     } catch (err) {
+      console.error('Dashboard error:', err)
     } finally {
       setLoading(false)
     }
   }
 
+  const ROLE_LABELS: Record<string, string> = {
+    wholesaler: 'Wholesaler',
+    distributor: 'Distributor',
+    sales_rep: 'Sales Rep',
+    sales_manager: 'Sales Manager',
+    admin: 'Admin',
+    shipping_fulfillment: 'Shipping'
+  }
+
   const statCards = [
-    { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-[#44f80c]', bg: 'bg-[#9a02d0]/10' },
-    { label: 'Total Orders', value: stats.totalOrders, icon: ShoppingCart, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
-    { label: 'Revenue', value: formatCurrency(stats.totalRevenue), icon: DollarSign, color: 'text-amber-400', bg: 'bg-amber-400/10' },
-    { label: 'Products', value: stats.totalProducts, icon: Package, color: 'text-purple-400', bg: 'bg-purple-400/10' },
-    { label: 'Pending Orders', value: stats.pendingOrders, icon: FileText, color: 'text-rose-400', bg: 'bg-rose-400/10' },
+    { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-[#44f80c]', bg: 'bg-[#44f80c]/10', border: 'border-[#44f80c]/20', link: '/admin/users', desc: 'View all accounts' },
+    { label: 'Total Orders', value: stats.totalOrders, icon: ShoppingCart, color: 'text-[#9a02d0]', bg: 'bg-[#9a02d0]/10', border: 'border-[#9a02d0]/20', link: '/admin/orders-invoices', desc: 'Manage orders' },
+    { label: 'Revenue', value: formatCurrency(stats.totalRevenue), icon: DollarSign, color: 'text-[#ff66c4]', bg: 'bg-[#ff66c4]/10', border: 'border-[#ff66c4]/20', link: '/admin/orders-invoices', desc: 'Order history' },
+    { label: 'Products', value: stats.totalProducts, icon: Package, color: 'text-purple-400', bg: 'bg-purple-400/10', border: 'border-purple-400/20', link: '/admin/products', desc: 'Manage catalog' },
+    { label: 'Pending Orders', value: stats.pendingOrders, icon: FileText, color: 'text-yellow-400', bg: 'bg-yellow-400/10', border: 'border-yellow-400/20', link: '/admin/orders-invoices', desc: 'Needs processing' },
+    { label: 'Pending Approvals', value: stats.pendingApplications, icon: ClipboardList, color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/20', link: '/admin/applications', desc: 'Signup requests' },
   ]
 
   const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#6366f1']
@@ -128,32 +165,40 @@ export function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#9a02d0]" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#9a02d0]" />
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* Stats Grid — Clickable cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {statCards.map((card) => {
           const Icon = card.icon
           return (
-            <div key={card.label} className="bg-[#150f24] border border-white/10 rounded-xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-gray-400 text-sm">{card.label}</span>
-                <div className={`p-2 rounded-lg ${card.bg}`}>
-                  <Icon className={`w-4 h-4 ${card.color}`} />
+            <Link
+              key={card.label}
+              to={card.link}
+              className={`group bg-[#150f24] border ${card.border} rounded-xl p-4 hover:border-opacity-60 hover:translate-y-[-2px] transition-all duration-200 block`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-400 text-xs">{card.label}</span>
+                <div className={`p-1.5 rounded-lg ${card.bg}`}>
+                  <Icon className={`w-3.5 h-3.5 ${card.color}`} />
                 </div>
               </div>
               <div className="text-2xl font-bold text-white">{card.value}</div>
-            </div>
+              <div className="flex items-center gap-1 mt-1 text-gray-500 text-xs group-hover:text-gray-400 transition-colors">
+                <span>{card.desc}</span>
+                <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </Link>
           )
         })}
       </div>
 
-      {/* Charts Row */}
+      {/* Charts Row + Pending Applications */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Revenue Chart */}
         <div className="lg:col-span-2 bg-[#150f24] border border-white/10 rounded-xl p-6">
@@ -218,21 +263,77 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* Orders Bar Chart */}
-      <div className="bg-[#150f24] border border-white/10 rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-white mb-6">Daily Orders</h3>
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={revenueData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#150f24" />
-            <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
-            <YAxis stroke="#6b7280" fontSize={12} />
-            <Tooltip
-              contentStyle={{ backgroundColor: '#0a0514', border: '1px solid #150f24', borderRadius: '8px' }}
-              labelStyle={{ color: '#9ca3af' }}
-            />
-            <Bar dataKey="orders" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+      {/* Bottom Row: Pending Applications + Daily Orders */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Pending Signup Applications */}
+        <div className="bg-[#150f24] border border-white/10 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <ClipboardList className="w-5 h-5 text-red-400" />
+              Pending Approvals
+            </h3>
+            {pendingApps.length > 0 && (
+              <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">
+                {pendingApps.length}
+              </span>
+            )}
+          </div>
+
+          {pendingApps.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="w-12 h-12 rounded-full bg-[#44f80c]/10 flex items-center justify-center mx-auto mb-3">
+                <ClipboardList className="w-6 h-6 text-[#44f80c]" />
+              </div>
+              <p className="text-gray-400 text-sm">All caught up!</p>
+              <p className="text-gray-500 text-xs mt-1">No signup applications awaiting approval.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pendingApps.map((app) => (
+                <Link
+                  key={app.id}
+                  to="/admin/applications"
+                  className="flex items-start gap-3 p-3 bg-[#0a0514] rounded-lg border border-white/5 hover:border-yellow-500/30 hover:bg-white/5 transition-all group"
+                >
+                  <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{app.business_name || app.email}</p>
+                    <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+                      <span className="bg-white/5 px-1.5 py-0.5 rounded">{ROLE_LABELS[app.role] || app.role}</span>
+                      {app.state && <span>{app.state}</span>}
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-yellow-400 flex-shrink-0 transition-colors" />
+                </Link>
+              ))}
+              <Link
+                to="/admin/applications"
+                className="flex items-center justify-center gap-1 text-sm text-[#9a02d0] hover:text-[#ff66c4] pt-1"
+              >
+                View all applications <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Daily Orders */}
+        <div className="lg:col-span-2 bg-[#150f24] border border-white/10 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-6">Daily Orders</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={revenueData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#150f24" />
+              <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
+              <YAxis stroke="#6b7280" fontSize={12} />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#0a0514', border: '1px solid #150f24', borderRadius: '8px' }}
+                labelStyle={{ color: '#9ca3af' }}
+              />
+              <Bar dataKey="orders" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   )

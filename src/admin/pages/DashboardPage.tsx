@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-import { formatCurrency } from '@/lib/utils'
 import {
   Users,
   ShoppingCart,
@@ -100,6 +99,7 @@ export function DashboardPage() {
 
       if (usersErr) console.error('Users error:', usersErr)
       if (ordersErr) console.error('Orders error:', ordersErr)
+      if (invoicesErr) console.error('Invoices error:', invoicesErr)
 
       const usersData = allUsers || []
       const ordersData = allOrders || []

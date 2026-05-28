@@ -4,7 +4,7 @@ import { OrderStatusChart } from './OrderStatusChart';
 import { RevenueTrendChart } from './RevenueTrendChart';
 import { TopAccountsChart } from './TopAccountsChart';
 import { getOrderStatusCounts, getRevenueTrend, getTopAccounts, getTeamPerformance, getPersonalSales } from '@/lib/chartData';
-import { BarChart3, TrendingUp, Users, Loader2, BarChart, AlertCircle } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, Loader2, AlertCircle } from 'lucide-react';
 
 interface DashboardChartsProps {
   mode: 'admin' | 'manager' | 'rep';

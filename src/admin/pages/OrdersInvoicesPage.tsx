@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { sendOrderNotification } from '@/lib/orderNotifications'
 import { formatCurrency } from '@/lib/utils'
@@ -83,7 +84,10 @@ interface BusinessUser {
 // ─── Main Page ────────────────────────────────────────────────────
 
 export function OrdersInvoicesPage() {
-  const [view, setView] = useState<'orders' | 'invoices'>('orders')
+  const [searchParams] = useSearchParams()
+  const [view, setView] = useState<'orders' | 'invoices'>(
+    searchParams.get('tab') === 'invoices' ? 'invoices' : 'orders'
+  )
   const [orders, setOrders] = useState<FulfillmentOrder[]>([])
   const [invoices, setInvoices] = useState<FulfillmentInvoice[]>([])
   const [loading, setLoading] = useState(true)

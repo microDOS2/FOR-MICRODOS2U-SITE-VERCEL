@@ -225,7 +225,7 @@ export function DashboardPage() {
           {/* Invoices Pending Payment */}
           <TooltipCard tooltip="Invoices with 'pending' status — payment not yet collected. Click to manage invoices and mark as paid.">
             <Link
-              to="/admin/orders-invoices"
+              to="/admin/orders-invoices?tab=invoices"
               className="block bg-[#150f24] border border-yellow-500/20 rounded-xl p-4 hover:border-yellow-500/40 hover:translate-y-[-2px] transition-all duration-200 group"
             >
               <div className="flex items-center justify-between mb-2">

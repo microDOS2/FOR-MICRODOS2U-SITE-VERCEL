@@ -25,12 +25,6 @@ interface CommissionViewProps {
   role: 'rep' | 'manager';
 }
 
-function getNextPayoutDate(): string {
-  const now = new Date();
-  const next = new Date(now.getFullYear(), now.getMonth() + 1, 15);
-  return next.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-}
-
 export function CommissionView({ userId, role }: CommissionViewProps) {
   const [entries, setEntries] = useState<CommissionEntry[]>([]);
   const [loading, setLoading] = useState(true);

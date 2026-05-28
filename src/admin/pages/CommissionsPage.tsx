@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import {
   DollarSign, Loader2, Calendar, TrendingUp, CheckCircle, AlertTriangle,
   Settings, Users, Shield, UserCog, Store, Warehouse, List, LayoutGrid,
-  CreditCard, Printer, X
+  CreditCard, Printer, X, Eye, Trash2, Square, SquareCheck
 } from 'lucide-react'
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -30,6 +30,11 @@ interface CommissionEntry {
   created_at: string
   rep_name?: string
   account_name?: string
+}
+
+interface ReviewEntry {
+  entry: CommissionEntry
+  selected: boolean
 }
 
 interface RepPerformance {
@@ -63,6 +68,12 @@ function getPeriodFromDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+// ─── Tooltip Wrapper ────────────────────────────────────────────
+
+function TooltipButton({ title, children, ...props }: any) {
+  return <span title={title}><Button {...props}>{children}</Button></span>
+}
+
 // ─── Component ──────────────────────────────────────────────────
 
 export function CommissionsPage() {
@@ -92,8 +103,15 @@ export function CommissionsPage() {
   const [editDistributorRate, setEditDistributorRate] = useState('')
   const [savingUserRate, setSavingUserRate] = useState(false)
 
+  // Review & Approve dialog
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
+  const [reviewPeriod, setReviewPeriod] = useState('')
+  const [reviewEntries, setReviewEntries] = useState<ReviewEntry[]>([])
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [approvingSelected, setApprovingSelected] = useState(false)
+  const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null)
+
   // Period workflow
-  const [approvingPeriod, setApprovingPeriod] = useState<string | null>(null)
   const [payDialogOpen, setPayDialogOpen] = useState(false)
   const [payDialogPeriod, setPayDialogPeriod] = useState('')
   const [payDate, setPayDate] = useState(() => {
@@ -317,25 +335,109 @@ export function CommissionsPage() {
     setSavingUserRate(false)
   }
 
-  // ─── Approve Period ───────────────────────────────────────────
+  // ─── Review & Approve Dialog ──────────────────────────────────
 
-  const handleApprovePeriod = async (period: string) => {
-    if (!confirm(`Approve all accrued commissions for ${period}?\n\nThis locks them for payment processing.`)) return
-    setApprovingPeriod(period)
+  const openReviewDialog = async (period: string) => {
+    setReviewPeriod(period)
+    setReviewDialogOpen(true)
+    setReviewLoading(true)
     try {
       const [year, month] = period.split('-')
-      const { data, error } = await supabase.rpc('approve_commissions_for_period', {
-        p_period_year: parseInt(year),
-        p_period_month: parseInt(month),
-      })
+      const { data, error } = await supabase
+        .from('commission_payments')
+        .select('*, orders!inner(total), users!commission_payments_user_id_fkey(business_name, email)')
+        .eq('period_year', parseInt(year))
+        .eq('period_month', parseInt(month))
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+
       if (error) throw error
-      toast.success(`${data || 0} commissions approved for ${period}! Ready to pay.`)
+
+      const mapped: CommissionEntry[] = (data || []).map((row: any) => {
+        const user = row.users || {}
+        return {
+          id: row.id,
+          order_id: row.order_id || '',
+          account_id: row.account_id || '',
+          rep_id: row.user_id || '',
+          role_type: row.role_type || 'sales_rep',
+          account_type: row.account_type || 'wholesaler',
+          order_amount: row.order_amount || row.orders?.total || 0,
+          amount: row.amount || 0,
+          rate_percent: row.rate_percent || 0,
+          period,
+          status: 'accrued' as const,
+          paid_at: row.paid_at,
+          paid_method: row.paid_method,
+          paid_reference: row.paid_reference,
+          created_at: row.created_at,
+          rep_name: user.business_name || user.email || row.user_id?.slice(0, 8),
+          account_name: row.account_id?.slice(0, 8),
+        }
+      })
+
+      // Enrich account names
+      const accountIds = [...new Set(mapped.filter(e => e.account_id).map(e => e.account_id))]
+      if (accountIds.length > 0) {
+        const { data: accts } = await supabase.from('users').select('id, business_name, email').in('id', accountIds)
+        const acctMap = new Map((accts || []).map((a: any) => [a.id, a.business_name || a.email]))
+        mapped.forEach(e => { e.account_name = acctMap.get(e.account_id) || e.account_id.slice(0, 8) })
+      }
+
+      setReviewEntries(mapped.map(e => ({ entry: e, selected: true })))
+    } catch (e: any) {
+      toast.error('Failed to load review data: ' + e.message)
+    }
+    setReviewLoading(false)
+  }
+
+  const toggleReviewEntry = (id: string) => {
+    setReviewEntries(prev => prev.map(re => re.entry.id === id ? { ...re, selected: !re.selected } : re))
+  }
+
+  const selectAllReview = () => setReviewEntries(prev => prev.map(re => ({ ...re, selected: true })))
+  const deselectAllReview = () => setReviewEntries(prev => prev.map(re => ({ ...re, selected: false })))
+
+  const deleteReviewEntry = async (id: string) => {
+    if (!confirm('Delete this commission entry permanently? This cannot be undone.')) return
+    setDeletingReviewId(id)
+    try {
+      const { error } = await supabase.from('commission_payments').delete().eq('id', id)
+      if (error) throw error
+      setReviewEntries(prev => prev.filter(re => re.entry.id !== id))
+      toast.success('Commission entry deleted')
+    } catch (e: any) {
+      toast.error('Delete failed: ' + e.message)
+    }
+    setDeletingReviewId(null)
+  }
+
+  const handleApproveSelected = async () => {
+    const selectedIds = reviewEntries.filter(re => re.selected).map(re => re.entry.id)
+    if (selectedIds.length === 0) { toast.error('Select at least one commission to approve'); return }
+
+    if (!confirm(`Approve ${selectedIds.length} commission${selectedIds.length > 1 ? 's' : ''} for ${reviewPeriod}?\n\nExcluded entries will remain as 'accrued' for later review.`)) return
+
+    setApprovingSelected(true)
+    try {
+      const { error } = await supabase
+        .from('commission_payments')
+        .update({ status: 'approved', approved_at: new Date().toISOString() })
+        .in('id', selectedIds)
+
+      if (error) throw error
+      toast.success(`${selectedIds.length} commission${selectedIds.length > 1 ? 's' : ''} approved!`)
+      setReviewDialogOpen(false)
       await fetchCommissions()
     } catch (e: any) {
       toast.error('Approval failed: ' + e.message)
     }
-    setApprovingPeriod(null)
+    setApprovingSelected(false)
   }
+
+  const selectedCount = reviewEntries.filter(re => re.selected).length
+  const selectedAmount = reviewEntries.filter(re => re.selected).reduce((s, re) => s + re.entry.amount, 0)
+  const totalCount = reviewEntries.length
 
   // ─── Pay Period Dialog ────────────────────────────────────────
 
@@ -343,7 +445,7 @@ export function CommissionsPage() {
     setPayDialogPeriod(period)
     setPayDate(() => {
       const [y, m] = period.split('-').map(Number)
-      const next = new Date(y, m, 15) // 15th of following month
+      const next = new Date(y, m, 15)
       return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-15`
     })
     setPayMethod('Check')
@@ -418,7 +520,6 @@ export function CommissionsPage() {
   const accruedCount = entries.filter(e => e.status === 'accrued').length
   const accruedAmount = entries.filter(e => e.status === 'accrued').reduce((s, e) => s + e.amount, 0)
 
-  // Group entries by rep for grouped view
   const groupedEntries = viewMode === 'grouped'
     ? Object.entries(entries.reduce((acc, e) => {
         const name = e.rep_name || 'Unknown'
@@ -486,10 +587,12 @@ export function CommissionsPage() {
             ))}
           </div>
           <div className="flex justify-end">
-            <Button onClick={handleSaveSettings} disabled={savingSettings} className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]">
-              {savingSettings ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DollarSign className="w-4 h-4 mr-2" />}
-              Save Default Rates
-            </Button>
+            <span title="Save the 4 default commission rates. These apply to all reps and managers unless individually overridden.">
+              <Button onClick={handleSaveSettings} disabled={savingSettings} className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]">
+                {savingSettings ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DollarSign className="w-4 h-4 mr-2" />}
+                Save Default Rates
+              </Button>
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -538,11 +641,19 @@ export function CommissionsPage() {
                         <td className="px-4 py-3 text-right">
                           {editingUser?.id === user.id ? (
                             <div className="flex items-center justify-end gap-2">
-                              <Button size="sm" onClick={() => handleSaveUserOverrides(user.id, user.role === 'sales_manager' ? 'sales_manager' : 'sales_rep')} disabled={savingUserRate} className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514] h-7 text-xs px-2">{savingUserRate ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}</Button>
-                              <Button size="sm" variant="ghost" onClick={() => { setEditingUser(null); setEditWholesalerRate(''); setEditDistributorRate('') }} className="text-gray-400 hover:text-white h-7 text-xs px-2">Cancel</Button>
+                              <span title="Save this user's custom rates. Leave blank to revert to role default.">
+                                <Button size="sm" onClick={() => handleSaveUserOverrides(user.id, user.role === 'sales_manager' ? 'sales_manager' : 'sales_rep')} disabled={savingUserRate} className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514] h-7 text-xs px-2">
+                                  {savingUserRate ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
+                                </Button>
+                              </span>
+                              <span title="Cancel editing. No changes will be saved.">
+                                <Button size="sm" variant="ghost" onClick={() => { setEditingUser(null); setEditWholesalerRate(''); setEditDistributorRate('') }} className="text-gray-400 hover:text-white h-7 text-xs px-2">Cancel</Button>
+                              </span>
                             </div>
                           ) : (
-                            <Button size="sm" variant="ghost" onClick={() => { setEditingUser(user); setEditWholesalerRate(user.has_wholesaler_override ? String(user.wholesaler_rate) : ''); setEditDistributorRate(user.has_distributor_override ? String(user.distributor_rate) : '') }} className="text-[#9a02d0] hover:text-[#ff66c4] h-7 text-xs px-2">Edit</Button>
+                            <span title="Set custom commission rates for this specific user. Overrides the role defaults.">
+                              <Button size="sm" variant="ghost" onClick={() => { setEditingUser(user); setEditWholesalerRate(user.has_wholesaler_override ? String(user.wholesaler_rate) : ''); setEditDistributorRate(user.has_distributor_override ? String(user.distributor_rate) : '') }} className="text-[#9a02d0] hover:text-[#ff66c4] h-7 text-xs px-2">Edit</Button>
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -595,17 +706,21 @@ export function CommissionsPage() {
           return (
             <div key={period} className="flex items-center gap-2">
               {accrued.length > 0 && (
-                <Button onClick={() => handleApprovePeriod(period)} disabled={approvingPeriod === period}
-                  className="bg-yellow-500 hover:bg-yellow-400 text-[#0a0514]">
-                  {approvingPeriod === period ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                  Approve {period} (${accruedAmt.toFixed(0)})
-                </Button>
+                <span title="Review every commission for this period. You can exclude or delete individual entries before approving.">
+                  <Button onClick={() => openReviewDialog(period)}
+                    className="bg-yellow-500 hover:bg-yellow-400 text-[#0a0514]">
+                    <Eye className="w-4 h-4 mr-2" />
+                    Review & Approve {period} (${accruedAmt.toFixed(0)})
+                  </Button>
+                </span>
               )}
               {processing.length > 0 && (
-                <Button onClick={() => openPayDialog(period)} className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]">
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Pay {period} (${procAmt.toFixed(0)})
-                </Button>
+                <span title="Pay all approved commissions for this period. You will enter payment method and reference.">
+                  <Button onClick={() => openPayDialog(period)} className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]">
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Pay {period} (${procAmt.toFixed(0)})
+                  </Button>
+                </span>
               )}
             </div>
           )
@@ -617,7 +732,7 @@ export function CommissionsPage() {
         <div>
           <label className="text-sm text-gray-400 mb-1 block">Period</label>
           <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-            <SelectTrigger className="w-[140px] bg-[#150f24] border-white/10 text-white"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[140px] bg-[#150f24] border-white/10 text-white" title="Filter commissions by pay period"><SelectValue /></SelectTrigger>
             <SelectContent className="bg-[#150f24] border-white/10">
               <SelectItem value="all">All Periods</SelectItem>
               {periods.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
@@ -627,7 +742,7 @@ export function CommissionsPage() {
         <div>
           <label className="text-sm text-gray-400 mb-1 block">Status</label>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[140px] bg-[#150f24] border-white/10 text-white"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[140px] bg-[#150f24] border-white/10 text-white" title="Filter commissions by payment status"><SelectValue /></SelectTrigger>
             <SelectContent className="bg-[#150f24] border-white/10">
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="accrued">Accrued</SelectItem>
@@ -639,14 +754,20 @@ export function CommissionsPage() {
         <div>
           <label className="text-sm text-gray-400 mb-1 block">View</label>
           <div className="flex bg-[#0a0514] rounded-lg border border-white/10 overflow-hidden">
-            <button onClick={() => setViewMode('flat')} className={`px-3 py-2 text-xs flex items-center gap-1 ${viewMode === 'flat' ? 'bg-[#9a02d0] text-white' : 'text-gray-400 hover:text-white'}`}><List className="w-3 h-3" /> Flat</button>
-            <button onClick={() => setViewMode('grouped')} className={`px-3 py-2 text-xs flex items-center gap-1 ${viewMode === 'grouped' ? 'bg-[#9a02d0] text-white' : 'text-gray-400 hover:text-white'}`}><LayoutGrid className="w-3 h-3" /> By Rep</button>
+            <span title="Show all commissions in a single flat list.">
+              <button onClick={() => setViewMode('flat')} className={`px-3 py-2 text-xs flex items-center gap-1 ${viewMode === 'flat' ? 'bg-[#9a02d0] text-white' : 'text-gray-400 hover:text-white'}`}><List className="w-3 h-3" /> Flat</button>
+            </span>
+            <span title="Group commissions by sales rep for easier review.">
+              <button onClick={() => setViewMode('grouped')} className={`px-3 py-2 text-xs flex items-center gap-1 ${viewMode === 'grouped' ? 'bg-[#9a02d0] text-white' : 'text-gray-400 hover:text-white'}`}><LayoutGrid className="w-3 h-3" /> By Rep</button>
+            </span>
           </div>
         </div>
         {filterPeriod !== 'all' && (
-          <Button size="sm" variant="ghost" onClick={() => openStatement(filterPeriod)} className="text-[#44f80c] hover:text-[#3ad60a] h-9">
-            <Printer className="w-4 h-4 mr-1" /> View Statement
-          </Button>
+          <span title="Open a printable commission statement for this period.">
+            <Button size="sm" variant="ghost" onClick={() => openStatement(filterPeriod)} className="text-[#44f80c] hover:text-[#3ad60a] h-9">
+              <Printer className="w-4 h-4 mr-1" /> View Statement
+            </Button>
+          </span>
         )}
       </div>
 
@@ -679,6 +800,7 @@ export function CommissionsPage() {
                         <th className="px-3 py-2 text-xs font-medium text-gray-400 text-right">Rate</th>
                         <th className="px-3 py-2 text-xs font-medium text-gray-400 text-right">Earns</th>
                         <th className="px-3 py-2 text-xs font-medium text-gray-400">Status</th>
+                        <th className="px-3 py-2 text-xs font-medium text-gray-400">Paid Via</th>
                         <th className="px-3 py-2 text-xs font-medium text-gray-400 text-right">Action</th>
                       </tr></thead>
                       <tbody className="divide-y divide-white/5">
@@ -691,9 +813,12 @@ export function CommissionsPage() {
                             <td className="px-3 py-2 text-gray-400 text-right">{entry.rate_percent}%</td>
                             <td className="px-3 py-2 text-[#44f80c] font-medium text-right">${entry.amount.toFixed(2)}</td>
                             <td className="px-3 py-2"><StatusBadge status={entry.status} /></td>
+                            <td className="px-3 py-2 text-gray-500 text-xs">{entry.paid_method || '—'}</td>
                             <td className="px-3 py-2 text-right">
                               {(entry.status === 'accrued' || entry.status === 'processing') && (
-                                <Button size="sm" variant="ghost" onClick={() => openIndPayDialog(entry)} className="text-[#44f80c] hover:text-[#3ad60a] h-6 text-xs px-1">Pay</Button>
+                                <span title="Pay this single commission immediately instead of waiting for batch payout.">
+                                  <Button size="sm" variant="ghost" onClick={() => openIndPayDialog(entry)} className="text-[#44f80c] hover:text-[#3ad60a] h-6 text-xs px-1">Pay</Button>
+                                </span>
                               )}
                             </td>
                           </tr>
@@ -734,7 +859,9 @@ export function CommissionsPage() {
                       <td className="px-4 py-3 text-gray-500 text-xs">{entry.paid_method || '—'}</td>
                       <td className="px-4 py-3 text-right">
                         {(entry.status === 'accrued' || entry.status === 'processing') && (
-                          <Button size="sm" variant="ghost" onClick={() => openIndPayDialog(entry)} className="text-[#44f80c] hover:text-[#3ad60a] h-6 text-xs px-1">Pay</Button>
+                          <span title="Pay this single commission immediately instead of waiting for batch payout.">
+                            <Button size="sm" variant="ghost" onClick={() => openIndPayDialog(entry)} className="text-[#44f80c] hover:text-[#3ad60a] h-6 text-xs px-1">Pay</Button>
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -805,6 +932,109 @@ export function CommissionsPage() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════
+          REVIEW & APPROVE DIALOG
+          ═══════════════════════════════════════════════════════════ */}
+      {reviewDialogOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#150f24] border border-white/20 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Eye className="w-5 h-5 text-yellow-400" />
+                Review & Approve — {reviewPeriod}
+              </h3>
+              <button onClick={() => setReviewDialogOpen(false)} className="text-gray-400 hover:text-white" title="Close without approving anything"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-4 space-y-4">
+              {/* Instructions */}
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                <p className="text-xs text-blue-300">
+                  Uncheck commissions to exclude them from this batch. Click the trash icon to delete bad entries permanently.
+                  Only checked commissions will be approved.
+                </p>
+              </div>
+
+              {/* Select All / None */}
+              <div className="flex gap-2">
+                <span title="Select all commissions in this review"><Button size="sm" variant="ghost" onClick={selectAllReview} className="text-[#44f80c] hover:text-[#3ad60a] text-xs h-7"><SquareCheck className="w-3.5 h-3.5 mr-1" /> Select All</Button></span>
+                <span title="Deselect all commissions"><Button size="sm" variant="ghost" onClick={deselectAllReview} className="text-gray-400 hover:text-white text-xs h-7"><Square className="w-3.5 h-3.5 mr-1" /> Select None</Button></span>
+              </div>
+
+              {/* Review Table */}
+              {reviewLoading ? (
+                <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#9a02d0]" /></div>
+              ) : reviewEntries.length === 0 ? (
+                <div className="text-center py-8 text-gray-500"><p>No accrued commissions to review for this period.</p></div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b border-white/10 text-left">
+                      <th className="px-3 py-2 text-xs font-medium text-gray-400"></th>
+                      <th className="px-3 py-2 text-xs font-medium text-gray-400">Rep</th>
+                      <th className="px-3 py-2 text-xs font-medium text-gray-400">Account</th>
+                      <th className="px-3 py-2 text-xs font-medium text-gray-400">Type</th>
+                      <th className="px-3 py-2 text-xs font-medium text-gray-400 text-right">Order</th>
+                      <th className="px-3 py-2 text-xs font-medium text-gray-400 text-right">Rate</th>
+                      <th className="px-3 py-2 text-xs font-medium text-gray-400 text-right">Commission</th>
+                      <th className="px-3 py-2 text-xs font-medium text-gray-400 text-center">Actions</th>
+                    </tr></thead>
+                    <tbody className="divide-y divide-white/5">
+                      {reviewEntries.map((re) => (
+                        <tr key={re.entry.id} className={`hover:bg-white/5 ${!re.selected ? 'opacity-40' : ''}`}>
+                          <td className="px-3 py-2">
+                            <button onClick={() => toggleReviewEntry(re.entry.id)}
+                              title={re.selected ? 'Include this commission in the approval batch' : 'Exclude this commission from the approval batch. It will remain as accrued for later review.'}
+                              className="text-[#44f80c] hover:text-[#3ad60a]">
+                              {re.selected ? <SquareCheck className="w-4 h-4" /> : <Square className="w-4 h-4 text-gray-500" />}
+                            </button>
+                          </td>
+                          <td className="px-3 py-2 text-gray-300">{re.entry.rep_name}</td>
+                          <td className="px-3 py-2 text-gray-300">{re.entry.account_name}</td>
+                          <td className="px-3 py-2"><AccountTypeBadge type={re.entry.account_type} /></td>
+                          <td className="px-3 py-2 text-gray-300 text-right">${re.entry.order_amount.toFixed(2)}</td>
+                          <td className="px-3 py-2 text-gray-400 text-right">{re.entry.rate_percent}%</td>
+                          <td className="px-3 py-2 text-[#44f80c] font-medium text-right">${re.entry.amount.toFixed(2)}</td>
+                          <td className="px-3 py-2 text-center">
+                            <span title="Permanently delete this commission entry. Use only for bad data or test orders.">
+                              <button onClick={() => deleteReviewEntry(re.entry.id)} disabled={deletingReviewId === re.entry.id}
+                                className="text-red-400 hover:text-red-300 disabled:opacity-50 p-1">
+                                {deletingReviewId === re.entry.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                              </button>
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Summary */}
+              <div className="bg-[#0a0514] rounded-lg p-3 border border-white/10 flex items-center justify-between">
+                <span className="text-sm text-gray-300">
+                  <span className="text-[#44f80c] font-medium">{selectedCount}</span> of {totalCount} selected
+                </span>
+                <span className="text-[#44f80c] font-medium text-lg">${selectedAmount.toFixed(2)}</span>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <span title={`Approve ${selectedCount} commission${selectedCount !== 1 ? 's' : ''} for ${reviewPeriod}. Excluded entries will remain as accrued for later review.`}>
+                  <Button onClick={handleApproveSelected} disabled={approvingSelected || selectedCount === 0}
+                    className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]">
+                    {approvingSelected ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                    Approve {selectedCount > 0 ? `(${selectedCount})` : ''}
+                  </Button>
+                </span>
+                <span title="Close without approving anything.">
+                  <Button variant="ghost" onClick={() => setReviewDialogOpen(false)} className="text-gray-400 hover:text-white">Cancel</Button>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
           PAY PERIOD DIALOG
           ═══════════════════════════════════════════════════════════ */}
       {payDialogOpen && (
@@ -812,7 +1042,7 @@ export function CommissionsPage() {
           <div className="bg-[#150f24] border border-white/20 rounded-xl w-full max-w-lg max-h-[90vh] overflow-auto">
             <div className="flex items-center justify-between p-4 border-b border-white/10">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2"><CreditCard className="w-5 h-5 text-[#44f80c]" />Pay Commissions for {payDialogPeriod}</h3>
-              <button onClick={() => setPayDialogOpen(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+              <button onClick={() => setPayDialogOpen(false)} className="text-gray-400 hover:text-white" title="Close without paying."><X className="w-5 h-5" /></button>
             </div>
             <div className="p-4 space-y-4">
               {/* Summary */}
@@ -835,14 +1065,11 @@ export function CommissionsPage() {
                 )
               })()}
 
-              {/* Pay Date */}
               <div>
                 <label className="text-xs text-gray-400 mb-1 block">Pay Date</label>
                 <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-[#0a0514] border border-white/10 text-white text-sm focus:border-[#44f80c] focus:outline-none" />
               </div>
-
-              {/* Payment Method */}
               <div>
                 <label className="text-xs text-gray-400 mb-1 block">Payment Method</label>
                 <Select value={payMethod} onValueChange={setPayMethod}>
@@ -852,21 +1079,21 @@ export function CommissionsPage() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Reference */}
               <div>
                 <label className="text-xs text-gray-400 mb-1 block">Reference # (optional)</label>
                 <input type="text" value={payReference} onChange={(e) => setPayReference(e.target.value)} placeholder="Check #1234, Confirmation code, etc."
                   className="w-full px-3 py-2 rounded-lg bg-[#0a0514] border border-white/10 text-white text-sm focus:border-[#44f80c] focus:outline-none" />
               </div>
-
-              {/* Actions */}
               <div className="flex gap-3 pt-2">
-                <Button onClick={handlePayPeriodConfirm} disabled={paying} className="flex-1 bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]">
-                  {paying ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DollarSign className="w-4 h-4 mr-2" />}
-                  Confirm Payment
-                </Button>
-                <Button variant="ghost" onClick={() => setPayDialogOpen(false)} className="text-gray-400 hover:text-white">Cancel</Button>
+                <span title="Confirm payment for all approved commissions in this period.">
+                  <Button onClick={handlePayPeriodConfirm} disabled={paying} className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]">
+                    {paying ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DollarSign className="w-4 h-4 mr-2" />}
+                    Confirm Payment
+                  </Button>
+                </span>
+                <span title="Cancel and close this dialog without paying.">
+                  <Button variant="ghost" onClick={() => setPayDialogOpen(false)} className="text-gray-400 hover:text-white">Cancel</Button>
+                </span>
               </div>
             </div>
           </div>
@@ -881,7 +1108,7 @@ export function CommissionsPage() {
           <div className="bg-[#150f24] border border-white/20 rounded-xl w-full max-w-md">
             <div className="flex items-center justify-between p-4 border-b border-white/10">
               <h3 className="text-lg font-semibold text-white">Pay Commission</h3>
-              <button onClick={() => setIndPayOpen(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+              <button onClick={() => setIndPayOpen(false)} className="text-gray-400 hover:text-white" title="Close without paying this commission."><X className="w-5 h-5" /></button>
             </div>
             <div className="p-4 space-y-4">
               <div className="bg-[#0a0514] rounded-lg p-3 border border-white/10">
@@ -906,11 +1133,15 @@ export function CommissionsPage() {
                   className="w-full px-3 py-2 rounded-lg bg-[#0a0514] border border-white/10 text-white text-sm focus:border-[#44f80c] focus:outline-none" />
               </div>
               <div className="flex gap-3 pt-2">
-                <Button onClick={handleIndPayConfirm} disabled={indPaying} className="flex-1 bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]">
-                  {indPaying ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DollarSign className="w-4 h-4 mr-2" />}
-                  Pay ${indPayEntry.amount.toFixed(2)}
-                </Button>
-                <Button variant="ghost" onClick={() => setIndPayOpen(false)} className="text-gray-400 hover:text-white">Cancel</Button>
+                <span title="Pay this single commission now.">
+                  <Button onClick={handleIndPayConfirm} disabled={indPaying} className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514]">
+                    {indPaying ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DollarSign className="w-4 h-4 mr-2" />}
+                    Pay ${indPayEntry.amount.toFixed(2)}
+                  </Button>
+                </span>
+                <span title="Close without paying.">
+                  <Button variant="ghost" onClick={() => setIndPayOpen(false)} className="text-gray-400 hover:text-white">Cancel</Button>
+                </span>
               </div>
             </div>
           </div>
@@ -926,8 +1157,8 @@ export function CommissionsPage() {
             <div className="flex items-center justify-between p-4 border-b border-white/10 print:hidden">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2"><Printer className="w-5 h-5 text-[#44f80c]" />Commission Statement — {statementPeriod}</h3>
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => window.print()} className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514] text-xs"><Printer className="w-3 h-3 mr-1" />Print</Button>
-                <button onClick={closeStatement} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+                <span title="Print this commission statement."><Button size="sm" onClick={() => window.print()} className="bg-[#44f80c] hover:bg-[#3ad60a] text-[#0a0514] text-xs"><Printer className="w-3 h-3 mr-1" />Print</Button></span>
+                <button onClick={closeStatement} className="text-gray-400 hover:text-white" title="Close statement view."><X className="w-5 h-5" /></button>
               </div>
             </div>
             <div className="p-6 space-y-4" id="commission-statement">

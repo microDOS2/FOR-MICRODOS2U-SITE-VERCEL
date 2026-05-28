@@ -32,29 +32,7 @@ interface PendingApp {
   submitted_at: string
 }
 
-interface PendingInvoice {
-  id: string
-  invoice_number: string
-  total: number
-  created_at: string
-  user_id: string
-  order_id: string
-  users: { business_name: string; email: string; contact_name: string } | null
-  orders: { po_number: string } | null
-}
-
-interface OrderItem {
-  id: string
-  po_number: string
-  total: number
-  created_at: string
-  status: string
-  shipped_date: string | null
-  tracking_number: string | null
-  carrier: string | null
-  forwarded_to_fulfillment_at: string | null
-  users: { business_name: string; email: string; contact_name: string } | null
-}
+// Types removed - using any[] for Supabase FK relation data
 
 export function DashboardPage() {
   const [stats, setStats] = useState<Stats>({

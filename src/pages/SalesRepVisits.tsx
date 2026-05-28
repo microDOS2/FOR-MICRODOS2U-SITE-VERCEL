@@ -6,7 +6,7 @@ import { StoreVisitForm } from '@/components/store-visits/StoreVisitForm';
 import { VisitHistory } from '@/components/store-visits/VisitHistory';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MapPin, FileText, Loader2 } from 'lucide-react';
+import { MapPin, FileText, Loader2, Phone, User } from 'lucide-react';
 
 interface Store {
   id: string;
@@ -14,6 +14,9 @@ interface Store {
   city: string;
   state: string;
   address: string;
+  zip: string;
+  phone: string;
+  contact_name: string;
 }
 
 export default function SalesRepVisits() {
@@ -46,7 +49,7 @@ export default function SalesRepVisits() {
         // Fetch stores matching either assignment method
         let query = supabase
           .from('wholesaler_store_locations')
-          .select('id, name, city, state, address')
+          .select('id, name, city, state, address, zip, phone, contact_name')
           .eq('is_active', true);
 
         if (storeIds.length > 0) {
@@ -126,14 +129,37 @@ export default function SalesRepVisits() {
                     <CardHeader>
                       <CardTitle className="text-white text-base">My Stores ({stores.length})</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-2 max-h-96 overflow-y-auto">
+                    <CardContent className="space-y-3 max-h-[500px] overflow-y-auto">
                       {stores.map((store) => (
-                        <div key={store.id} className="flex items-start gap-2 p-2 rounded-lg bg-[#0a0514] border border-white/5">
-                          <MapPin className="w-4 h-4 text-[#9a02d0] mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="text-white text-sm font-medium">{store.name}</p>
-                            <p className="text-gray-500 text-xs">{store.city}, {store.state}</p>
+                        <div key={store.id} className="p-3 rounded-lg bg-[#0a0514] border border-white/5 space-y-2">
+                          {/* Store name */}
+                          <div className="flex items-start gap-2">
+                            <MapPin className="w-4 h-4 text-[#9a02d0] mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-white text-sm font-medium">{store.name}</p>
+                            </div>
                           </div>
+                          {/* Full address */}
+                          <div className="pl-6">
+                            <p className="text-gray-400 text-xs">{store.address}</p>
+                            <p className="text-gray-400 text-xs">{store.city}, {store.state} {store.zip}</p>
+                          </div>
+                          {/* Phone */}
+                          {store.phone && (
+                            <div className="flex items-center gap-2 pl-6">
+                              <Phone className="w-3 h-3 text-[#44f80c]" />
+                              <a href={`tel:${store.phone}`} className="text-[#44f80c] text-xs hover:underline">
+                                {store.phone}
+                              </a>
+                            </div>
+                          )}
+                          {/* Contact person */}
+                          {store.contact_name && (
+                            <div className="flex items-center gap-2 pl-6">
+                              <User className="w-3 h-3 text-[#ff66c4]" />
+                              <span className="text-gray-300 text-xs">Contact: {store.contact_name}</span>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </CardContent>

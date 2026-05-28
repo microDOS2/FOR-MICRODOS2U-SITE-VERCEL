@@ -78,6 +78,7 @@ function AppContent() {
     '/sales-rep-dashboard',
     '/sales-rep-accounts',
     '/sales-rep-stores',
+    '/sales-rep-visits',
     '/sales-rep-orders',
     '/sales-rep-commissions',
     '/sales-rep-notifications',

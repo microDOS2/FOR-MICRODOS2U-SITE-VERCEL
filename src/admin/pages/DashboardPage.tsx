@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import {
   Users,
   ShoppingCart,
-  FileText,
   DollarSign,
   Package,
-  ArrowRight,
   ClipboardList,
+  CreditCard,
+  Truck,
+  MapPin,
+  ArrowRight,
   Loader2,
-  Info
+  Check,
+  X
 } from 'lucide-react'
 import {
   AreaChart,
@@ -24,15 +27,17 @@ import {
   Pie,
   Cell
 } from 'recharts'
+import { toast } from 'sonner'
 
 interface Stats {
   totalUsers: number
   totalOrders: number
-  totalInvoices: number
   totalRevenue: number
   totalProducts: number
   pendingApplications: number
-  activeOrders: number
+  pendingPayment: number
+  readyToShip: number
+  inTransit: number
 }
 
 interface PendingApp {
@@ -42,28 +47,30 @@ interface PendingApp {
   email: string
   account_type: string
   state: string | null
+  phone: string | null
   submitted_at: string
 }
 
-// Simple tooltip wrapper using browser-native title
+// Tooltip wrapper using native title
 function TooltipCard({ children, tooltip }: { children: React.ReactNode; tooltip: string }) {
   return (
     <div className="relative group" title={tooltip}>
       {children}
-      <Info className="w-3.5 h-3.5 text-gray-600 absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity" />
     </div>
   )
 }
 
 export function DashboardPage() {
+  const navigate = useNavigate()
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
     totalOrders: 0,
-    totalInvoices: 0,
     totalRevenue: 0,
     totalProducts: 0,
     pendingApplications: 0,
-    activeOrders: 0,
+    pendingPayment: 0,
+    readyToShip: 0,
+    inTransit: 0,
   })
   const [loading, setLoading] = useState(true)
   const [revenueData, setRevenueData] = useState<any[]>([])
@@ -77,21 +84,18 @@ export function DashboardPage() {
   const fetchDashboardData = async () => {
     setLoading(true)
     try {
-      // Fetch everything in parallel
       const [
         { data: allUsers, error: usersErr },
         { data: allOrders, error: ordersErr },
-        { data: allInvoices, error: invoicesErr },
         { count: productCount },
         { data: pendingAppsData }
       ] = await Promise.all([
         supabase.rpc('get_all_users'),
         supabase.rpc('get_all_orders'),
-        supabase.from('invoices').select('id, status, total').limit(1000),
         supabase.from('products').select('*', { count: 'exact', head: true }),
         supabase
           .from('applications')
-          .select('id, business_name, contact_name, email, account_type, state, submitted_at')
+          .select('id, business_name, contact_name, email, account_type, state, phone, submitted_at')
           .eq('status', 'pending')
           .order('submitted_at', { ascending: false })
           .limit(5)
@@ -99,23 +103,21 @@ export function DashboardPage() {
 
       if (usersErr) console.error('Users error:', usersErr)
       if (ordersErr) console.error('Orders error:', ordersErr)
-      if (invoicesErr) console.error('Invoices error:', invoicesErr)
 
       const usersData = allUsers || []
       const ordersData = allOrders || []
-      const invoicesData = allInvoices || []
 
       const totalRevenue = ordersData.reduce((sum: number, o: any) => sum + (o.total || 0), 0)
-      const activeOrdersCount = ordersData.filter((o: any) => o.status === 'pending' || o.status === 'processing').length
 
       setStats({
         totalUsers: usersData.length,
         totalOrders: ordersData.length,
-        totalInvoices: invoicesData.length,
         totalRevenue,
         totalProducts: productCount || 0,
         pendingApplications: pendingAppsData?.length || 0,
-        activeOrders: activeOrdersCount,
+        pendingPayment: ordersData.filter((o: any) => o.status === 'pending').length,
+        readyToShip: ordersData.filter((o: any) => o.status === 'processing').length,
+        inTransit: ordersData.filter((o: any) => o.status === 'shipped').length,
       })
 
       setPendingApps(pendingAppsData || [])
@@ -149,65 +151,37 @@ export function DashboardPage() {
     }
   }
 
-  const statCards = [
-    {
-      label: 'Total Users',
-      value: stats.totalUsers,
-      icon: Users,
-      color: 'text-[#44f80c]',
-      bg: 'bg-[#44f80c]/10',
-      border: 'border-[#44f80c]/20',
-      link: '/admin/users',
-      desc: 'All registered accounts',
-      tooltip: 'Total number of registered user accounts across all roles (admin, managers, sales reps, wholesalers, distributors, shipping)'
-    },
-    {
-      label: 'Purchase Orders',
-      value: stats.totalOrders,
-      icon: ShoppingCart,
-      color: 'text-[#9a02d0]',
-      bg: 'bg-[#9a02d0]/10',
-      border: 'border-[#9a02d0]/20',
-      link: '/admin/orders-invoices',
-      desc: `${stats.activeOrders} active (pending/processing)`,
-      tooltip: 'Total purchase orders in the system. Active count = orders with pending or processing status.'
-    },
-    {
-      label: 'Invoices',
-      value: stats.totalInvoices,
-      icon: FileText,
-      color: 'text-yellow-400',
-      bg: 'bg-yellow-400/10',
-      border: 'border-yellow-400/20',
-      link: '/admin/orders-invoices',
-      desc: 'All invoices created',
-      tooltip: 'Total invoices generated from orders. Includes paid and unpaid invoices.'
-    },
-    {
-      label: 'Products',
-      value: stats.totalProducts,
-      icon: Package,
-      color: 'text-purple-400',
-      bg: 'bg-purple-400/10',
-      border: 'border-purple-400/20',
-      link: '/admin/products',
-      desc: 'Items in catalog',
-      tooltip: 'Number of products available in the product catalog. Each product may have multiple packaging variants.'
-    },
-    {
-      label: 'Pending Approvals',
-      value: stats.pendingApplications,
-      icon: ClipboardList,
-      color: 'text-red-400',
-      bg: 'bg-red-400/10',
-      border: 'border-red-400/20',
-      link: '/admin/applications',
-      desc: 'Applications to review',
-      tooltip: 'New account applications (wholesalers/distributors) waiting for admin approval. Click to review and approve/reject.'
-    },
-  ]
+  const handleApprove = async (appId: string) => {
+    const { error } = await supabase
+      .from('applications')
+      .update({ status: 'approved' })
+      .eq('id', appId)
+    if (error) toast.error('Failed to approve: ' + error.message)
+    else {
+      toast.success('Application approved!')
+      fetchDashboardData()
+    }
+  }
 
-  const COLORS = ['#facc15', '#60a5fa', '#a78bfa', '#ef4444']
+  const handleReject = async (appId: string) => {
+    const { error } = await supabase
+      .from('applications')
+      .update({ status: 'rejected' })
+      .eq('id', appId)
+    if (error) toast.error('Failed to reject: ' + error.message)
+    else {
+      toast.success('Application rejected')
+      fetchDashboardData()
+    }
+  }
+
+  const COLORS: Record<string, string> = {
+    pending: '#facc15',
+    processing: '#60a5fa',
+    shipped: '#a78bfa',
+    cancelled: '#ef4444',
+    delivered: '#4ade80',
+  }
 
   if (loading) {
     return (
@@ -219,43 +193,166 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Stats Grid — 5 clean cards with tooltips */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {statCards.map((card) => {
-          const Icon = card.icon
-          return (
-            <TooltipCard key={card.label} tooltip={card.tooltip}>
-              <Link
-                to={card.link}
-                className={`group block bg-[#150f24] border ${card.border} rounded-xl p-4 hover:border-opacity-60 hover:translate-y-[-2px] transition-all duration-200 h-full`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-400 text-xs">{card.label}</span>
-                  <div className={`p-1.5 rounded-lg ${card.bg}`}>
-                    <Icon className={`w-3.5 h-3.5 ${card.color}`} />
-                  </div>
+
+      {/* === ROW 1: NEEDS YOUR ATTENTION === */}
+      <div>
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Needs Your Attention</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {/* Applications to Review */}
+          <TooltipCard tooltip="New wholesaler/distributor signups waiting for your approval. Click to review.">
+            <Link
+              to="/admin/applications"
+              className="block bg-[#150f24] border border-red-500/20 rounded-xl p-4 hover:border-red-500/40 hover:translate-y-[-2px] transition-all duration-200 group"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-red-400 text-xs font-medium">Applications to Review</span>
+                <div className="p-1.5 rounded-lg bg-red-500/10">
+                  <ClipboardList className="w-3.5 h-3.5 text-red-400" />
                 </div>
-                <div className="text-2xl font-bold text-white">{card.value}</div>
-                <div className="flex items-center gap-1 mt-1 text-gray-500 text-xs group-hover:text-gray-400 transition-colors">
-                  <span>{card.desc}</span>
-                  <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+              <div className="text-3xl font-bold text-white">{stats.pendingApplications}</div>
+              <div className="text-gray-500 text-xs mt-1">Approve or reject signups</div>
+              <div className="flex items-center gap-1 mt-2 text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                <span>Take action</span>
+                <ArrowRight className="w-3 h-3" />
+              </div>
+            </Link>
+          </TooltipCard>
+
+          {/* Orders Pending Payment */}
+          <TooltipCard tooltip="Orders with 'pending' status — need invoice created and payment collected before processing. Click to manage.">
+            <Link
+              to="/admin/orders-invoices"
+              className="block bg-[#150f24] border border-yellow-500/20 rounded-xl p-4 hover:border-yellow-500/40 hover:translate-y-[-2px] transition-all duration-200 group"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-yellow-400 text-xs font-medium">Orders Pending Payment</span>
+                <div className="p-1.5 rounded-lg bg-yellow-500/10">
+                  <CreditCard className="w-3.5 h-3.5 text-yellow-400" />
                 </div>
-              </Link>
-            </TooltipCard>
-          )
-        })}
+              </div>
+              <div className="text-3xl font-bold text-white">{stats.pendingPayment}</div>
+              <div className="text-gray-500 text-xs mt-1">Create invoice, collect payment</div>
+              <div className="flex items-center gap-1 mt-2 text-yellow-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                <span>Create invoice</span>
+                <ArrowRight className="w-3 h-3" />
+              </div>
+            </Link>
+          </TooltipCard>
+
+          {/* Orders Ready to Ship */}
+          <TooltipCard tooltip="Orders with 'processing' status — payment received, ready to forward to shipping/fulfillment. Click to send to fulfillment.">
+            <Link
+              to="/admin/orders-invoices"
+              className="block bg-[#150f24] border border-blue-500/20 rounded-xl p-4 hover:border-blue-500/40 hover:translate-y-[-2px] transition-all duration-200 group"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-blue-400 text-xs font-medium">Orders Ready to Ship</span>
+                <div className="p-1.5 rounded-lg bg-blue-500/10">
+                  <Truck className="w-3.5 h-3.5 text-blue-400" />
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-white">{stats.readyToShip}</div>
+              <div className="text-gray-500 text-xs mt-1">Forward to fulfillment</div>
+              <div className="flex items-center gap-1 mt-2 text-blue-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                <span>Send to shipping</span>
+                <ArrowRight className="w-3 h-3" />
+              </div>
+            </Link>
+          </TooltipCard>
+
+          {/* Orders In Transit */}
+          <TooltipCard tooltip="Orders with 'shipped' status — currently in transit to customer. Track delivery status.">
+            <Link
+              to="/admin/orders-invoices"
+              className="block bg-[#150f24] border border-purple-500/20 rounded-xl p-4 hover:border-purple-500/40 hover:translate-y-[-2px] transition-all duration-200 group"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-purple-400 text-xs font-medium">Orders In Transit</span>
+                <div className="p-1.5 rounded-lg bg-purple-500/10">
+                  <MapPin className="w-3.5 h-3.5 text-purple-400" />
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-white">{stats.inTransit}</div>
+              <div className="text-gray-500 text-xs mt-1">Track delivery status</div>
+              <div className="flex items-center gap-1 mt-2 text-purple-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                <span>Track orders</span>
+                <ArrowRight className="w-3 h-3" />
+              </div>
+            </Link>
+          </TooltipCard>
+        </div>
       </div>
 
-      {/* Charts Row + Pending Applications */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* === ROW 2: BUSINESS SUMMARY === */}
+      <div>
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Business Summary</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <TooltipCard tooltip="Total registered user accounts across all roles: admin, sales managers, sales reps, wholesalers, distributors, and shipping.">
+            <Link
+              to="/admin/users"
+              className="block bg-[#150f24] border border-[#44f80c]/10 rounded-xl p-4 hover:border-[#44f80c]/30 transition-all"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-400 text-xs">Total Users</span>
+                <Users className="w-4 h-4 text-[#44f80c]" />
+              </div>
+              <div className="text-2xl font-bold text-white">{stats.totalUsers}</div>
+              <div className="text-gray-600 text-xs mt-1">All accounts</div>
+            </Link>
+          </TooltipCard>
+
+          <TooltipCard tooltip="Total purchase orders placed in the system. Includes all statuses: pending, processing, shipped, and cancelled.">
+            <Link
+              to="/admin/orders-invoices"
+              className="block bg-[#150f24] border border-[#9a02d0]/10 rounded-xl p-4 hover:border-[#9a02d0]/30 transition-all"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-400 text-xs">Total Orders</span>
+                <ShoppingCart className="w-4 h-4 text-[#9a02d0]" />
+              </div>
+              <div className="text-2xl font-bold text-white">{stats.totalOrders}</div>
+              <div className="text-gray-600 text-xs mt-1">All-time orders</div>
+            </Link>
+          </TooltipCard>
+
+          <TooltipCard tooltip="Total revenue from all orders placed in the system. Sum of all order totals.">
+            <Link
+              to="/admin/orders-invoices"
+              className="block bg-[#150f24] border border-[#ff66c4]/10 rounded-xl p-4 hover:border-[#ff66c4]/30 transition-all"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-400 text-xs">Revenue</span>
+                <DollarSign className="w-4 h-4 text-[#ff66c4]" />
+              </div>
+              <div className="text-2xl font-bold text-white">${stats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+              <div className="text-gray-600 text-xs mt-1">Total sales</div>
+            </Link>
+          </TooltipCard>
+
+          <TooltipCard tooltip="Number of products in the catalog. Each product has multiple packaging variants (Individual, Case, Master Case).">
+            <Link
+              to="/admin/products"
+              className="block bg-[#150f24] border border-purple-500/10 rounded-xl p-4 hover:border-purple-500/30 transition-all"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-400 text-xs">Products</span>
+                <Package className="w-4 h-4 text-purple-400" />
+              </div>
+              <div className="text-2xl font-bold text-white">{stats.totalProducts}</div>
+              <div className="text-gray-600 text-xs mt-1">In catalog</div>
+            </Link>
+          </TooltipCard>
+        </div>
+      </div>
+
+      {/* === ROW 3: CHARTS === */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue Chart */}
-        <div className="lg:col-span-2 bg-[#150f24] border border-white/10 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-white">Revenue Overview</h3>
-            <span className="text-xs text-gray-500">Last 7 days</span>
-          </div>
+        <div className="bg-[#150f24] border border-white/10 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Revenue Overview</h3>
           {revenueData.some((d: any) => d.revenue > 0) ? (
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={250}>
               <AreaChart data={revenueData}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -274,7 +371,7 @@ export function DashboardPage() {
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-64 flex flex-col items-center justify-center text-gray-600 gap-2">
+            <div className="h-48 flex flex-col items-center justify-center text-gray-600 gap-2">
               <DollarSign className="w-8 h-8" />
               <p className="text-sm">No revenue data yet</p>
               <p className="text-xs text-gray-700">Revenue will appear when orders are placed</p>
@@ -284,10 +381,7 @@ export function DashboardPage() {
 
         {/* Order Status */}
         <div className="bg-[#150f24] border border-white/10 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-white">Order Status</h3>
-            <span className="text-xs text-gray-500" title="Breakdown of all orders by their current status">All orders</span>
-          </div>
+          <h3 className="text-lg font-semibold text-white mb-4">Order Status</h3>
           {orderStatusData.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={200}>
@@ -301,8 +395,8 @@ export function DashboardPage() {
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {orderStatusData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {orderStatusData.map((entry: any) => (
+                      <Cell key={entry.name} fill={COLORS[entry.name] || '#6b7280'} />
                     ))}
                   </Pie>
                   <RechartsTooltip
@@ -311,9 +405,9 @@ export function DashboardPage() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex flex-wrap gap-3 mt-2 justify-center">
-                {orderStatusData.map((entry, index) => (
+                {orderStatusData.map((entry: any) => (
                   <div key={entry.name} className="flex items-center gap-2 text-sm">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[entry.name] || '#6b7280' }} />
                     <span className="text-gray-400 capitalize">{entry.name}</span>
                     <span className="text-gray-500">({entry.value})</span>
                   </div>
@@ -329,90 +423,77 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* Bottom Row: Pending Applications */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pending Signup Applications */}
-        <div className="bg-[#150f24] border border-white/10 rounded-xl p-6" title="New wholesaler/distributor applications waiting for your approval">
+      {/* === ROW 4: PENDING APPLICATIONS PREVIEW === */}
+      {pendingApps.length > 0 && (
+        <div className="bg-[#150f24] border border-white/10 rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-red-400" />
-              Pending Approvals
-              {pendingApps.length > 0 && (
-                <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">
-                  {pendingApps.length}
-                </span>
-              )}
+              Applications Awaiting Approval
+              <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">
+                {pendingApps.length}
+              </span>
             </h3>
+            <Link
+              to="/admin/applications"
+              className="text-sm text-[#9a02d0] hover:text-[#ff66c4] flex items-center gap-1"
+            >
+              View all <ArrowRight className="w-3 h-3" />
+            </Link>
           </div>
 
-          {pendingApps.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="w-12 h-12 rounded-full bg-[#44f80c]/10 flex items-center justify-center mx-auto mb-3">
-                <ClipboardList className="w-6 h-6 text-[#44f80c]" />
-              </div>
-              <p className="text-gray-400 text-sm">All caught up!</p>
-              <p className="text-gray-500 text-xs mt-1">No signup applications awaiting approval.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {pendingApps.map((app) => (
-                <Link
-                  key={app.id}
-                  to="/admin/applications"
-                  className="flex items-start gap-3 p-3 bg-[#0a0514] rounded-lg border border-white/5 hover:border-yellow-500/30 hover:bg-white/5 transition-all group"
-                  title={`Click to review ${app.business_name || app.email}'s application`}
-                >
-                  <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                    <ClipboardList className="w-4 h-4 text-red-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium truncate">{app.business_name || app.email}</p>
-                    <p className="text-gray-500 text-xs">{app.contact_name}</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                      <span className="bg-white/5 px-1.5 py-0.5 rounded capitalize">{app.account_type}</span>
-                      {app.state && <span>{app.state}</span>}
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-yellow-400 flex-shrink-0 transition-colors" />
-                </Link>
-              ))}
-              <Link
-                to="/admin/applications"
-                className="flex items-center justify-center gap-1 text-sm text-[#9a02d0] hover:text-[#ff66c4] pt-1"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {pendingApps.map((app) => (
+              <div
+                key={app.id}
+                className="flex items-start justify-between p-4 bg-[#0a0514] rounded-lg border border-white/5"
               >
-                View all applications <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-[#150f24] border border-white/10 rounded-xl p-6" title="Quick navigation to common admin tasks">
-          <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <Link to="/admin/orders-invoices" className="p-4 bg-[#0a0514] rounded-lg border border-white/5 hover:border-[#9a02d0]/30 transition-all group" title="View and manage all purchase orders and invoices">
-              <ShoppingCart className="w-5 h-5 text-[#9a02d0] mb-2" />
-              <p className="text-white text-sm font-medium">Orders & Invoices</p>
-              <p className="text-gray-500 text-xs mt-1">{stats.totalOrders} orders, {stats.totalInvoices} invoices</p>
-            </Link>
-            <Link to="/admin/users" className="p-4 bg-[#0a0514] rounded-lg border border-white/5 hover:border-[#44f80c]/30 transition-all group" title="Manage all user accounts">
-              <Users className="w-5 h-5 text-[#44f80c] mb-2" />
-              <p className="text-white text-sm font-medium">Manage Users</p>
-              <p className="text-gray-500 text-xs mt-1">{stats.totalUsers} accounts</p>
-            </Link>
-            <Link to="/admin/products" className="p-4 bg-[#0a0514] rounded-lg border border-white/5 hover:border-purple-400/30 transition-all group" title="Edit product catalog and pricing">
-              <Package className="w-5 h-5 text-purple-400 mb-2" />
-              <p className="text-white text-sm font-medium">Products</p>
-              <p className="text-gray-500 text-xs mt-1">{stats.totalProducts} items</p>
-            </Link>
-            <Link to="/admin/applications" className="p-4 bg-[#0a0514] rounded-lg border border-white/5 hover:border-red-400/30 transition-all group" title="Review pending signup applications">
-              <ClipboardList className="w-5 h-5 text-red-400 mb-2" />
-              <p className="text-white text-sm font-medium">Applications</p>
-              <p className="text-gray-500 text-xs mt-1">{stats.pendingApplications} pending</p>
-            </Link>
+                <div className="min-w-0">
+                  <p className="text-white font-medium">{app.business_name}</p>
+                  <p className="text-gray-500 text-sm">{app.contact_name} — {app.email}</p>
+                  <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                    <span className="bg-white/5 px-1.5 py-0.5 rounded capitalize">{app.account_type}</span>
+                    {app.state && <span>{app.state}</span>}
+                    {app.phone && <span>{app.phone}</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                  <button
+                    onClick={() => handleApprove(app.id)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-[#44f80c]/10 text-[#44f80c] rounded-lg hover:bg-[#44f80c]/20 transition-colors text-sm"
+                    title="Approve this application"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => handleReject(app.id)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors text-sm"
+                    title="Reject this application"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+      )}
+
+      {/* === EMPTY STATE WHEN NO PENDING APPS === */}
+      {pendingApps.length === 0 && (
+        <div className="bg-[#150f24] border border-white/10 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Applications Awaiting Approval</h3>
+          <div className="text-center py-6">
+            <div className="w-12 h-12 rounded-full bg-[#44f80c]/10 flex items-center justify-center mx-auto mb-3">
+              <ClipboardList className="w-6 h-6 text-[#44f80c]" />
+            </div>
+            <p className="text-gray-400 text-sm">All caught up!</p>
+            <p className="text-gray-600 text-xs mt-1">No signup applications awaiting approval.</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -53,30 +53,37 @@ export function DashboardPage() {
   const fetchDashboardData = async () => {
     setLoading(true)
     try {
-      // Fetch counts in parallel
+      // Single fetch for orders — used consistently for stats AND charts
+      const { data: allOrders, error: ordersError } = await supabase
+        .from('orders')
+        .select('total, status, created_at')
+        .order('created_at', { ascending: false })
+
+      if (ordersError) throw ordersError
+
+      const ordersData = allOrders || []
+
+      // Fetch other counts in parallel
       const [
         { count: userCount },
         { count: orderCount },
-        { data: ordersData },
-        { count: productCount },
-        { count: approvalCount }
+        { count: productCount }
       ] = await Promise.all([
         supabase.from('users').select('*', { count: 'exact', head: true }),
         supabase.from('orders').select('*', { count: 'exact', head: true }),
-        supabase.from('orders').select('total, status, created_at').order('created_at', { ascending: false }).limit(100),
-        supabase.from('products').select('*', { count: 'exact', head: true }),
-        supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'pending')
+        supabase.from('products').select('*', { count: 'exact', head: true })
       ])
 
-      const totalRevenue = ordersData?.reduce((sum, o) => sum + (o.total || 0), 0) || 0
+      const totalRevenue = ordersData.reduce((sum, o) => sum + (o.total || 0), 0)
+      const pendingCount = ordersData.filter(o => o.status === 'pending').length
 
       setStats({
         totalUsers: userCount || 0,
         totalOrders: orderCount || 0,
         totalRevenue,
         totalProducts: productCount || 0,
-        pendingOrders: approvalCount || 0,
-        recentOrders: ordersData?.slice(0, 5) || []
+        pendingOrders: pendingCount,
+        recentOrders: ordersData.slice(0, 5)
       })
 
       // Generate revenue chart data (last 7 days)

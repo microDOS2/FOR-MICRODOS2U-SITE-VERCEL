@@ -66,11 +66,11 @@ export function DashboardPage() {
       ] = await Promise.all([
         supabase.rpc('get_all_users'),
         supabase.rpc('get_all_orders'),
-        supabase.from('invoices').select('id, status, total, created_at').limit(1000),
+        supabase.from('invoices').select('id, status, amount, created_at').limit(1000),
         supabase.from('products').select('*', { count: 'exact', head: true }),
         supabase.from('applications').select('id, business_name, contact_name, email, account_type, state, phone, submitted_at').eq('status', 'pending').order('submitted_at', { ascending: false }).limit(5),
         supabase.from('invoices').select(`
-          id, invoice_number, total, created_at, user_id, order_id,
+          id, invoice_number, amount, created_at, user_id, order_id,
           users!user_id (business_name, email, contact_name),
           orders:order_id (po_number)
         `).eq('status', 'pending').order('created_at', { ascending: true }).limit(10),
@@ -129,7 +129,7 @@ export function DashboardPage() {
       const now = new Date()
       const fiveDaysMs = 5 * 24 * 60 * 60 * 1000
       const { data: pendingInvoices } = await supabase
-        .from('invoices').select('id, invoice_number, total, created_at, reminder_sent_at, reminder_count, order_id')
+        .from('invoices').select('id, invoice_number, amount, created_at, reminder_sent_at, reminder_count, order_id')
         .eq('status', 'pending').order('created_at', { ascending: true })
       if (!pendingInvoices?.length) return
       let sent = 0
@@ -145,7 +145,7 @@ export function DashboardPage() {
           invoiceNumber: inv.invoice_number, poNumber: order.po_number,
           customerEmail: order.users.email,
           businessName: order.users.business_name || order.users.contact_name || 'Valued Customer',
-          total: inv.total, dueDate: createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          total: inv.amount, dueDate: createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
           daysOverdue: daysSinceCreated,
         })
         await supabase.from('invoices').update({
@@ -216,7 +216,7 @@ export function DashboardPage() {
                   <p className="text-gray-400 text-xs">{inv.users?.business_name || inv.users?.contact_name || 'Unknown'}</p>
                 </div>
                 <div className="text-right mr-4 flex-shrink-0">
-                  <p className="text-white font-medium">${(inv.total || 0).toFixed(2)}</p>
+                  <p className="text-white font-medium">${(inv.amount || 0).toFixed(2)}</p>
                   <p className="text-gray-600 text-xs">{new Date(inv.created_at).toLocaleDateString()}</p>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">

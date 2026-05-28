@@ -70,24 +70,15 @@ export function DashboardPage() {
   const fetchDashboardData = async () => {
     setLoading(true)
     try {
-      // Fetch all orders for charts and stats
-      const { data: allOrders, error: ordersError } = await supabase
-        .from('orders')
-        .select('total, status, created_at')
-        .order('created_at', { ascending: false })
-
-      if (ordersError) throw ordersError
-      const ordersData = allOrders || []
-
-      // Fetch counts and pending applications in parallel
+      // Use RPC functions that bypass RLS for accurate data
       const [
-        { count: userCount },
-        { count: orderCount },
+        { data: allUsers, error: usersErr },
+        { data: allOrders, error: ordersErr },
         { count: productCount },
         { data: pendingUsersData }
       ] = await Promise.all([
-        supabase.from('users').select('*', { count: 'exact', head: true }),
-        supabase.from('orders').select('*', { count: 'exact', head: true }),
+        supabase.rpc('get_all_users'),
+        supabase.rpc('get_all_orders'),
         supabase.from('products').select('*', { count: 'exact', head: true }),
         supabase
           .from('users')
@@ -97,12 +88,18 @@ export function DashboardPage() {
           .limit(5)
       ])
 
-      const totalRevenue = ordersData.reduce((sum, o) => sum + (o.total || 0), 0)
-      const pendingCount = ordersData.filter(o => o.status === 'pending').length
+      if (usersErr) console.error('Users RPC error:', usersErr)
+      if (ordersErr) console.error('Orders RPC error:', ordersErr)
+
+      const usersData = allUsers || []
+      const ordersData = allOrders || []
+
+      const totalRevenue = ordersData.reduce((sum: number, o: any) => sum + (o.total || 0), 0)
+      const pendingCount = ordersData.filter((o: any) => o.status === 'pending').length
 
       setStats({
-        totalUsers: userCount || 0,
-        totalOrders: orderCount || 0,
+        totalUsers: usersData.length,
+        totalOrders: ordersData.length,
         totalRevenue,
         totalProducts: productCount || 0,
         pendingOrders: pendingCount,
@@ -120,10 +117,10 @@ export function DashboardPage() {
       })
 
       const revenueByDay = last7Days.map(date => {
-        const dayOrders = ordersData.filter(o => o.created_at?.startsWith(date))
+        const dayOrders = ordersData.filter((o: any) => o.created_at?.startsWith(date))
         return {
           name: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
-          revenue: dayOrders.reduce((sum, o) => sum + (o.total || 0), 0),
+          revenue: dayOrders.reduce((sum: number, o: any) => sum + (o.total || 0), 0),
           orders: dayOrders.length
         }
       })
@@ -131,7 +128,7 @@ export function DashboardPage() {
 
       // Order status breakdown
       const statusCounts: Record<string, number> = {}
-      ordersData.forEach(o => {
+      ordersData.forEach((o: any) => {
         statusCounts[o.status] = (statusCounts[o.status] || 0) + 1
       })
       setOrderStatusData(Object.entries(statusCounts).map(([name, value]) => ({ name, value })))

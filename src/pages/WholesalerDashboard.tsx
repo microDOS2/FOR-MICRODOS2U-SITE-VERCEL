@@ -648,7 +648,9 @@ export function WholesalerDashboard() {
       </div>
 
       {/* Your Sales Rep & Manager */}
-      {user && <AccountRepCard userId={user.id} managerId={user.manager_id} />}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {user && <AccountRepCard userId={user.id} managerId={user.manager_id} />}
+      </div>
 
       {/* Recent Orders */}
       <Card className="bg-brand-800 border-brand-700">

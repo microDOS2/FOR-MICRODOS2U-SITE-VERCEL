@@ -173,6 +173,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         p_paid_reference: paymentTransactionId,
       });
 
+      // Auto-forward to fulfillment (paid orders go straight to shipping)
+      await supabase.from('orders').update({
+        forwarded_to_fulfillment_at: new Date().toISOString(),
+      }).eq('id', orderData.id);
+
       // Send processing notification
       try {
         const { sendOrderNotification } = await import('@/lib/orderNotifications');

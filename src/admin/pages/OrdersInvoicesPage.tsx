@@ -268,7 +268,10 @@ export function OrdersInvoicesPage() {
         paid_method: method,
         paid_reference: `Manual: ${method}`,
       }).eq('id', invoiceId),
-      supabase.from('orders').update({ status: 'processing' }).eq('id', orderId),
+      supabase.from('orders').update({
+        status: 'processing',
+        forwarded_to_fulfillment_at: now,
+      }).eq('id', orderId),
     ])
     setProcessingId(null)
     if (invErr || ordErr) {
@@ -292,20 +295,6 @@ export function OrdersInvoicesPage() {
       } catch (notifyErr: any) {
         console.error('Notification error:', notifyErr)
       }
-      fetchData()
-    }
-  }
-
-  const forwardToFulfillment = async (orderId: string) => {
-    setProcessingId(orderId)
-    const { error } = await supabase.from('orders').update({
-      status: 'processing',
-      forwarded_to_fulfillment_at: new Date().toISOString(),
-    }).eq('id', orderId)
-    setProcessingId(null)
-    if (error) toast.error('Failed to forward: ' + error.message)
-    else {
-      toast.success('Forwarded to fulfillment/shipping department!')
       fetchData()
     }
   }
@@ -428,7 +417,6 @@ export function OrdersInvoicesPage() {
                   const invoice = order.invoices?.[0]
                   if (invoice) markPaid(invId, order.id, method)
                 }}
-                onForward={() => forwardToFulfillment(order.id)}
                 processingId={processingId}
                 getStatusBadge={getStatusBadge}
               />
@@ -774,13 +762,11 @@ export function OrdersInvoicesPage() {
 function OrderCard({
   order,
   onMarkPaid,
-  onForward,
   processingId,
   getStatusBadge,
 }: {
   order: FulfillmentOrder
   onMarkPaid: (invId: string, method: 'check' | 'cash' | 'wire') => void
-  onForward: () => void
   processingId: string | null
   getStatusBadge: (s: string) => string
 }) {
@@ -927,20 +913,10 @@ function OrderCard({
             </button>
           </>
         )}
-        {order.status === 'processing' && !order.forwarded_to_fulfillment_at && (
-          <button
-            onClick={onForward}
-            disabled={isProcessing}
-            className="flex items-center gap-2 px-4 py-2 bg-[#9a02d0]/10 hover:bg-[#9a02d0]/20 text-[#9a02d0] rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
-            Forward to Fulfillment
-          </button>
-        )}
-        {order.forwarded_to_fulfillment_at && (
+        {order.status === 'processing' && (
           <span className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 text-blue-400 rounded-lg text-sm">
             <Truck className="w-4 h-4" />
-            Forwarded {new Date(order.forwarded_to_fulfillment_at).toLocaleDateString()}
+            Ready to Ship
           </span>
         )}
       </div>

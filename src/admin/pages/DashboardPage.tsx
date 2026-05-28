@@ -28,6 +28,7 @@ import {
   Cell
 } from 'recharts'
 import { toast } from 'sonner'
+import { sendInvoiceReminder } from '@/lib/orderNotifications'
 
 interface Stats {
   totalUsers: number
@@ -147,10 +148,75 @@ export function DashboardPage() {
         statusCounts[o.status] = (statusCounts[o.status] || 0) + 1
       })
       setOrderStatusData(Object.entries(statusCounts).map(([name, value]) => ({ name, value })))
+      // Check for overdue invoices and send reminders
+      await checkOverdueInvoices(ordersData, invoicesData)
     } catch (err) {
       console.error('Dashboard error:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const checkOverdueInvoices = async (ordersData: any[], invoicesData: any[]) => {
+    try {
+      // Find invoices with status=pending, created more than 5 days ago
+      const now = new Date()
+      const fiveDaysMs = 5 * 24 * 60 * 60 * 1000
+
+      // Get full invoice data with created_at
+      const { data: pendingInvoices } = await supabase
+        .from('invoices')
+        .select('id, invoice_number, total, created_at, reminder_sent_at, order_id')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true })
+
+      if (!pendingInvoices || pendingInvoices.length === 0) return
+
+      let sentCount = 0
+
+      for (const inv of pendingInvoices) {
+        const createdAt = new Date(inv.created_at)
+        const reminderSentAt = inv.reminder_sent_at ? new Date(inv.reminder_sent_at) : null
+        const daysSinceCreated = Math.floor((now.getTime() - createdAt.getTime()) / fiveDaysMs * 5)
+
+        // Skip if less than 5 days old
+        if (daysSinceCreated < 5) continue
+
+        // Skip if reminder sent less than 5 days ago
+        if (reminderSentAt) {
+          const daysSinceReminder = Math.floor((now.getTime() - reminderSentAt.getTime()) / fiveDaysMs * 5)
+          if (daysSinceReminder < 5) continue
+        }
+
+        // Find the customer for this invoice
+        const order = ordersData.find((o: any) => o.id === inv.order_id)
+        if (!order?.users?.email) continue
+
+        // Send reminder email
+        await sendInvoiceReminder({
+          invoiceNumber: inv.invoice_number,
+          poNumber: order.po_number,
+          customerEmail: order.users.email,
+          businessName: order.users.business_name || order.users.contact_name || 'Valued Customer',
+          total: inv.total,
+          dueDate: createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          daysOverdue: daysSinceCreated,
+        })
+
+        // Update reminder tracking
+        await supabase.from('invoices').update({
+          reminder_sent_at: now.toISOString(),
+          reminder_count: ((inv.reminder_count || 0) as number) + 1,
+        }).eq('id', inv.id)
+
+        sentCount++
+      }
+
+      if (sentCount > 0) {
+        toast.info(`Sent ${sentCount} overdue invoice reminder${sentCount > 1 ? 's' : ''} to customers`)
+      }
+    } catch (err) {
+      console.error('Overdue invoice check error:', err)
     }
   }
 

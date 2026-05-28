@@ -276,13 +276,14 @@ export function WholesalerDashboard() {
   });
 
   const getStatusBadge = (status: OrderStatus) => {
-    const styles = {
+    const styles: Record<string, string> = {
       pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
       processing: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
       shipped: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+      delivered: 'bg-green-500/10 text-green-400 border-green-500/20',
       cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
     };
-    return styles[status];
+    return styles[status] || 'bg-gray-500/10 text-gray-400 border-gray-500/20';
   };
 
   const getInvoiceStatusBadge = (status: InvoiceStatus) => {
@@ -296,13 +297,14 @@ export function WholesalerDashboard() {
   };
 
   const getStatusIcon = (status: OrderStatus) => {
-    const icons = {
+    const icons: Record<string, any> = {
       pending: Clock,
       processing: Package,
       shipped: Truck,
+      delivered: Truck,
       cancelled: AlertCircle,
     };
-    return icons[status];
+    return icons[status] || AlertCircle;
   };
 
   const filteredOrders = orders.filter((order) => {

@@ -12,6 +12,7 @@ import {
   Mail,
   Building2,
   Shield,
+  User,
 } from 'lucide-react'
 
 interface StoreData {
@@ -29,6 +30,7 @@ interface StoreData {
   manager_phone: string | null
   manager_city: string | null
   manager_state: string | null
+  store_contact_name: string | null
 }
 
 interface ManagerInfo {
@@ -102,7 +104,7 @@ export function SalesRepStores() {
         // Step 3: Get all stores whose name starts with any referral_code
         const { data: acctStores } = await supabase
           .from('wholesaler_store_locations')
-          .select('id, name, address, city, state, license_number, user_id')
+          .select('id, name, address, city, state, license_number, user_id, contact_name, phone')
           .order('name', { ascending: true })
 
         storeList = (acctStores || []).filter((s: any) => {
@@ -138,6 +140,7 @@ export function SalesRepStores() {
         manager_phone: myManagerInfo?.phone || null,
         manager_city: null,
         manager_state: null,
+        store_contact_name: s.contact_name || null,
       }
     })
 
@@ -244,6 +247,16 @@ export function SalesRepStores() {
                         <div className="flex items-center gap-2">
                           <Phone className="w-3.5 h-3.5 text-gray-500" />
                           <span className="text-xs text-gray-400">{s.account_phone}</span>
+                        </div>
+                      )}
+
+                      {s.store_contact_name && (
+                        <div className="pt-2 border-t border-white/10">
+                          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Store Contact</p>
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-[#ff66c4]" />
+                            <span className="text-sm text-white">{s.store_contact_name}</span>
+                          </div>
                         </div>
                       )}
 

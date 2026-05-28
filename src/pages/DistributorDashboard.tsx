@@ -502,7 +502,7 @@ export function DistributorDashboard() {
       </div>
 
       {/* Your Sales Rep & Manager */}
-      {user && <AccountRepCard accountId={user.id} />}
+      {user && <AccountRepCard userId={user.id} managerId={user.manager_id} />}
 
       {/* Pending Agreements Alert — hidden */}
 
@@ -941,7 +941,7 @@ export function DistributorDashboard() {
           <div className="h-px bg-white/10" />
 
           {/* Assigned Sales Rep — uses same component as Overview */}
-          {user && <AccountRepCard accountId={user.id} />}
+          {user && <AccountRepCard userId={user.id} managerId={user.manager_id} />}
 
           <div className="pt-2">
             <p className="text-xs text-gray-500">

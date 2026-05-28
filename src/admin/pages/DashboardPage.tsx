@@ -90,7 +90,7 @@ export function DashboardPage() {
           .eq('status', 'pending')
           .order('submitted_at', { ascending: false })
           .limit(5),
-        supabase.from('invoices').select('id, status, total').limit(1000)
+        supabase.from('invoices').select('id, status').limit(1000)
       ])
 
       if (usersErr) console.error('Users RPC error:', usersErr)

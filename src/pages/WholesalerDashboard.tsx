@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -70,6 +70,13 @@ import { exportData, storeColumns } from '@/lib/exportUtils';
 import { StoreUploadModal } from '@/components/StoreUploadModal';
 import { Pagination } from '@/components/Pagination';
 import { orderColumns, invoiceColumns } from '@/lib/exportUtils';
+import { ProductAccordion } from '@/components/products/ProductAccordion';
+import { ProductTable } from '@/components/products/ProductTable';
+import { StarterKitCard } from '@/components/products/StarterKitCard';
+import { ViewToggle } from '@/components/products/ViewToggle';
+import { CartDrawer } from '@/components/cart/CartDrawer';
+import { CartButton } from '@/components/cart/CartButton';
+import type { UserRole, Product, WholesalerStarterKit } from '@/types/products';
 
 
 interface StoreLocation {
@@ -139,7 +146,7 @@ export function WholesalerDashboard() {
     fetchData();
   }, [user]);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'agreements' | 'store-locations' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'invoices' | 'products' | 'agreements' | 'store-locations' | 'settings'>('overview');
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
   const [orderSearch, setOrderSearch] = useState('');
@@ -149,6 +156,14 @@ export function WholesalerDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+
+  // Products state
+  const [products, setProducts] = useState<Product[]>([]);
+  const [kit, setKit] = useState<WholesalerStarterKit | null>(null);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState<string | null>(null);
+  const [productView, setProductView] = useState<'grid' | 'table'>('grid');
+  const [productSearch, setProductSearch] = useState('');
 
   // Settings state
   const [settingsForm, setSettingsForm] = useState({
@@ -309,6 +324,111 @@ export function WholesalerDashboard() {
   });
   const paginatedInvoices = filteredInvoices.slice((invoicePage - 1) * invoicePageSize, invoicePage * invoicePageSize);
   const invoiceTotalPages = Math.max(1, Math.ceil(filteredInvoices.length / invoicePageSize));
+
+  // Fetch products for the catalog tab
+  const fetchProducts = async () => {
+    setProductsLoading(true);
+    setProductsError(null);
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_products_with_variants');
+      if (rpcError) throw rpcError;
+
+      const dbProducts = rpcData?.products || [];
+      const dbVariants = rpcData?.variants || [];
+
+      // Build enriched variants (same logic as Products.tsx)
+      const variantMap = new Map<string, any[]>();
+      for (const v of dbVariants) {
+        const list = variantMap.get(v.product_id) || [];
+        list.push(v);
+        variantMap.set(v.product_id, list);
+      }
+
+      const enrichedVariants = [...dbVariants];
+      for (const p of dbProducts) {
+        const pv = variantMap.get(p.id);
+        if (!pv || pv.length === 0) {
+          enrichedVariants.push({
+            id: `default-${p.id}`, product_id: p.id, tier: 'individual',
+            name: 'Individual', quantity: 1, total_pills: p.stock || 1,
+            sku: p.sku || `${p.id.slice(0, 8)}-001`,
+            msrp_price: p.retail_price || p.price * 2,
+            wholesaler_price: p.price * 1.5,
+            distributor_price: p.price,
+            in_stock: p.stock > 0,
+          });
+        }
+      }
+
+      // Transform to frontend format
+      const kitProduct = dbProducts.find((p: any) => p.sku === 'MD2-KIT');
+      const regularProducts = dbProducts.filter((p: any) => p.sku !== 'MD2-KIT');
+
+      const transformedProducts: Product[] = regularProducts.map((dbp: any) => {
+        const productVariants = enrichedVariants.filter((v: any) => v.product_id === dbp.id);
+        const firstVariant = productVariants[0];
+        const basePillCount = firstVariant ? Math.round(firstVariant.total_pills / firstVariant.quantity) : 10;
+        return {
+          id: dbp.id, name: dbp.name, description: dbp.description || '',
+          basePillCount, image: dbp.image_url || '/placeholder-box.png',
+          packagingOptions: productVariants.map((v: any) => ({
+            id: v.sku, tier: v.tier as 'individual' | 'case' | 'master_case' | 'special',
+            name: v.name, quantity: v.quantity, totalPills: v.total_pills,
+            pricing: { msrp: v.msrp_price, wholesalerPrice: v.wholesaler_price, distributorPrice: v.distributor_price },
+            sku: v.sku, inStock: v.in_stock,
+          })),
+        };
+      });
+
+      let transformedKit: WholesalerStarterKit | null = null;
+      if (kitProduct) {
+        const kitVariants = enrichedVariants.filter((v: any) => v.product_id === kitProduct.id);
+        const kitVariant = kitVariants[0];
+        transformedKit = {
+          id: kitProduct.id, name: kitProduct.name,
+          description: kitProduct.description || 'Everything to get started selling microDOS(2)',
+          contents: { boxes: 9, starterCards: 7, display: true, placard: true },
+          totalPills: kitVariant?.total_pills || 104,
+          pricing: {
+            msrp: kitVariant?.msrp_price || kitProduct.retail_price || 474.65,
+            wholesalerPrice: kitVariant?.wholesaler_price || 155.76,
+            distributorPrice: kitVariant?.distributor_price || kitProduct.price || 116.82,
+          },
+          sku: kitProduct.sku,
+          inStock: kitVariant?.in_stock ?? true,
+        };
+      }
+
+      setProducts(transformedProducts);
+      setKit(transformedKit);
+    } catch (err: any) {
+      setProductsError(err.message || 'Failed to load products');
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
+  // Load products when products tab is active
+  useEffect(() => {
+    if (activeTab === 'products' && products.length === 0) {
+      fetchProducts();
+    }
+  }, [activeTab]);
+
+  const filteredProducts = useMemo(() => {
+    if (!productSearch.trim()) return products;
+    const q = productSearch.toLowerCase();
+    return products.filter(
+      (product) =>
+        product.name.toLowerCase().includes(q) ||
+        product.description.toLowerCase().includes(q) ||
+        product.packagingOptions.some(
+          (po) => po.name.toLowerCase().includes(q) || po.sku.toLowerCase().includes(q)
+        )
+    );
+  }, [products, productSearch]);
+
+  const currentUserRole: UserRole = (user?.role as UserRole) || 'wholesaler';
 
   // Fetch store locations for the logged-in wholesaler
   useEffect(() => {
@@ -1256,13 +1376,17 @@ export function WholesalerDashboard() {
                 <FileText className="w-5 h-5" />
                 Invoices
               </button>
-              <Link
-                to="/products"
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-gray-400 hover:text-white hover:bg-brand-700"
+              <button
+                onClick={() => setActiveTab('products')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  activeTab === 'products'
+                    ? 'bg-psy-neonPurple/20 text-psy-neonPurple'
+                    : 'text-gray-400 hover:text-white hover:bg-brand-700'
+                }`}
               >
                 <Package className="w-5 h-5" />
                 Products
-              </Link>
+              </button>
               {/* <button
                 onClick={() => setActiveTab('agreements')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
@@ -1348,13 +1472,15 @@ export function WholesalerDashboard() {
               <FileText className="w-5 h-5" />
               <span className="text-xs mt-1">Invoices</span>
             </button>
-            <Link
-              to="/products"
-              className="flex flex-col items-center p-2 rounded-lg text-gray-400"
+            <button
+              onClick={() => setActiveTab('products')}
+              className={`flex flex-col items-center p-2 rounded-lg ${
+                activeTab === 'products' ? 'text-psy-neonPurple' : 'text-gray-400'
+              }`}
             >
               <Package className="w-5 h-5" />
               <span className="text-xs mt-1">Products</span>
-            </Link>
+            </button>
             {/* <button
               onClick={() => setActiveTab('agreements')}
               className={`flex flex-col items-center p-2 rounded-lg relative ${
@@ -1404,20 +1530,88 @@ export function WholesalerDashboard() {
                 {activeTab === 'overview' && 'Dashboard'}
                 {activeTab === 'orders' && 'Orders'}
                 {activeTab === 'invoices' && 'Invoices'}
-                                {activeTab === 'store-locations' && 'Store Locations'}
+                {activeTab === 'products' && 'Product Catalog'}
+                {activeTab === 'store-locations' && 'Store Locations'}
                 {activeTab === 'settings' && 'Settings'}
               </h1>
-              <Link to="/products">
-                <Button variant="outline" className="border-white/10 text-gray-300 hover:bg-white/5">
-                  <Package className="w-4 h-4 mr-2" />
-                  Browse Products
-                </Button>
-              </Link>
+              {activeTab === 'products' && (
+                <div className="sticky top-4 z-40">
+                  <CartButton />
+                </div>
+              )}
             </div>
             {activeTab === 'overview' && renderOverview()}
             {activeTab === 'orders' && renderOrders()}
             {activeTab === 'invoices' && renderInvoices()}
-                        {activeTab === 'store-locations' && renderStoreLocations()}
+            {activeTab === 'products' && (
+              <>
+                <CartDrawer />
+                {productsLoading ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 className="w-8 h-8 animate-spin text-[#9a02d0]" />
+                  </div>
+                ) : productsError ? (
+                  <div className="text-center py-8 text-red-400">
+                    <p>Failed to load products</p>
+                    <button onClick={fetchProducts} className="text-sm text-[#9a02d0] hover:text-[#ff66c4] mt-2">Retry</button>
+                  </div>
+                ) : (
+                  <>
+                    {/* View Toggle & Search */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                      <div className="flex items-center gap-4">
+                        <ViewToggle view={productView} onViewChange={setProductView} />
+                        <span className="text-gray-400 text-sm">
+                          {filteredProducts.reduce((acc, p) => acc + p.packagingOptions.length, 0)} options
+                        </span>
+                      </div>
+                      <div className="relative w-full sm:w-72">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        <input
+                          type="text"
+                          placeholder="Search products..."
+                          value={productSearch}
+                          onChange={(e) => setProductSearch(e.target.value)}
+                          className="pl-10 pr-4 py-2 w-full bg-[#150f24] border border-white/10 text-white rounded-lg placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#9a02d0]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Starter Kit */}
+                    {kit && (
+                      <div className="mb-8">
+                        <StarterKitCard kit={kit} role={currentUserRole} />
+                      </div>
+                    )}
+
+                    {/* Products */}
+                    {productView === 'grid' ? (
+                      <div className="space-y-6">
+                        {filteredProducts.map((product) => (
+                          <ProductAccordion key={product.id} product={product} role={currentUserRole} />
+                        ))}
+                      </div>
+                    ) : (
+                      <ProductTable products={filteredProducts} role={currentUserRole} />
+                    )}
+
+                    {/* Empty State */}
+                    {filteredProducts.length === 0 && (
+                      <div className="text-center py-16">
+                        <Package className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                        <h3 className="text-xl font-semibold text-white mb-2">
+                          {productSearch ? 'No products found' : 'No products available'}
+                        </h3>
+                        <p className="text-gray-400">
+                          {productSearch ? 'Try adjusting your search query' : 'Products will appear once the catalog is configured'}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+            {activeTab === 'store-locations' && renderStoreLocations()}
             {activeTab === 'settings' && renderSettings()}
           </div>
         </div>

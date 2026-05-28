@@ -10,6 +10,14 @@ interface TopAccountsChartProps {
 }
 
 export function TopAccountsChart({ data }: TopAccountsChartProps) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <p className="text-gray-500 text-sm">No account data available</p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-64">
       <ResponsiveContainer width="100%" height="100%">

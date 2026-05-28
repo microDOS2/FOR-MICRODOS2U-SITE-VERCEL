@@ -55,31 +55,56 @@ export async function getTopAccounts(limit = 5) {
 }
 
 export async function getTeamPerformance(managerId: string) {
+  // Get reps under this manager
   const { data: reps } = await supabase
     .from('users')
-    .select('id, contact_name')
+    .select('id, contact_name, business_name')
     .eq('manager_id', managerId)
     .eq('role', 'sales_rep');
 
   if (!reps || reps.length === 0) return [];
 
+  // For each rep, find their assigned accounts, then sum those accounts' orders
   const results = [];
   for (const rep of reps) {
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('total')
-      .eq('user_id', rep.id);
-    const total = (orders || []).reduce((sum, o) => sum + o.total, 0);
-    results.push({ name: rep.contact_name || 'Unknown', total });
+    // Get accounts assigned to this rep
+    const { data: assignments } = await supabase
+      .from('rep_account_assignments')
+      .select('account_id')
+      .eq('rep_id', rep.id);
+
+    const accountIds = (assignments || []).map((a: any) => a.account_id);
+    let total = 0;
+
+    if (accountIds.length > 0) {
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('total')
+        .in('user_id', accountIds);
+      total = (orders || []).reduce((sum, o) => sum + o.total, 0);
+    }
+
+    const displayName = rep.contact_name || rep.business_name || 'Unknown';
+    results.push({ name: displayName, total });
   }
   return results.sort((a, b) => b.total - a.total);
 }
 
 export async function getPersonalSales(repId: string) {
+  // Get accounts assigned to this rep
+  const { data: assignments } = await supabase
+    .from('rep_account_assignments')
+    .select('account_id')
+    .eq('rep_id', repId);
+
+  const accountIds = (assignments || []).map((a: any) => a.account_id);
+  if (accountIds.length === 0) return [];
+
+  // Get orders from those accounts
   const { data, error } = await supabase
     .from('orders')
     .select('total, created_at')
-    .eq('user_id', repId)
+    .in('user_id', accountIds)
     .order('created_at', { ascending: true });
   if (error) throw error;
 

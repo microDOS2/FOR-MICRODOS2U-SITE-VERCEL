@@ -13,6 +13,14 @@ interface OrderStatusChartProps {
 }
 
 export function OrderStatusChart({ data }: OrderStatusChartProps) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <p className="text-gray-500 text-sm">No order data available</p>
+      </div>
+    );
+  }
+
   const chartData = data.map((d) => ({
     name: d.status.charAt(0).toUpperCase() + d.status.slice(1),
     value: d.count,

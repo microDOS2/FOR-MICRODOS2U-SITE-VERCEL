@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Search, Pencil, Trash2, X, ChevronLeft, ChevronRight, Store, MapPin, Phone, Loader2, PauseCircle, PlayCircle, Users, UserMinus, Check, Shield, Download, Upload } from 'lucide-react'
+import { Search, Pencil, Trash2, X, ChevronLeft, ChevronRight, Store, MapPin, Phone, Globe, Loader2, PauseCircle, PlayCircle, Users, UserMinus, Check, Shield, Download, Upload } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { exportData, storeAdminColumns } from '@/lib/exportUtils'
 import { StoreUploadModal } from '@/components/StoreUploadModal'
@@ -36,6 +36,7 @@ interface StoreItem {
   lng: number | null
   phone: string | null
   email: string | null
+  website: string | null
   is_active: boolean
   store_number: string
   account_number: string
@@ -60,7 +61,7 @@ export function StoresPage() {
   const [selectedRep, setSelectedRep] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState<string | null>(null)
   const [repHasManager, setRepHasManager] = useState<Map<string, boolean>>(new Map())
-  const [formData, setFormData] = useState({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '', contact_name: '' })
+  const [formData, setFormData] = useState({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '', contact_name: '', website: '' })
   const [showUploadModal, setShowUploadModal] = useState(false)
   const pageSize = 10
 
@@ -108,7 +109,7 @@ export function StoresPage() {
         const rep = repId ? repMap.get(repId) : null
         return {
           id: s.id, name: cleanName, address: s.address || '', city: s.city || '', state: s.state || '',
-          zip: s.zip || '', lat: s.lat, lng: s.lng, phone: s.phone || '', email: s.email || '',
+          zip: s.zip || '', lat: s.lat, lng: s.lng, phone: s.phone || '', email: s.email || '', website: s.website || null,
           is_active: s.is_active ?? true, store_number: sn, account_number: acctNum,
           contact_name: s.contact_name || 'Unknown',
           owner_name: owner ? (owner.business_name || owner.email) : 'Unknown',
@@ -128,15 +129,15 @@ export function StoresPage() {
   useEffect(() => { fetchStores() }, [fetchStores])
 
   const handleSave = async () => {
-    const payload: any = { name: formData.name, address: formData.address, city: formData.city, state: formData.state, zip: formData.zip, lat: formData.lat ? parseFloat(formData.lat) : null, lng: formData.lng ? parseFloat(formData.lng) : null, phone: formData.phone || null, email: formData.email || null, contact_name: formData.contact_name || null }
+    const payload: any = { name: formData.name, address: formData.address, city: formData.city, state: formData.state, zip: formData.zip, lat: formData.lat ? parseFloat(formData.lat) : null, lng: formData.lng ? parseFloat(formData.lng) : null, phone: formData.phone || null, email: formData.email || null, contact_name: formData.contact_name || null, website: formData.website || null }
     if (editingStore) { const { error } = await supabase.from('wholesaler_store_locations').update(payload).eq('id', editingStore.id); error ? toast.error('Error') : toast.success('Updated') }
     else { const { error } = await supabase.from('wholesaler_store_locations').insert([{ ...payload, stock: 'In Stock', is_active: true, source: 'admin' }]); error ? toast.error('Error') : toast.success('Created') }
-    setShowModal(false); setEditingStore(null); setFormData({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '', contact_name: '' }); fetchStores()
+    setShowModal(false); setEditingStore(null); setFormData({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '', contact_name: '', website: '' }); fetchStores()
   }
   const handleDelete = async (id: string) => { if (!confirm('Delete?')) return; const { error } = await supabase.from('wholesaler_store_locations').delete().eq('id', id); error ? toast.error('Error') : toast.success('Deleted'); fetchStores() }
   const handleSetPending = async (id: string) => { if (!confirm('Set to Pending?')) return; const { error } = await supabase.from('wholesaler_store_locations').update({ is_active: false }).eq('id', id); error ? toast.error('Error') : toast.success('Pending'); fetchStores() }
   const handleReactivate = async (id: string) => { const { error } = await supabase.from('wholesaler_store_locations').update({ is_active: true }).eq('id', id); error ? toast.error('Error') : toast.success('Active'); fetchStores() }
-  const openEdit = (s: StoreItem) => { setEditingStore(s); setFormData({ name: s.name, address: s.address, city: s.city, state: s.state, zip: s.zip || '', lat: s.lat != null ? String(s.lat) : '', lng: s.lng != null ? String(s.lng) : '', phone: s.phone || '', email: s.email || '', contact_name: s.contact_name || '' }); setShowModal(true) }
+  const openEdit = (s: StoreItem) => { setEditingStore(s); setFormData({ name: s.name, address: s.address, city: s.city, state: s.state, zip: s.zip || '', lat: s.lat != null ? String(s.lat) : '', lng: s.lng != null ? String(s.lng) : '', phone: s.phone || '', email: s.email || '', contact_name: s.contact_name || '', website: s.website || '' }); setShowModal(true) }
 
   const handleAssignStore = async (storeId: string) => {
     const repId = selectedRep[storeId]; if (!repId) { toast.error('Select a Sales Rep'); return }
@@ -214,7 +215,7 @@ export function StoresPage() {
         <div className="flex gap-2">
           <button onClick={() => exportData('csv', stores, storeAdminColumns, 'microDOS2_stores')} title="Download store data as CSV" className="flex items-center gap-2 px-4 py-2.5 border border-[#44f80c]/30 text-[#44f80c] hover:bg-[#44f80c]/10 rounded-lg text-sm"><Download className="w-4 h-4" /> Download</button>
           <button onClick={() => setShowUploadModal(true)} title="Upload stores from CSV file" className="flex items-center gap-2 px-4 py-2.5 border border-[#9a02d0]/30 text-[#9a02d0] hover:bg-[#9a02d0]/10 rounded-lg text-sm"><Upload className="w-4 h-4" /> Upload</button>
-          <button onClick={() => { setEditingStore(null); setFormData({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '', contact_name: '' }); setShowModal(true) }} title="Add a new store" className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white"><Store className="w-4 h-4" /> Add</button>
+          <button onClick={() => { setEditingStore(null); setFormData({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '', contact_name: '', website: '' }); setShowModal(true) }} title="Add a new store" className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white"><Store className="w-4 h-4" /> Add</button>
         </div>
       </div>
       <p className="text-sm text-gray-500">{totalCount} store{totalCount !== 1 ? 's' : ''}</p>
@@ -271,6 +272,7 @@ export function StoresPage() {
                 <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-gray-600 shrink-0" /><span>{s.address}{s.city && `, ${s.city}`}{s.state && `, ${s.state}`}</span></div>
                 {s.phone && <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-gray-600 shrink-0" /><span>{s.phone}</span></div>}
                 {s.email && <p className="truncate">{s.email}</p>}
+                {s.website && <div className="flex items-center gap-2"><Globe className="w-3.5 h-3.5 text-gray-600 shrink-0" /><a href={s.website.startsWith('http') ? s.website : `https://${s.website}`} target="_blank" rel="noopener noreferrer" className="text-[#9a02d0] hover:text-[#44f80c] truncate">{s.website}</a></div>}
               </div>
               <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
                 {s.is_active ? <button onClick={() => handleSetPending(s.id)} title="Pending" className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-yellow-400"><PauseCircle className="w-4 h-4" /></button> : <button onClick={() => handleReactivate(s.id)} title="Activate" className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-emerald-400"><PlayCircle className="w-4 h-4" /></button>}
@@ -299,26 +301,30 @@ export function StoresPage() {
                 <input type="text" value={formData.contact_name} onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" placeholder="e.g. Emily Williams" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1.5">Address</label>
+                <label className="block text-sm font-medium text-gray-400 mb-1.5">Address <span className="text-red-400">*</span></label>
                 <textarea value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} rows={2} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" />
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <div><label className="block text-sm text-gray-400 mb-1.5">City</label><input type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
-                <div><label className="block text-sm text-gray-400 mb-1.5">State</label><input type="text" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
-                <div><label className="block text-sm text-gray-400 mb-1.5">ZIP</label><input type="text" value={formData.zip} onChange={(e) => setFormData({ ...formData, zip: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
+                <div><label className="block text-sm text-gray-400 mb-1.5">City <span className="text-red-400">*</span></label><input type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
+                <div><label className="block text-sm text-gray-400 mb-1.5">State <span className="text-red-400">*</span></label><input type="text" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
+                <div><label className="block text-sm text-gray-400 mb-1.5">ZIP <span className="text-red-400">*</span></label><input type="text" value={formData.zip} onChange={(e) => setFormData({ ...formData, zip: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block text-sm text-gray-400 mb-1.5">Lat</label><input type="text" value={formData.lat} onChange={(e) => setFormData({ ...formData, lat: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
                 <div><label className="block text-sm text-gray-400 mb-1.5">Lng</label><input type="text" value={formData.lng} onChange={(e) => setFormData({ ...formData, lng: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm text-gray-400 mb-1.5">Phone</label><input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
-                <div><label className="block text-sm text-gray-400 mb-1.5">Email</label><input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
+                <div><label className="block text-sm text-gray-400 mb-1.5">Phone <span className="text-red-400">*</span></label><input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
+                <div><label className="block text-sm text-gray-400 mb-1.5">Email <span className="text-red-400">*</span></label><input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" /></div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1.5">Website</label>
+                <input type="url" value={formData.website} onChange={(e) => setFormData({ ...formData, website: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" placeholder="https://example.com" />
               </div>
             </div>
             <div className="flex justify-end gap-3 p-5 border-t border-white/10">
               <button onClick={() => setShowModal(false)} title="Close without saving" className="px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 rounded-lg text-sm text-gray-300">Cancel</button>
-              <button onClick={handleSave} disabled={!formData.name || !formData.address || !formData.contact_name} title={editingStore ? 'Save changes to this store' : 'Create new store'} className="px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white disabled:opacity-50">{editingStore ? 'Update' : 'Create'}</button>
+              <button onClick={handleSave} disabled={!formData.name || !formData.address || !formData.city || !formData.state || !formData.zip || !formData.phone || !formData.email || !formData.contact_name} title={editingStore ? 'Save changes to this store' : 'Create new store'} className="px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white disabled:opacity-50">{editingStore ? 'Update' : 'Create'}</button>
             </div>
           </div>
         </div>

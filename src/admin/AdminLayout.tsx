@@ -27,6 +27,10 @@ import {
   Loader2,
   Truck,
   DollarSign,
+  CreditCard,
+  CheckCircle,
+  XCircle,
+  Archive,
 } from 'lucide-react'
 
 interface NavItem {
@@ -52,6 +56,15 @@ const navSections: NavSection[] = [
       { name: 'Stores', path: '/admin/stores', icon: Store },
       { name: 'Products', path: '/admin/products', icon: Package },
       { name: 'Commissions', path: '/admin/commissions', icon: DollarSign },
+    ],
+  },
+  {
+    label: 'Accounting',
+    items: [
+      { name: 'Paid Invoices', path: '/admin/accounting/paid-invoices', icon: CreditCard },
+      { name: 'Completed Orders', path: '/admin/accounting/completed-orders', icon: CheckCircle },
+      { name: 'Cancelled Items', path: '/admin/accounting/cancelled-items', icon: XCircle },
+      { name: 'Commission Payouts', path: '/admin/accounting/commission-payouts', icon: Archive },
     ],
   },
   {
@@ -83,6 +96,7 @@ export function AdminLayout() {
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     'Primary Operations': true,
+    'Accounting': true,
     'Account Management': true,
     'System': true,
   })

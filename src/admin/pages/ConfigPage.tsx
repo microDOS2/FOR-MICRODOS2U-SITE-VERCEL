@@ -33,6 +33,8 @@ export function ConfigPage() {
   const [showApiKey, setShowApiKey] = useState(false)
   const [savingPayment, setSavingPayment] = useState(false)
   const [paymentConfigStatus, setPaymentConfigStatus] = useState<'not_configured' | 'configured'>('not_configured')
+  const [wholesalerEnabled, setWholesalerEnabled] = useState(true)
+  const [distributorEnabled, setDistributorEnabled] = useState(true)
 
   useEffect(() => { fetchConfigs(); fetchPaymentConfig() }, [search])
 
@@ -101,6 +103,20 @@ export function ConfigPage() {
     setSavingPayment(false)
   }
 
+  const toggleConfig = async (key: string, current: boolean, setter: (v: boolean) => void) => {
+    const newVal = !current
+    setter(newVal)
+    try {
+      const { error } = await supabase.from('configuration').update({ value: String(newVal), updated_at: new Date().toISOString() }).eq('key', key)
+      if (error) throw error
+      toast.success(`${key.replace('_enabled', '').replace(/_/g, ' ')} ${newVal ? 'enabled' : 'disabled'}`)
+      fetchConfigs()
+    } catch (e: any) {
+      toast.error('Failed to update: ' + e.message)
+      setter(current) // revert
+    }
+  }
+
   const fetchConfigs = async () => {
     setLoading(true)
     let query = supabase.from('app_config').select('*').order('key', { ascending: true })
@@ -148,7 +164,7 @@ export function ConfigPage() {
       {/* Application Types Summary */}
       <Card className="bg-[#150f24] border-white/10">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="text-white flex items-center gap-2" title="Enable or disable application types for signup">
             <Settings className="w-5 h-5 text-[#9a02d0]" />
             Current Configuration Summary
           </CardTitle>
@@ -160,20 +176,40 @@ export function ConfigPage() {
                 <Store className="w-5 h-5 text-[#44f80c]" />
                 <div>
                   <p className="text-white font-medium">Wholesaler Applications</p>
-                  <p className="text-gray-500 text-xs">Always enabled</p>
+                  <p className="text-gray-500 text-xs">Accept wholesaler signups</p>
                 </div>
               </div>
-              <Badge className="bg-green-500/20 text-green-400">Enabled</Badge>
+              <button
+                onClick={() => toggleConfig('wholesaler_applications_enabled', wholesalerEnabled, setWholesalerEnabled)}
+                title={wholesalerEnabled ? 'Disable wholesaler applications' : 'Enable wholesaler applications'}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  wholesalerEnabled ? 'bg-[#44f80c]' : 'bg-gray-600'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  wholesalerEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
             </div>
             <div className="flex items-center justify-between p-3 bg-[#0a0514] rounded-lg border border-white/10">
               <div className="flex items-center gap-3">
                 <Store className="w-5 h-5 text-[#ff66c4]" />
                 <div>
                   <p className="text-white font-medium">Distributor Applications</p>
-                  <p className="text-gray-500 text-xs">Always enabled</p>
+                  <p className="text-gray-500 text-xs">Accept distributor signups</p>
                 </div>
               </div>
-              <Badge className="bg-green-500/20 text-green-400">Enabled</Badge>
+              <button
+                onClick={() => toggleConfig('distributor_applications_enabled', distributorEnabled, setDistributorEnabled)}
+                title={distributorEnabled ? 'Disable distributor applications' : 'Enable distributor applications'}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  distributorEnabled ? 'bg-[#44f80c]' : 'bg-gray-600'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  distributorEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
             </div>
           </div>
         </CardContent>
@@ -212,6 +248,7 @@ export function ConfigPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setPaymentConfig({ ...paymentConfig, mode: 'test' })}
+                    title="Use test/sandbox payment mode - no real transactions"
                     className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
                       paymentConfig.mode === 'test'
                         ? 'bg-[#ff66c4]/20 border-[#ff66c4] text-[#ff66c4]'
@@ -222,6 +259,7 @@ export function ConfigPage() {
                   </button>
                   <button
                     onClick={() => setPaymentConfig({ ...paymentConfig, mode: 'live' })}
+                    title="Use live payment mode - real transactions will be processed"
                     className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
                       paymentConfig.mode === 'live'
                         ? 'bg-green-500/20 border-green-500 text-green-400'
@@ -313,6 +351,7 @@ export function ConfigPage() {
               <button
                 onClick={savePaymentConfig}
                 disabled={savingPayment}
+                title="Save payment gateway configuration"
                 className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#44f80c] to-[#9a02d0] hover:opacity-90 rounded-lg text-sm text-white font-medium transition-opacity disabled:opacity-50"
               >
                 {savingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -330,7 +369,7 @@ export function ConfigPage() {
           <input type="text" placeholder="Search config keys..." value={search} onChange={e => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-[#150f24] border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
         </div>
-        <button onClick={() => { setEditingConfig(null); setFormData({ key: '', value: '', description: '' }); setShowModal(true) }} className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#9a02d0]/80 rounded-lg text-sm text-white transition-colors">
+        <button onClick={() => { setEditingConfig(null); setFormData({ key: '', value: '', description: '' }); setShowModal(true) }} title="Add a new configuration setting" className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#9a02d0]/80 rounded-lg text-sm text-white transition-colors">
           <Plus className="w-4 h-4" /> Add Config
         </button>
       </div>
@@ -353,8 +392,8 @@ export function ConfigPage() {
                   {c.description && <div className="text-xs text-gray-500">{c.description}</div>}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => openEdit(c)} className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-[#44f80c]"><Pencil className="w-4 h-4" /></button>
-                  <button onClick={() => handleDelete(c.id)} className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => openEdit(c)} title="Edit this config" className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-[#44f80c]"><Pencil className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(c.id)} title="Delete this config" className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
             ))}
@@ -367,7 +406,7 @@ export function ConfigPage() {
           <div className="bg-[#150f24] border border-white/10 rounded-xl w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between p-5 border-b border-white/10">
               <h3 className="text-lg font-semibold text-white">{editingConfig ? 'Edit Config' : 'Add Config'}</h3>
-              <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-white/5 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
+              <button onClick={() => setShowModal(false)} title="Close dialog" className="p-1.5 hover:bg-white/5 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             <div className="p-5 space-y-4">
               <div>
@@ -387,8 +426,8 @@ export function ConfigPage() {
               </div>
             </div>
             <div className="flex justify-end gap-3 p-5 border-t border-white/10">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 rounded-lg text-sm text-gray-300">Cancel</button>
-              <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#9a02d0]/80 rounded-lg text-sm text-white">
+              <button onClick={() => setShowModal(false)} title="Cancel and close" className="px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 rounded-lg text-sm text-gray-300">Cancel</button>
+              <button onClick={handleSave} title="Save configuration" className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#9a02d0]/80 rounded-lg text-sm text-white">
                 <Save className="w-4 h-4" /> {editingConfig ? 'Update' : 'Save'}
               </button>
             </div>

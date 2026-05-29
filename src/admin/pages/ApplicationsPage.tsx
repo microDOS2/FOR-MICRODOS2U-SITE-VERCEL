@@ -317,6 +317,7 @@ export function ApplicationsPage() {
                     <Button
                       size="sm"
                       onClick={() => handleApprove(app)}
+                      title="Approve this application"
                       disabled={actionLoading === app.id + '-approve'}
                       className="bg-[#44f80c]/20 text-[#44f80c] hover:bg-[#44f80c]/30"
                     >
@@ -331,6 +332,7 @@ export function ApplicationsPage() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleReject(app.id)}
+                      title="Reject this application"
                       disabled={actionLoading === app.id + '-reject'}
                       className="border-red-500/30 text-red-400 hover:bg-red-500/10"
                     >

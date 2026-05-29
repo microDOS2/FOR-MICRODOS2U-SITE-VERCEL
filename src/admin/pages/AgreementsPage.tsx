@@ -138,8 +138,8 @@ export function AgreementsPage() {
   }
 
   const exportCSV = () => {
-    downloadCSV('agreements', ['ID', 'Title', 'Signee', 'Email', 'Status', 'Signed At', 'Created'],
-      agreements.map(a => [a.id, a.title, a.signee_name || '', a.signee_email || '', a.status, a.signed_at || '', a.created_at]))
+    downloadCSV('agreements', [['ID', 'Title', 'Signee', 'Email', 'Status', 'Signed At', 'Created'],
+      ...agreements.map(a => [a.id, a.title, a.signee_name || '', a.signee_email || '', a.status, a.signed_at || '', a.created_at])])
   }
 
   const totalPages = Math.ceil(totalCount / pageSize)

@@ -7,7 +7,7 @@ import {
   Search, Download, CheckCircle, Truck, FileText, ShoppingCart,
   Loader2, Building2,
   Phone, Mail, MapPin, User, Plus, X, CreditCard,
-  XCircle, Trash2, AlertTriangle, Package
+  XCircle, Trash2, AlertTriangle, Package, Archive
 } from 'lucide-react'
 import { PaymentService } from '@/lib/paymentService'
 import { cn } from '@/lib/utils'
@@ -31,6 +31,10 @@ interface FulfillmentOrder {
   payment_reference: string | null
   forwarded_to_fulfillment_at: string | null
   fulfilled_at: string | null
+  tracking_number: string | null
+  carrier: string | null
+  shipped_date: string | null
+  archived_at: string | null
   users?: { business_name: string; email: string; phone: string; contact_name: string | null }
   invoices?: { id: string; invoice_number: string; amount: number; status: string; due_date: string }[]
 }
@@ -47,6 +51,7 @@ interface FulfillmentInvoice {
   paid_date: string | null
   paid_method: string | null
   paid_reference: string | null
+  archived_at: string | null
   users?: { business_name: string; email: string; phone: string; contact_name: string | null }
   orders?: { po_number: string; shipping_address: string; contact_person: string; contact_phone: string }
 }
@@ -86,8 +91,11 @@ interface BusinessUser {
 
 export function OrdersInvoicesPage() {
   const [searchParams] = useSearchParams()
-  const [view, setView] = useState<'pending' | 'fulfillment' | 'shipped'>(
-    searchParams.get('tab') === 'fulfillment' ? 'fulfillment' : searchParams.get('tab') === 'shipped' ? 'shipped' : 'pending'
+  const [view, setView] = useState<'pending' | 'fulfillment' | 'shipped' | 'cancelled' | 'archived'>(
+    searchParams.get('tab') === 'fulfillment' ? 'fulfillment' :
+    searchParams.get('tab') === 'shipped' ? 'shipped' :
+    searchParams.get('tab') === 'cancelled' ? 'cancelled' :
+    searchParams.get('tab') === 'archived' ? 'archived' : 'pending'
   )
   const [orders, setOrders] = useState<FulfillmentOrder[]>([])
   const [invoices, setInvoices] = useState<FulfillmentInvoice[]>([])
@@ -147,7 +155,7 @@ export function OrdersInvoicesPage() {
           users!user_id (business_name, email, phone, contact_name),
           orders:order_id (po_number, shipping_address, contact_person, contact_phone)
         `)
-        .in('status', ['pending', 'overdue', 'paid'])
+        .in('status', ['pending', 'overdue'])
         .order('created_at', { ascending: false })
         .limit(200),
     ])
@@ -374,18 +382,52 @@ export function OrdersInvoicesPage() {
     }
   }
 
+  // Manual archive: move order/invoice to Archived tab
+  const archiveOrder = async (orderId: string, poNumber: string) => {
+    if (!confirm(`Archive order ${poNumber}?\n\nIt will move to the Archived tab.`)) return
+    try {
+      const { error } = await supabase.from('orders').update({ archived_at: new Date().toISOString() }).eq('id', orderId)
+      if (error) throw error
+      toast.success(`Order ${poNumber} archived`)
+      fetchData()
+    } catch (e: any) {
+      toast.error('Archive failed: ' + e.message)
+    }
+  }
+
+  const archiveInvoice = async (invoiceId: string, invoiceNumber: string) => {
+    if (!confirm(`Archive invoice ${invoiceNumber}?\n\nIt will move to the Archived tab.`)) return
+    try {
+      const { error } = await supabase.from('invoices').update({ archived_at: new Date().toISOString() }).eq('id', invoiceId)
+      if (error) throw error
+      toast.success(`Invoice ${invoiceNumber} archived`)
+      fetchData()
+    } catch (e: any) {
+      toast.error('Archive failed: ' + e.message)
+    }
+  }
+
+  // 45-day auto-archive helper
+  const isAutoArchived = (date: string | null) => {
+    if (!date) return false
+    const daysSince = (Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24)
+    return daysSince > 45
+  }
+
   // Tab-scoped filtered data
   const tabOrders = orders.filter(o => {
     if (view === 'pending') return o.status === 'pending'
     if (view === 'fulfillment') return o.status === 'processing'
-    if (view === 'shipped') return o.status === 'shipped'
+    if (view === 'shipped') return o.status === 'shipped' && !o.archived_at && !isAutoArchived(o.shipped_date)
+    if (view === 'cancelled') return o.status === 'cancelled'
+    if (view === 'archived') return o.status === 'shipped' && (!!o.archived_at || isAutoArchived(o.shipped_date))
     return true
   })
 
   const tabInvoices = invoices.filter(i => {
     if (view === 'pending') return i.status === 'pending' || i.status === 'overdue'
-    if (view === 'shipped') return i.status === 'paid'
-    return false // no invoices in fulfillment tab
+    if (view === 'cancelled') return i.status === 'cancelled'
+    return false // no invoices in fulfillment, shipped, or archived tabs
   })
 
   const filteredOrders = tabOrders.filter(o => {
@@ -422,7 +464,7 @@ export function OrdersInvoicesPage() {
     <div className="space-y-6">
       {/* Header + Toggle + Create Button */}
       <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
-        <div className="flex bg-[#150f24] rounded-lg p-1 border border-white/10">
+        <div className="flex bg-[#150f24] rounded-lg p-1 border border-white/10 flex-wrap">
           <button
             onClick={() => setView('pending')}
             className={cn(
@@ -434,9 +476,9 @@ export function OrdersInvoicesPage() {
             title="Orders and invoices awaiting payment"
           >
             <AlertTriangle className="w-4 h-4" />
-            Pending Payment
+            Pending
             <span className="ml-1 text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
-              {orders.filter(o => o.status === 'pending').length + invoices.filter(i => i.status === 'pending').length}
+              {tabOrders.length + tabInvoices.length}
             </span>
           </button>
           <button
@@ -452,7 +494,7 @@ export function OrdersInvoicesPage() {
             <Package className="w-4 h-4" />
             Fulfillment
             <span className="ml-1 text-xs bg-blue-400/20 text-blue-400 px-2 py-0.5 rounded-full">
-              {orders.filter(o => o.status === 'processing').length}
+              {tabOrders.length}
             </span>
           </button>
           <button
@@ -463,12 +505,44 @@ export function OrdersInvoicesPage() {
                 ? 'bg-[#9a02d0]/20 text-white'
                 : 'text-gray-400 hover:text-white'
             )}
-            title="Shipped orders and paid invoices"
+            title="Recently shipped orders and paid invoices (not yet archived)"
           >
             <Truck className="w-4 h-4" />
             Shipped
             <span className="ml-1 text-xs bg-[#44f80c]/20 text-[#44f80c] px-2 py-0.5 rounded-full">
-              {orders.filter(o => o.status === 'shipped').length + invoices.filter(i => i.status === 'paid').length}
+              {tabOrders.length + tabInvoices.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setView('cancelled')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all',
+              view === 'cancelled'
+                ? 'bg-[#9a02d0]/20 text-white'
+                : 'text-gray-400 hover:text-white'
+            )}
+            title="Cancelled orders and invoices"
+          >
+            <XCircle className="w-4 h-4" />
+            Cancelled
+            <span className="ml-1 text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">
+              {orders.filter(o => o.status === 'cancelled').length + invoices.filter(i => i.status === 'cancelled').length}
+            </span>
+          </button>
+          <button
+            onClick={() => setView('archived')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all',
+              view === 'archived'
+                ? 'bg-[#9a02d0]/20 text-white'
+                : 'text-gray-400 hover:text-white'
+            )}
+            title="Archived: shipped >45 days or manually archived"
+          >
+            <Archive className="w-4 h-4" />
+            Archived
+            <span className="ml-1 text-xs bg-gray-500/20 text-gray-400 px-2 py-0.5 rounded-full">
+              {orders.filter(o => o.status === 'shipped' && (!!o.archived_at || isAutoArchived(o.shipped_date))).length}
             </span>
           </button>
         </div>
@@ -528,6 +602,8 @@ export function OrdersInvoicesPage() {
                     }}
                     onCancel={adminCancelOrder}
                     onHardDelete={adminHardDeleteOrder}
+                    onArchive={archiveOrder}
+                    currentView={view}
                     processingId={processingId}
                     getStatusBadge={getStatusBadge}
                   />
@@ -536,8 +612,8 @@ export function OrdersInvoicesPage() {
             </div>
           )}
 
-          {/* Invoices Section */}
-          {view !== 'fulfillment' && filteredInvoices.length > 0 && (
+          {/* Invoices Section — hidden in fulfillment and cancelled (when no invoices to show) */}
+          {view === 'pending' && filteredInvoices.length > 0 && (
             <div>
               <h3 className="text-sm font-medium text-gray-400 mb-3 mt-6 flex items-center gap-2">
                 <FileText className="w-4 h-4" />
@@ -549,6 +625,8 @@ export function OrdersInvoicesPage() {
                     key={invoice.id}
                     invoice={invoice}
                     onMarkPaid={(method) => markPaid(invoice.id, invoice.order_id, method)}
+                    onArchive={archiveInvoice}
+                    currentView={view}
                     processingId={processingId}
                     getStatusBadge={getStatusBadge}
                   />
@@ -570,10 +648,22 @@ export function OrdersInvoicesPage() {
                   <Package className="w-12 h-12 mx-auto mb-3 text-gray-600" />
                   <p>No orders in fulfillment</p>
                 </>
-              ) : (
+              ) : view === 'shipped' ? (
                 <>
                   <Truck className="w-12 h-12 mx-auto mb-3 text-gray-600" />
                   <p>No shipped orders or paid invoices</p>
+                  <p className="text-xs text-gray-600 mt-1">Items auto-archive after 45 days</p>
+                </>
+              ) : view === 'cancelled' ? (
+                <>
+                  <XCircle className="w-12 h-12 mx-auto mb-3 text-gray-600" />
+                  <p>No cancelled orders or invoices</p>
+                </>
+              ) : (
+                <>
+                  <Archive className="w-12 h-12 mx-auto mb-3 text-gray-600" />
+                  <p>No archived orders or invoices</p>
+                  <p className="text-xs text-gray-600 mt-1">Shipped orders appear here after 45 days</p>
                 </>
               )}
             </div>
@@ -901,6 +991,8 @@ function OrderCard({
   onMarkPaid,
   onCancel,
   onHardDelete,
+  onArchive,
+  currentView,
   processingId,
   getStatusBadge,
 }: {
@@ -908,6 +1000,8 @@ function OrderCard({
   onMarkPaid: (invId: string, method: 'check' | 'cash' | 'wire') => void
   onCancel: (orderId: string, poNumber: string) => void
   onHardDelete: (orderId: string, poNumber: string) => void
+  onArchive?: (orderId: string, poNumber: string) => void
+  currentView?: string
   processingId: string | null
   getStatusBadge: (s: string) => string
 }) {
@@ -977,6 +1071,36 @@ function OrderCard({
           <div>
             <p className="text-gray-400">Shipping Address</p>
             <p className="text-white">{order.shipping_address}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Shipment Details — shown when shipped */}
+      {order.status === 'shipped' && (order.carrier || order.tracking_number) && (
+        <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-4 space-y-2">
+          <div className="flex items-center gap-2 text-purple-400 text-sm font-medium">
+            <Truck className="w-4 h-4" />
+            Shipment Information
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            {order.carrier && (
+              <div>
+                <p className="text-gray-500 text-xs">Carrier</p>
+                <p className="text-white font-medium">{order.carrier}</p>
+              </div>
+            )}
+            {order.tracking_number && (
+              <div>
+                <p className="text-gray-500 text-xs">Tracking Number</p>
+                <p className="text-purple-300 font-mono">{order.tracking_number}</p>
+              </div>
+            )}
+            {order.shipped_date && (
+              <div>
+                <p className="text-gray-500 text-xs">Shipped Date</p>
+                <p className="text-white">{new Date(order.shipped_date).toLocaleDateString()}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1056,9 +1180,19 @@ function OrderCard({
         )}
         {order.status === 'processing' && (
           <span className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 text-blue-400 rounded-lg text-sm">
-            <Truck className="w-4 h-4" />
-            Ready to Ship
+            <Package className="w-4 h-4" />
+            In Fulfillment
           </span>
+        )}
+        {order.status === 'shipped' && currentView === 'shipped' && onArchive && (
+          <button
+            onClick={() => onArchive(order.id, order.po_number)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 rounded-lg text-sm font-medium transition-colors"
+            title="Move this order to the Archived tab"
+          >
+            <Archive className="w-4 h-4" />
+            Archive
+          </button>
         )}
         {(order.status === 'pending' || order.status === 'processing') && (
           <button
@@ -1088,11 +1222,15 @@ function OrderCard({
 function InvoiceCard({
   invoice,
   onMarkPaid,
+  onArchive,
+  currentView,
   processingId,
   getStatusBadge,
 }: {
   invoice: FulfillmentInvoice
   onMarkPaid: (method: 'check' | 'cash' | 'wire') => void
+  onArchive?: (invoiceId: string, invoiceNumber: string) => void
+  currentView?: string
   processingId: string | null
   getStatusBadge: (s: string) => string
 }) {
@@ -1196,10 +1334,23 @@ function InvoiceCard({
         {invoice.status === 'paid' && (
           <span className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg text-sm">
             <CheckCircle className="w-4 h-4" />
-            Paid {invoice.paid_date} ({invoice.paid_method})
+            Paid
+            {invoice.paid_date && ` ${invoice.paid_date}`}
+            {invoice.paid_method && ` (${invoice.paid_method})`}
           </span>
+        )}
+        {invoice.status === 'paid' && currentView === 'shipped' && onArchive && (
+          <button
+            onClick={() => onArchive(invoice.id, invoice.invoice_number)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 rounded-lg text-sm font-medium transition-colors"
+            title="Move this invoice to the Archived tab"
+          >
+            <Archive className="w-4 h-4" />
+            Archive
+          </button>
         )}
       </div>
     </div>
   )
 }
+ 

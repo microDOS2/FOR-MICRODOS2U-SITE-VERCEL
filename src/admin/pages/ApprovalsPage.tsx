@@ -185,7 +185,7 @@ export function ApprovalsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-1">Approved Applications</h2>
+        <h2 className="text-2xl font-bold text-white mb-1" title="Approved business accounts awaiting setup">Approved Applications</h2>
         <p className="text-gray-400">{approvals.length} approved accounts</p>
       </div>
 

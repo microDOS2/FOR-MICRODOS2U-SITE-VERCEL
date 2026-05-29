@@ -721,8 +721,8 @@ export function UsersPage() {
   }
 
   // ──── FULL DATABASE CLEANUP (pre-launch wipe) ────
-  // Removes ALL data except admin accounts. Call this before going live
-  // to clear out test data and start fresh.
+  // Removes ALL data except admin accounts and products.
+  // Call this ONCE before going live to clear all test data and start fresh.
   const handleDeleteAllNonAdmin = async () => {
     setDeletingAll(true)
     try {
@@ -741,100 +741,125 @@ export function UsersPage() {
         stores: 0, agreements: 0, repAssignments: 0,
         stateAssignments: 0, transactions: 0,
         applications: 0, auditLog: 0, users: 0,
-        authFailed: 0,
+        commissions: 0, authFailed: 0,
+        archivedReset: 0, shippingReset: 0,
+        paidReset: 0, remindersReset: 0,
       }
 
-      // Helper: fetch IDs for a given table filtered by user_id
-      const fetchIds = async (table: string, ids: string[]) => {
-        const { data, error } = await supabase.from(table).select('id').in('user_id', ids)
-        if (error || !data) return []
-        return data.map((r: any) => r.id)
-      }
+      // ═══════════════════════════════════════════════
+      // PHASE 1: RESET ALL FLAGS ON EXISTING RECORDS
+      // ═══════════════════════════════════════════════
 
-      // 2. Fetch order IDs for these users, then delete order items
-      const orderIds = await fetchIds('orders', nonAdminIds)
-      if (orderIds.length > 0) {
+      // 1a. Reset archived_at on ALL orders
+      const { data: rarO, error: rarOErr } = await supabase
+        .from('orders').update({ archived_at: null })
+        .neq('id', '00000000-0000-0000-0000-000000000000').select('id')
+      if (!rarOErr && rarO) results.archivedReset += rarO.length
+
+      // 1b. Reset archived_at on ALL invoices
+      const { data: rarI, error: rarIErr } = await supabase
+        .from('invoices').update({ archived_at: null })
+        .neq('id', '00000000-0000-0000-0000-000000000000').select('id')
+      if (!rarIErr && rarI) results.archivedReset += rarI.length
+
+      // 1c. Clear shipped_date, carrier, tracking_number on ALL orders
+      const { data: rsData, error: rsErr } = await supabase
+        .from('orders').update({ shipped_date: null, carrier: null, tracking_number: null })
+        .neq('id', '00000000-0000-0000-0000-000000000000').select('id')
+      if (!rsErr && rsData) results.shippingReset = rsData.length
+
+      // 1d. Clear paid_at, paid_method, paid_reference on ALL invoices
+      const { data: rpData, error: rpErr } = await supabase
+        .from('invoices').update({ paid_at: null, paid_method: null, paid_reference: null })
+        .neq('id', '00000000-0000-0000-0000-000000000000').select('id')
+      if (!rpErr && rpData) results.paidReset = rpData.length
+
+      // 1e. Reset reminder_sent_at and reminder_count on ALL invoices
+      const { data: rrData, error: rrErr } = await supabase
+        .from('invoices').update({ reminder_sent_at: null, reminder_count: 0 })
+        .neq('id', '00000000-0000-0000-0000-000000000000').select('id')
+      if (!rrErr && rrData) results.remindersReset = rrData.length
+
+      // ═══════════════════════════════════════════════
+      // PHASE 2: DELETE ALL ORDERS AND INVOICES (ALL USERS)
+      // ═══════════════════════════════════════════════
+
+      // 2a. Fetch ALL order IDs, then delete order items
+      const { data: allOrderIds } = await supabase.from('orders').select('id').limit(10000)
+      const orderIdList = (allOrderIds || []).map((r: any) => r.id)
+      if (orderIdList.length > 0) {
         const { data: oiData, error: oiErr } = await supabase
-          .from('order_items')
-          .delete()
-          .in('order_id', orderIds)
-          .select('id')
+          .from('order_items').delete().in('order_id', orderIdList).select('id')
         if (!oiErr && oiData) results.orderItems = oiData.length
       }
 
-      // 3. Delete orders
+      // 2b. Delete ALL orders (admin + non-admin test orders)
       const { data: oData, error: oErr } = await supabase
-        .from('orders')
-        .delete()
-        .in('user_id', nonAdminIds)
-        .select('id')
+        .from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000').select('id')
       if (!oErr && oData) results.orders = oData.length
 
-      // 4. Delete invoices
+      // 2c. Delete ALL invoices
       const { data: iData, error: iErr } = await supabase
-        .from('invoices')
-        .delete()
-        .in('user_id', nonAdminIds)
-        .select('id')
+        .from('invoices').delete().neq('id', '00000000-0000-0000-0000-000000000000').select('id')
       if (!iErr && iData) results.invoices = iData.length
 
-      // 5. Delete store locations
+      // ═══════════════════════════════════════════════
+      // PHASE 3: DELETE ALL COMMISSION PAYMENTS
+      // ═══════════════════════════════════════════════
+
+      const { data: cpData, error: cpErr } = await supabase
+        .from('commission_payments').delete().neq('id', '00000000-0000-0000-0000-000000000000').select('id')
+      if (!cpErr && cpData) results.commissions = cpData.length
+
+      // ═══════════════════════════════════════════════
+      // PHASE 4: DELETE NON-ADMIN USER DATA
+      // ═══════════════════════════════════════════════
+
+      // 4a. Delete store locations
       const { data: sData, error: sErr } = await supabase
-        .from('wholesaler_store_locations')
-        .delete()
-        .in('user_id', nonAdminIds)
-        .select('id')
+        .from('wholesaler_store_locations').delete().in('user_id', nonAdminIds).select('id')
       if (!sErr && sData) results.stores = sData.length
 
-      // 6. Delete agreements
+      // 4b. Delete agreements
       const { data: aData, error: aErr } = await supabase
-        .from('agreements')
-        .delete()
-        .in('user_id', nonAdminIds)
-        .select('id')
+        .from('agreements').delete().in('user_id', nonAdminIds).select('id')
       if (!aErr && aData) results.agreements = aData.length
 
-      // 7. Delete transactions
+      // 4c. Delete transactions
       const { data: tData, error: tErr } = await supabase
-        .from('transactions')
-        .delete()
-        .in('user_id', nonAdminIds)
-        .select('id')
+        .from('transactions').delete().in('user_id', nonAdminIds).select('id')
       if (!tErr && tData) results.transactions = tData.length
 
-      // 8. Delete rep-account assignments where deleted users are involved
+      // 4d. Delete rep-account assignments
       const { data: raData, error: raErr } = await supabase
-        .from('rep_account_assignments')
-        .delete()
+        .from('rep_account_assignments').delete()
         .or(`account_id.in.(${nonAdminIds.join(',')}),rep_id.in.(${nonAdminIds.join(',')})`)
         .select('id')
       if (!raErr && raData) results.repAssignments = raData.length
 
-      // 9. Delete manager state assignments for deleted managers
+      // 4e. Delete manager state assignments
       const { data: msData, error: msErr } = await supabase
-        .from('manager_state_assignments')
-        .delete()
-        .in('manager_id', nonAdminIds)
-        .select('id')
+        .from('manager_state_assignments').delete().in('manager_id', nonAdminIds).select('id')
       if (!msErr && msData) results.stateAssignments = msData.length
 
-      // 10. Delete ALL applications — pre-launch cleanup
+      // ═══════════════════════════════════════════════
+      // PHASE 5: DELETE GLOBAL TABLES
+      // ═══════════════════════════════════════════════
+
+      // 5a. Delete ALL applications
       const { data: appData, error: appErr } = await supabase
-        .from('applications')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000')
-        .select('id')
+        .from('applications').delete().neq('id', '00000000-0000-0000-0000-000000000000').select('id')
       if (!appErr && appData) results.applications = appData.length
 
-      // 11. Delete ALL audit logs — pre-launch cleanup
+      // 5b. Delete ALL audit logs
       const { data: alData, error: alErr } = await supabase
-        .from('audit_log')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000')
-        .select('id')
+        .from('audit_log').delete().neq('id', '00000000-0000-0000-0000-000000000000').select('id')
       if (!alErr && alData) results.auditLog = alData.length
 
-      // 12. Delete the users themselves
+      // ═══════════════════════════════════════════════
+      // PHASE 6: DELETE NON-ADMIN USERS
+      // ═══════════════════════════════════════════════
+
       let userDeleted = 0
       let userFailed = 0
       for (const u of nonAdminUsers) {
@@ -855,28 +880,31 @@ export function UsersPage() {
 
         // Delete from users table
         const { error } = await supabase.from('users').delete().eq('id', u.id)
-        if (error) {
-          userFailed++
-        } else {
-          userDeleted++
-        }
+        if (error) { userFailed++ } else { userDeleted++ }
       }
       results.users = userDeleted
 
-      // 13. Refresh the list
+      // 6. Refresh the list
       await fetchAll()
 
-      // 14. Show detailed results
+      // 7. Show detailed results
       const summary = [
         `${results.users} user(s) deleted`,
         results.orders > 0 ? `${results.orders} order(s)` : null,
         results.orderItems > 0 ? `${results.orderItems} order item(s)` : null,
         results.invoices > 0 ? `${results.invoices} invoice(s)` : null,
+        results.commissions > 0 ? `${results.commissions} commission(s)` : null,
         results.stores > 0 ? `${results.stores} store(s)` : null,
         results.agreements > 0 ? `${results.agreements} agreement(s)` : null,
         results.transactions > 0 ? `${results.transactions} transaction(s)` : null,
+        results.repAssignments > 0 ? `${results.repAssignments} rep assignment(s)` : null,
+        results.stateAssignments > 0 ? `${results.stateAssignments} territory assignment(s)` : null,
         results.applications > 0 ? `${results.applications} application(s)` : null,
         results.auditLog > 0 ? `${results.auditLog} audit log(s)` : null,
+        results.archivedReset > 0 ? `${results.archivedReset} archive flag(s) reset` : null,
+        results.shippingReset > 0 ? `${results.shippingReset} shipping field(s) cleared` : null,
+        results.paidReset > 0 ? `${results.paidReset} payment field(s) cleared` : null,
+        results.remindersReset > 0 ? `${results.remindersReset} reminder(s) reset` : null,
         results.authFailed > 0 ? `${results.authFailed} auth cleanup(s) skipped` : null,
       ].filter(Boolean).join(', ')
 
@@ -1055,15 +1083,16 @@ export function UsersPage() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button onClick={() => setShowAddAccountModal(true)} className="bg-gradient-to-r from-[#ff66c4] to-[#9a02d0] text-white">
+          <Button onClick={() => setShowAddAccountModal(true)} title="Add a new business account" className="bg-gradient-to-r from-[#ff66c4] to-[#9a02d0] text-white">
             <Store className="w-4 h-4 mr-1" /> Add Business Account
           </Button>
-          <Button onClick={() => setShowCreateModal(true)} className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">
+          <Button onClick={() => setShowCreateModal(true)} title="Create a new user account" className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">
             <Plus className="w-4 h-4 mr-1" /> Create User
           </Button>
           <Button
             variant="outline"
             onClick={handleExportAll}
+            title="Download all users as CSV"
             className="border-[#44f80c]/30 text-[#44f80c] hover:bg-[#44f80c]/10 hover:text-[#44f80c]"
           >
             <Download className="w-4 h-4 mr-1" /> Download Snapshot
@@ -1071,6 +1100,7 @@ export function UsersPage() {
           <Button
             variant="outline"
             onClick={() => setShowDeleteAllDialog(true)}
+            title="Delete all non-admin data"
             className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
           >
             <Trash2 className="w-4 h-4 mr-1" /> Pre-Launch Cleanup
@@ -1297,11 +1327,11 @@ export function UsersPage() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button size="sm" onClick={() => openEdit(account)} disabled={actionLoading === account.id + '-edit'}
+                            <Button size="sm" onClick={() => openEdit(account)} disabled={actionLoading === account.id + '-edit'} title="Edit this account"
                               className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 h-7 px-2">
                               <Pencil className="w-3 h-3" />
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleDelete(account)} disabled={actionLoading === account.id + '-delete'}
+                            <Button size="sm" variant="outline" onClick={() => handleDelete(account)} disabled={actionLoading === account.id + '-delete'} title="Delete this account"
                               className="border-red-500/30 text-red-400 hover:bg-red-500/10 h-7 px-2">
                               <X className="w-3 h-3" />
                             </Button>
@@ -1353,7 +1383,7 @@ export function UsersPage() {
                 </p>
               </div>
             </div>
-            <Button onClick={handleCreateUser} disabled={creatingUser} className="w-full bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">
+            <Button onClick={handleCreateUser} disabled={creatingUser} title="Create user and generate password" className="w-full bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">
               {creatingUser ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
               Create User & Generate Password
             </Button>
@@ -1425,7 +1455,7 @@ export function UsersPage() {
               <div><Label className="text-gray-300">State</Label><Input value={accountState} onChange={(e) => setAccountState(e.target.value)} placeholder="CA" className="bg-[#0a0514] border-white/10 text-white" /></div>
               <div><Label className="text-gray-300">ZIP</Label><Input value={accountZip} onChange={(e) => setAccountZip(e.target.value)} placeholder="90001" className="bg-[#0a0514] border-white/10 text-white" /></div>
             </div>
-            <Button onClick={handleAddAccount} disabled={addingAccount} className="w-full bg-gradient-to-r from-[#ff66c4] to-[#9a02d0] text-white">
+            <Button onClick={handleAddAccount} disabled={addingAccount} title="Create business account" className="w-full bg-gradient-to-r from-[#ff66c4] to-[#9a02d0] text-white">
               {addingAccount ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Store className="w-4 h-4 mr-2" />}
               Create {accountTypeLabel()} Account
             </Button>
@@ -1551,7 +1581,7 @@ export function UsersPage() {
                 <p className="text-[10px] text-gray-500 mt-1">Leave blank to keep current password</p>
               </div>
             )}
-            <Button onClick={handleSaveEdit} disabled={savingEdit} className="w-full bg-gradient-to-r from-blue-500 to-[#9a02d0] text-white">
+            <Button onClick={handleSaveEdit} disabled={savingEdit} title="Save changes to user" className="w-full bg-gradient-to-r from-blue-500 to-[#9a02d0] text-white">
               {savingEdit ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
               Save Changes
             </Button>
@@ -1577,8 +1607,10 @@ export function UsersPage() {
                 <strong>Warning:</strong> This will delete {allAccounts.filter(u => u.role !== 'admin' && u.source === 'users').length} non-admin user(s) AND all their data:
               </p>
               <ul className="text-xs text-red-300/80 list-disc list-inside space-y-0.5">
-                <li>All orders and order items</li>
-                <li>All invoices</li>
+                <li><strong>ALL orders</strong> (admin + non-admin test orders)</li>
+                <li><strong>ALL invoices</strong></li>
+                <li><strong>ALL commission payments</strong></li>
+                <li>All order items</li>
                 <li>All store locations</li>
                 <li>All agreements</li>
                 <li>All payment transactions</li>
@@ -1586,6 +1618,10 @@ export function UsersPage() {
                 <li>All audit logs</li>
                 <li>Manager territory assignments</li>
                 <li>Rep account assignments</li>
+                <li>All archive flags reset</li>
+                <li>All shipping/tracking data cleared</li>
+                <li>All payment fields cleared</li>
+                <li>All overdue reminders reset</li>
               </ul>
             </div>
             <div className="flex gap-3">
@@ -1593,6 +1629,7 @@ export function UsersPage() {
                 variant="outline"
                 className="flex-1 border-white/10 text-gray-300 hover:bg-white/5"
                 onClick={() => setShowDeleteAllDialog(false)}
+                title="Cancel cleanup"
               >
                 Cancel
               </Button>
@@ -1600,6 +1637,7 @@ export function UsersPage() {
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white"
                 onClick={handleDeleteAllNonAdmin}
                 disabled={deletingAll}
+                title="Permanently delete all non-admin data"
               >
                 {deletingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
                 {deletingAll ? 'Deleting...' : 'Delete All'}
@@ -1624,11 +1662,10 @@ export function UsersPage() {
               <p className="text-white font-mono text-sm">{sentEmailTo}</p>
             </div>
             <p className="text-gray-400 text-sm">The user has received an email with their login credentials and will be prompted to change their password on first login.</p>
-            <Button onClick={() => setShowEmailSentModal(false)} className="w-full bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">Done</Button>
+            <Button onClick={() => setShowEmailSentModal(false)} title="Close" className="w-full bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white">Done</Button>
           </div>
         </DialogContent>
       </Dialog>
     </div>
   )
 }
-// redeploy bump Fri May 22 23:12:01 CST 2026

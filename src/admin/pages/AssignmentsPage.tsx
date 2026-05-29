@@ -361,9 +361,9 @@ export function AccountsPage() {
           <p className="text-gray-400">{accounts.length} accounts, {totalStores} stores</p>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={downloadAccounts} className="border-white/10 text-white hover:bg-white/5"><Download className="w-4 h-4 mr-1.5" />Accounts CSV</Button>
-          <Button size="sm" variant="outline" onClick={downloadStores} className="border-white/10 text-white hover:bg-white/5"><Download className="w-4 h-4 mr-1.5" />Stores CSV</Button>
-          <Button size="sm" onClick={() => { setShowUpload(true); setCsvRows([]) }} className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white"><Upload className="w-4 h-4 mr-1.5" />Upload CSV</Button>
+          <Button size="sm" variant="outline" onClick={downloadAccounts} title="Download accounts as CSV" className="border-white/10 text-white hover:bg-white/5"><Download className="w-4 h-4 mr-1.5" />Accounts CSV</Button>
+          <Button size="sm" variant="outline" onClick={downloadStores} title="Download stores as CSV" className="border-white/10 text-white hover:bg-white/5"><Download className="w-4 h-4 mr-1.5" />Stores CSV</Button>
+          <Button size="sm" onClick={() => { setShowUpload(true); setCsvRows([]) }} title="Upload accounts from CSV" className="bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white"><Upload className="w-4 h-4 mr-1.5" />Upload CSV</Button>
         </div>
       </div>
 

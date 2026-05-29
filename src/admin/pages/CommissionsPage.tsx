@@ -581,7 +581,7 @@ export function CommissionsPage() {
 
       {/* Per-User Overrides */}
       <div>
-        <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+        <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2" title="Set custom commission rates for individual users that override the default rates">
           <UserCog className="w-5 h-5 text-[#44f80c]" />
           Per-User Commission Rate Overrides
         </h3>

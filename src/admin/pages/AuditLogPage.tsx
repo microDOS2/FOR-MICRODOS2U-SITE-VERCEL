@@ -61,8 +61,8 @@ export function AuditLogPage() {
   }
 
   const exportCSV = () => {
-    downloadCSV('audit-log', ['ID', 'Action', 'Table', 'Record ID', 'Old Data', 'New Data', 'Created'],
-      entries.map(e => [e.id, e.action, e.table_name, e.record_id, e.old_data ? JSON.stringify(e.old_data) : '', e.new_data ? JSON.stringify(e.new_data) : '', e.created_at]))
+    downloadCSV('audit-log', [['ID', 'Action', 'Table', 'Record ID', 'Old Data', 'New Data', 'Created'],
+      ...entries.map(e => [e.id, e.action, e.table_name, e.record_id, e.old_data ? JSON.stringify(e.old_data) : '', e.new_data ? JSON.stringify(e.new_data) : '', e.created_at])])
   }
 
   const totalPages = Math.ceil(totalCount / pageSize)
@@ -84,7 +84,7 @@ export function AuditLogPage() {
             <option value="wholesaler_store_locations">Store Reps</option>
             <option value="assignment_transfers">Transfers</option>
           </select>
-          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 transition-colors">
+          <button onClick={exportCSV} title="Export audit log to CSV" className="flex items-center gap-2 px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 transition-colors">
             <Download className="w-4 h-4" /> Export CSV
           </button>
         </div>

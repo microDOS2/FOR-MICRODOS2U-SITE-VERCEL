@@ -196,8 +196,8 @@ export function ProductsPage() {
   const resetForm = () => setFormData({ name: '', description: '', price: 0, wholesaler_price: 0, retail_price: 0, sku: '', stock: 0, min_order: 1, is_active: true })
 
   const exportCSV = () => {
-    downloadCSV('products', [['ID', 'Name', 'SKU', 'Distributor Price', 'Wholesaler Price', 'MSRP', 'Stock', 'Min Order', 'Active', 'Variants', 'Created'],
-      ...products.map(p => [p.id, p.name, p.sku || '', String(p.price), String(p.wholesaler_price || ''), String(p.retail_price || ''), String(p.stock), String(p.min_order), p.is_active ? 'Yes' : 'No', String(getProductVariants(p.id).length), p.created_at])])
+    downloadCSV('products', ['ID', 'Name', 'SKU', 'Distributor Price', 'Wholesaler Price', 'MSRP', 'Stock', 'Min Order', 'Active', 'Variants', 'Created'],
+      products.map(p => [p.id, p.name, p.sku || '', String(p.price), String(p.wholesaler_price || ''), String(p.retail_price || ''), String(p.stock), String(p.min_order), p.is_active ? 'Yes' : 'No', String(getProductVariants(p.id).length), p.created_at]))
   }
 
   const totalPages = Math.ceil(totalCount / pageSize)
@@ -212,10 +212,10 @@ export function ProductsPage() {
             className="w-full pl-10 pr-4 py-2.5 bg-[#150f24] border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50" />
         </div>
         <div className="flex gap-2">
-          <button onClick={exportCSV} title="Export product data as CSV" className="flex items-center gap-2 px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 transition-colors">
+          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 transition-colors">
             <Download className="w-4 h-4" /> Export CSV
           </button>
-          <button onClick={openCreate} title="Add a new product" className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white transition-colors">
+          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white transition-colors">
             <Plus className="w-4 h-4" /> Add Product
           </button>
         </div>
@@ -270,7 +270,6 @@ export function ProductsPage() {
                         {pVariants.length > 0 ? (
                           <button
                             onClick={() => setExpandedProduct(isExpanded ? null : p.id)}
-                            title={isExpanded ? 'Collapse variants' : 'View packaging variants'}
                             className="flex items-center gap-1 text-xs text-[#9a02d0] hover:text-[#44f80c] transition-colors"
                           >
                             {pVariants.length} variant{pVariants.length > 1 ? 's' : ''}
@@ -334,9 +333,9 @@ export function ProductsPage() {
         <div className="flex items-center justify-between px-4 py-3 border-t border-white/10">
           <span className="text-sm text-gray-500">{totalCount} total</span>
           <div className="flex items-center gap-2">
-            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} title="Previous page" className="p-2 hover:bg-white/5 rounded-lg disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button>
+            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="p-2 hover:bg-white/5 rounded-lg disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button>
             <span className="text-sm text-gray-400">Page {page + 1} of {totalPages || 1}</span>
-            <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} title="Next page" className="p-2 hover:bg-white/5 rounded-lg disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button>
+            <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="p-2 hover:bg-white/5 rounded-lg disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button>
           </div>
         </div>
       </div>
@@ -348,7 +347,7 @@ export function ProductsPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between p-5 border-b border-white/10 flex-shrink-0">
               <h3 className="text-lg font-semibold text-white">{editingProduct ? 'Edit Product' : 'Add Product'}</h3>
-              <button onClick={() => setShowModal(false)} title="Close modal" className="p-1.5 hover:bg-white/5 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
+              <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-white/5 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
             </div>
 
             {/* Tabs */}
@@ -473,7 +472,7 @@ export function ProductsPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 ml-3">
-                          <button onClick={() => openVariantForm(v)} title="Edit this variant" className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-[#44f80c]"><Pencil className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => openVariantForm(v)} className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-[#44f80c]"><Pencil className="w-3.5 h-3.5" /></button>
                           <button onClick={() => deleteVariant(v.id)} className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
@@ -544,16 +543,16 @@ export function ProductsPage() {
                         <label htmlFor="v_in_stock" className="text-xs text-gray-300">In Stock</label>
                       </div>
                       <div className="flex gap-2 pt-2">
-                        <button onClick={() => { setShowVariantForm(false); setEditingVariantId(null) }} title="Cancel variant changes"
+                        <button onClick={() => { setShowVariantForm(false); setEditingVariantId(null) }}
                           className="px-3 py-2 bg-[#150f24] hover:bg-white/5 border border-white/10 rounded-lg text-xs text-gray-300">Cancel</button>
-                        <button onClick={saveVariant} title={editingVariantId ? 'Save variant changes' : 'Create new variant'}
+                        <button onClick={saveVariant}
                           className="px-3 py-2 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-xs text-white">{editingVariantId ? 'Update Variant' : 'Create Variant'}</button>
                       </div>
                     </div>
                   )}
 
                   {!showVariantForm && editingProduct && (
-                    <button onClick={() => openVariantForm()} title="Add a new packaging variant"
+                    <button onClick={() => openVariantForm()}
                       className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#0a0514] hover:bg-white/5 border border-dashed border-white/10 rounded-lg text-sm text-gray-400 hover:text-[#44f80c] transition-colors">
                       <Plus className="w-4 h-4" /> Add Packaging Variant
                     </button>
@@ -564,9 +563,9 @@ export function ProductsPage() {
 
             {/* Modal Footer */}
             <div className="flex justify-end gap-3 p-5 border-t border-white/10 flex-shrink-0">
-              <button onClick={() => setShowModal(false)} title="Close without saving" className="px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 rounded-lg text-sm text-gray-300">Cancel</button>
+              <button onClick={() => setShowModal(false)} className="px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 rounded-lg text-sm text-gray-300">Cancel</button>
               {activeTab === 'details' && (
-                <button onClick={handleSave} title={editingProduct ? 'Save product changes' : 'Create new product'} className="px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white">
+                <button onClick={handleSave} className="px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white">
                   {editingProduct ? 'Update Product' : 'Create Product'}
                 </button>
               )}

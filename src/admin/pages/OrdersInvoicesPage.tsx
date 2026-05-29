@@ -7,7 +7,7 @@ import {
   Search, Download, CheckCircle, Truck, FileText, ShoppingCart,
   Loader2, Building2,
   Phone, Mail, MapPin, User, Plus, X, CreditCard,
-  XCircle, Trash2
+  XCircle, Trash2, AlertTriangle, Package
 } from 'lucide-react'
 import { PaymentService } from '@/lib/paymentService'
 import { cn } from '@/lib/utils'
@@ -86,8 +86,8 @@ interface BusinessUser {
 
 export function OrdersInvoicesPage() {
   const [searchParams] = useSearchParams()
-  const [view, setView] = useState<'orders' | 'invoices'>(
-    searchParams.get('tab') === 'invoices' ? 'invoices' : 'orders'
+  const [view, setView] = useState<'pending' | 'fulfillment' | 'shipped'>(
+    searchParams.get('tab') === 'fulfillment' ? 'fulfillment' : searchParams.get('tab') === 'shipped' ? 'shipped' : 'pending'
   )
   const [orders, setOrders] = useState<FulfillmentOrder[]>([])
   const [invoices, setInvoices] = useState<FulfillmentInvoice[]>([])
@@ -140,16 +140,16 @@ export function OrdersInvoicesPage() {
           invoices(id, invoice_number, amount, status, due_date)
         `)
         .order('created_at', { ascending: false })
-        .limit(100),
+        .limit(200),
       supabase.from('invoices')
         .select(`
           *,
           users!user_id (business_name, email, phone, contact_name),
           orders:order_id (po_number, shipping_address, contact_person, contact_phone)
         `)
-        .in('status', ['pending', 'overdue'])
+        .in('status', ['pending', 'overdue', 'paid'])
         .order('created_at', { ascending: false })
-        .limit(100),
+        .limit(200),
     ])
     setOrders((o as any) || [])
     setInvoices((i as any) || [])
@@ -374,7 +374,21 @@ export function OrdersInvoicesPage() {
     }
   }
 
-  const filteredOrders = orders.filter(o => {
+  // Tab-scoped filtered data
+  const tabOrders = orders.filter(o => {
+    if (view === 'pending') return o.status === 'pending'
+    if (view === 'fulfillment') return o.status === 'processing'
+    if (view === 'shipped') return o.status === 'shipped'
+    return true
+  })
+
+  const tabInvoices = invoices.filter(i => {
+    if (view === 'pending') return i.status === 'pending' || i.status === 'overdue'
+    if (view === 'shipped') return i.status === 'paid'
+    return false // no invoices in fulfillment tab
+  })
+
+  const filteredOrders = tabOrders.filter(o => {
     const s = search.toLowerCase()
     return (
       o.po_number?.toLowerCase().includes(s) ||
@@ -383,7 +397,7 @@ export function OrdersInvoicesPage() {
     )
   })
 
-  const filteredInvoices = invoices.filter(i => {
+  const filteredInvoices = tabInvoices.filter(i => {
     const s = search.toLowerCase()
     return (
       i.invoice_number?.toLowerCase().includes(s) ||
@@ -410,33 +424,51 @@ export function OrdersInvoicesPage() {
       <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
         <div className="flex bg-[#150f24] rounded-lg p-1 border border-white/10">
           <button
-            onClick={() => setView('orders')}
+            onClick={() => setView('pending')}
             className={cn(
               'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all',
-              view === 'orders'
+              view === 'pending'
                 ? 'bg-[#9a02d0]/20 text-white'
                 : 'text-gray-400 hover:text-white'
             )}
+            title="Orders and invoices awaiting payment"
           >
-            <ShoppingCart className="w-4 h-4" />
-            Purchase Orders
-            <span className="ml-1 text-xs bg-[#9a02d0]/30 px-2 py-0.5 rounded-full">
-              {orders.filter(o => o.status === 'pending' || o.status === 'processing').length}
+            <AlertTriangle className="w-4 h-4" />
+            Pending Payment
+            <span className="ml-1 text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
+              {orders.filter(o => o.status === 'pending').length + invoices.filter(i => i.status === 'pending').length}
             </span>
           </button>
           <button
-            onClick={() => setView('invoices')}
+            onClick={() => setView('fulfillment')}
             className={cn(
               'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all',
-              view === 'invoices'
+              view === 'fulfillment'
                 ? 'bg-[#9a02d0]/20 text-white'
                 : 'text-gray-400 hover:text-white'
             )}
+            title="Orders being packed and prepared for shipment"
           >
-            <FileText className="w-4 h-4" />
-            Invoices
-            <span className="ml-1 text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
-              {invoices.length}
+            <Package className="w-4 h-4" />
+            Fulfillment
+            <span className="ml-1 text-xs bg-blue-400/20 text-blue-400 px-2 py-0.5 rounded-full">
+              {orders.filter(o => o.status === 'processing').length}
+            </span>
+          </button>
+          <button
+            onClick={() => setView('shipped')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all',
+              view === 'shipped'
+                ? 'bg-[#9a02d0]/20 text-white'
+                : 'text-gray-400 hover:text-white'
+            )}
+            title="Shipped orders and paid invoices"
+          >
+            <Truck className="w-4 h-4" />
+            Shipped
+            <span className="ml-1 text-xs bg-[#44f80c]/20 text-[#44f80c] px-2 py-0.5 rounded-full">
+              {orders.filter(o => o.status === 'shipped').length + invoices.filter(i => i.status === 'paid').length}
             </span>
           </button>
         </div>
@@ -447,7 +479,7 @@ export function OrdersInvoicesPage() {
             <input
               id="admin-search-input"
               type="text"
-              placeholder={view === 'orders' ? 'Search PO or business...' : 'Search invoice or business...'}
+              placeholder={'Search PO, invoice, or business...'}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full lg:w-64 pl-10 pr-4 py-2.5 bg-[#150f24] border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
@@ -476,47 +508,75 @@ export function OrdersInvoicesPage() {
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-[#9a02d0] animate-spin" />
         </div>
-      ) : view === 'orders' ? (
-        <div className="space-y-4">
-          {filteredOrders.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-              <p>No orders found</p>
-            </div>
-          ) : (
-            filteredOrders.map(order => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onMarkPaid={(invId, method) => {
-                  const invoice = order.invoices?.[0]
-                  if (invoice) markPaid(invId, order.id, method)
-                }}
-                onCancel={adminCancelOrder}
-                onHardDelete={adminHardDeleteOrder}
-                processingId={processingId}
-                getStatusBadge={getStatusBadge}
-              />
-            ))
-          )}
-        </div>
       ) : (
         <div className="space-y-4">
-          {filteredInvoices.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <FileText className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-              <p>No invoices found</p>
+          {/* Orders Section */}
+          {filteredOrders.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
+                <ShoppingCart className="w-4 h-4" />
+                Orders ({filteredOrders.length})
+              </h3>
+              <div className="space-y-4">
+                {filteredOrders.map(order => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    onMarkPaid={(invId, method) => {
+                      const invoice = order.invoices?.[0]
+                      if (invoice) markPaid(invId, order.id, method)
+                    }}
+                    onCancel={adminCancelOrder}
+                    onHardDelete={adminHardDeleteOrder}
+                    processingId={processingId}
+                    getStatusBadge={getStatusBadge}
+                  />
+                ))}
+              </div>
             </div>
-          ) : (
-            filteredInvoices.map(invoice => (
-              <InvoiceCard
-                key={invoice.id}
-                invoice={invoice}
-                onMarkPaid={(method) => markPaid(invoice.id, invoice.order_id, method)}
-                processingId={processingId}
-                getStatusBadge={getStatusBadge}
-              />
-            ))
+          )}
+
+          {/* Invoices Section */}
+          {view !== 'fulfillment' && filteredInvoices.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-400 mb-3 mt-6 flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Invoices ({filteredInvoices.length})
+              </h3>
+              <div className="space-y-4">
+                {filteredInvoices.map(invoice => (
+                  <InvoiceCard
+                    key={invoice.id}
+                    invoice={invoice}
+                    onMarkPaid={(method) => markPaid(invoice.id, invoice.order_id, method)}
+                    processingId={processingId}
+                    getStatusBadge={getStatusBadge}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {filteredOrders.length === 0 && filteredInvoices.length === 0 && (
+            <div className="text-center py-12 text-gray-500">
+              {view === 'pending' ? (
+                <>
+                  <AlertTriangle className="w-12 h-12 mx-auto mb-3 text-gray-600" />
+                  <p>No pending orders or invoices</p>
+                </>
+              ) : view === 'fulfillment' ? (
+                <>
+                  <Package className="w-12 h-12 mx-auto mb-3 text-gray-600" />
+                  <p>No orders in fulfillment</p>
+                </>
+              ) : (
+                <>
+                  <Truck className="w-12 h-12 mx-auto mb-3 text-gray-600" />
+                  <p>No shipped orders or paid invoices</p>
+                </>
+              )}
+            </div>
           )}
         </div>
       )}

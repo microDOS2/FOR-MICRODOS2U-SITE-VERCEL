@@ -1768,7 +1768,9 @@ export function WholesalerDashboard() {
               .from('invoices')
               .update({ status: 'paid', transaction_id: result.transactionId })
               .eq('id', paymentInvoice.id)
-              .then(({ error }) => {
+              .select('order_id')
+              .single()
+              .then(({ data: invData, error }) => {
                 if (error) console.error('Failed to update invoice:', error);
                 else {
                   setInvoices((prev) =>
@@ -1778,6 +1780,38 @@ export function WholesalerDashboard() {
                         : inv
                     )
                   );
+                  // Update linked order to processing + forward to fulfillment
+                  if (invData?.order_id) {
+                    supabase.from('orders').update({
+                      status: 'processing',
+                      forwarded_to_fulfillment_at: new Date().toISOString(),
+                    }).eq('id', invData.order_id).then(() => {
+                      // Update local orders state
+                      setOrders((prev) =>
+                        prev.map((o) =>
+                          o.id === invData.order_id
+                            ? { ...o, status: 'processing', forwarded_to_fulfillment_at: new Date().toISOString() }
+                            : o
+                        )
+                      );
+                    });
+                    // Send payment confirmation email
+                    try {
+                      const matchedOrder = orders.find((o: any) => o.id === invData.order_id);
+                      if (matchedOrder && user) {
+                        import('@/lib/orderNotifications').then(({ sendOrderNotification }) => {
+                          sendOrderNotification({
+                            status: 'processing',
+                            poNumber: matchedOrder.po_number,
+                            customerEmail: user.email || '',
+                            businessName: user.contact_name || user.business_name || 'Valued Customer',
+                            total: matchedOrder.total,
+                            orderDate: matchedOrder.created_at,
+                          });
+                        });
+                      }
+                    } catch (e) { /* silent */ }
+                  }
                 }
               });
           }}

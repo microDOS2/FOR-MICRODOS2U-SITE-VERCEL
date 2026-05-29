@@ -1412,7 +1412,9 @@ export function DistributorDashboard() {
               .from('invoices')
               .update({ status: 'paid', transaction_id: result.transactionId })
               .eq('id', paymentInvoice.id)
-              .then(({ error }) => {
+              .select('order_id')
+              .single()
+              .then(({ data: invData, error }) => {
                 if (error) console.error('Failed to update invoice:', error);
                 else {
                   setInvoices((prev) =>
@@ -1422,6 +1424,41 @@ export function DistributorDashboard() {
                         : inv
                     )
                   );
+                  // Update linked order to processing + forward to fulfillment
+                  if (invData?.order_id) {
+                    supabase.from('orders').update({
+                      status: 'processing',
+                      forwarded_to_fulfillment_at: new Date().toISOString(),
+                    }).eq('id', invData.order_id).then(() => {
+                      // Update local orders state
+                      setOrders((prev) =>
+                        prev.map((o) =>
+                          o.id === invData.order_id
+                            ? { ...o, status: 'processing', forwarded_to_fulfillment_at: new Date().toISOString() }
+                            : o
+                        )
+                      );
+                    });
+                    // Send payment confirmation email
+                    try {
+                      supabase.from('orders').select('po_number, total, created_at, user_id').eq('id', invData.order_id).single().then(({ data: orderData }) => {
+                        if (orderData) {
+                          supabase.from('users').select('email, business_name, contact_name').eq('id', orderData.user_id).single().then(({ data: userData }) => {
+                            import('@/lib/orderNotifications').then(({ sendOrderNotification }) => {
+                              sendOrderNotification({
+                                status: 'processing',
+                                poNumber: orderData.po_number,
+                                customerEmail: userData?.email || '',
+                                businessName: userData?.contact_name || userData?.business_name || 'Valued Customer',
+                                total: orderData.total,
+                                orderDate: orderData.created_at,
+                              });
+                            });
+                          });
+                        }
+                      });
+                    } catch (e) { /* silent */ }
+                  }
                 }
               });
           }}

@@ -669,7 +669,7 @@ export function WholesalerDashboard() {
     <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-brand-800 border-brand-700">
+        <Card className="bg-brand-800 border-brand-700" title="Total number of orders placed across all time (pending, processing, shipped, and cancelled)">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-400">Total Orders</CardTitle>
           </CardHeader>
@@ -678,7 +678,7 @@ export function WholesalerDashboard() {
             <p className="text-xs text-gray-500 mt-1">All time</p>
           </CardContent>
         </Card>
-        <Card className="bg-brand-800 border-brand-700">
+        <Card className="bg-brand-800 border-brand-700" title="Total amount spent on all orders including pending, paid, and shipped">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-400">Total Spent</CardTitle>
           </CardHeader>
@@ -687,7 +687,7 @@ export function WholesalerDashboard() {
             <p className="text-xs text-gray-500 mt-1">Lifetime purchases</p>
           </CardContent>
         </Card>
-        <Card className="bg-brand-800 border-brand-700">
+        <Card className="bg-brand-800 border-brand-700" title="Number of invoices awaiting payment. Go to My Invoices to view and pay.">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-400">Pending Invoices</CardTitle>
           </CardHeader>
@@ -696,7 +696,7 @@ export function WholesalerDashboard() {
             <p className="text-xs text-gray-500 mt-1">Awaiting payment</p>
           </CardContent>
         </Card>
-        <Card className="bg-brand-800 border-brand-700">
+        <Card className="bg-brand-800 border-brand-700" title="Total amount of invoices that have passed their due date and remain unpaid">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-400">Overdue</CardTitle>
           </CardHeader>

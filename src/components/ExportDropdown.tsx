@@ -43,9 +43,9 @@ export function ExportDropdown({
         disabled={disabled || data.length === 0}
         onClick={() => setOpen((prev) => !prev)}
       >
-        <Download className="w-4 h-4 mr-1.5" />
+        <Download className="w-4 h-4" />
         {label}
-        <ChevronDown className="w-3 h-3 ml-1.5" />
+        {size !== 'icon' && <ChevronDown className="w-3 h-3 ml-1.5" />}
       </Button>
 
       {open && (

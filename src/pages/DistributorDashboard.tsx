@@ -744,7 +744,7 @@ export function DistributorDashboard() {
                               label=""
                               variant="ghost"
                               size="icon"
-                              className="text-gray-400 hover:text-white"
+                              className="text-gray-400 hover:text-white hover:bg-white/10"
                             />
                           </div>
                         </TableCell>

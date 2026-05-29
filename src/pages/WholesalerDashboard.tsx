@@ -332,6 +332,7 @@ export function WholesalerDashboard() {
     phone: '',
     email: '',
     license_number: '',
+    contact_name: '',
     is_primary: false,
   });
 
@@ -548,11 +549,12 @@ export function WholesalerDashboard() {
         phone: store.phone || '',
         email: store.email || '',
         license_number: store.license_number || '',
+        contact_name: store.contact_name || '',
         is_primary: store.is_primary || false,
       });
     } else {
       setEditingStore(null);
-      setStoreForm({ name: '', address: '', city: '', state: '', zip: '', phone: '', email: '', license_number: '', is_primary: false });
+      setStoreForm({ name: '', address: '', city: '', state: '', zip: '', phone: '', email: '', license_number: '', contact_name: '', is_primary: false });
     }
     setStoreDialogOpen(true);
   };
@@ -571,6 +573,7 @@ export function WholesalerDashboard() {
         phone: storeForm.phone || null,
         email: storeForm.email || null,
         license_number: storeForm.license_number || null,
+        contact_name: storeForm.contact_name || null,
         is_primary: storeForm.is_primary,
         is_active: true,
       };
@@ -1207,6 +1210,12 @@ export function WholesalerDashboard() {
                         )}
                       </h3>
                       <p className="text-sm text-gray-400">{store.address}</p>
+                      {store.contact_name && (
+                        <p className="text-xs text-[#44f80c] flex items-center gap-1 mt-0.5">
+                          <User className="w-3 h-3" />
+                          {store.contact_name}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-1">
@@ -1803,6 +1812,17 @@ export function WholesalerDashboard() {
                 className="bg-[#0a0514] border-white/10 text-white"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="store-contact" className="text-gray-300">Contact Person *</Label>
+              <Input
+                id="store-contact"
+                value={storeForm.contact_name}
+                onChange={(e) => setStoreForm((prev) => ({ ...prev, contact_name: e.target.value }))}
+                placeholder="Primary contact name"
+                className="bg-[#0a0514] border-white/10 text-white"
+                required
+              />
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="store-phone" className="text-gray-300">Phone</Label>
@@ -1846,7 +1866,7 @@ export function WholesalerDashboard() {
               </Button>
               <Button
                 onClick={saveStore}
-                disabled={!storeForm.name || !storeForm.address || !storeForm.city || !storeForm.state || !storeForm.zip || !storeForm.license_number}
+                disabled={!storeForm.name || !storeForm.address || !storeForm.city || !storeForm.state || !storeForm.zip || !storeForm.contact_name}
                 className="flex-1 bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white font-semibold"
               >
                 {editingStore ? 'Save Changes' : 'Add Store'}

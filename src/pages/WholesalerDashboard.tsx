@@ -30,6 +30,7 @@ import {
   CreditCard,
   XCircle,
   Archive,
+  User,
   Download,
   Upload,
   Loader2,
@@ -93,6 +94,7 @@ interface StoreLocation {
   phone: string | null;
   email: string | null;
   license_number: string | null;
+  contact_name: string | null;
   is_primary: boolean;
   is_active: boolean;
   created_at: string;

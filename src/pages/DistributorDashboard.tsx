@@ -27,6 +27,9 @@ import {
   Phone,
   Store,
   Globe,
+  XCircle,
+  Trash2,
+  Archive,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -165,8 +168,8 @@ export function DistributorDashboard() {
     const fetchData = async () => {
       setDataLoading(true);
       const [{ data: o, error: oErr }, { data: i, error: iErr }] = await Promise.all([
-        supabase.from('orders').select('id, po_number, items, total, status, notes, created_at, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total)').eq('user_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('invoices').select('id, invoice_number, order_id, amount, status, date, due_date, orders:order_id(po_number, notes, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total))').eq('user_id', user.id).order('date', { ascending: false }),
+        supabase.from('orders').select('id, po_number, items, total, status, notes, created_at, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total)').eq('user_id', user.id).eq('visible_to_user', true).order('created_at', { ascending: false }),
+        supabase.from('invoices').select('id, invoice_number, order_id, amount, status, date, due_date, orders:order_id(po_number, notes, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total))').eq('user_id', user.id).eq('visible_to_user', true).order('date', { ascending: false }),
       ]);
       if (oErr) console.error('[DistributorDashboard] orders error:', oErr);
       if (iErr) console.error('[DistributorDashboard] invoices error:', iErr);
@@ -176,6 +179,62 @@ export function DistributorDashboard() {
     };
     fetchData();
   }, [user]);
+
+  // Cancel a pending order
+  const cancelOrder = async (orderId: string, orderPo: string) => {
+    const reason = prompt(`Cancel order ${orderPo}?\n\nEnter reason (optional):`);
+    if (reason === null) return; // User cancelled
+    try {
+      const { data, error } = await supabase.rpc('cancel_order', {
+        p_order_id: orderId,
+        p_reason: reason || 'Cancelled by customer',
+      });
+      if (error) throw error;
+      const result = typeof data === 'string' ? JSON.parse(data) : data;
+      if (result?.success) {
+        toast.success(`Order ${orderPo} cancelled`);
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
+      } else {
+        toast.error(result?.error || 'Cancel failed');
+      }
+    } catch (e: any) {
+      toast.error('Cancel failed: ' + e.message);
+    }
+  };
+
+  // Archive (soft delete) a cancelled order
+  const archiveOrder = async (orderId: string, orderPo: string) => {
+    if (!confirm(`Remove order ${orderPo} from your view?\n\nThis hides the cancelled order from your list. Admin can still see it.`)) return;
+    try {
+      const { data, error } = await supabase.rpc('archive_user_order', { p_order_id: orderId });
+      if (error) throw error;
+      if (data) {
+        toast.success(`Order ${orderPo} removed from view`);
+        setOrders(prev => prev.filter(o => o.id !== orderId));
+      } else {
+        toast.error('Failed to archive order');
+      }
+    } catch (e: any) {
+      toast.error('Archive failed: ' + e.message);
+    }
+  };
+
+  // Archive (soft delete) a paid invoice
+  const archiveInvoice = async (invoiceId: string, invoiceNum: string) => {
+    if (!confirm(`Archive invoice ${invoiceNum}?\n\nThis hides the paid invoice from your list. Admin can still see it for accounting.`)) return;
+    try {
+      const { data, error } = await supabase.rpc('archive_user_invoice', { p_invoice_id: invoiceId });
+      if (error) throw error;
+      if (data) {
+        toast.success(`Invoice ${invoiceNum} archived`);
+        setInvoices(prev => prev.filter(i => i.id !== invoiceId));
+      } else {
+        toast.error('Failed to archive invoice');
+      }
+    } catch (e: any) {
+      toast.error('Archive failed: ' + e.message);
+    }
+  };
 
   // Populate settings
   useEffect(() => {
@@ -664,6 +723,16 @@ export function DistributorDashboard() {
                         <TableCell className="text-gray-400">{new Date(order.created_at).toLocaleDateString()}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex gap-2 justify-end">
+                            {order.status === 'pending' && (
+                              <Button variant="ghost" size="sm" className="text-orange-400 hover:text-orange-300 hover:bg-orange-400/10" onClick={() => cancelOrder(order.id, order.po_number)} title="Cancel this order">
+                                <XCircle className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {order.status === 'cancelled' && (
+                              <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 hover:bg-red-400/10" onClick={() => archiveOrder(order.id, order.po_number)} title="Remove from view">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" onClick={() => toggleOrderExpand(order.id)}>
                               <Eye className="w-4 h-4" />
                             </Button>
@@ -805,6 +874,11 @@ export function DistributorDashboard() {
                                 title="Pay Now"
                               >
                                 <CreditCard className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {invoice.status === 'paid' && (
+                              <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-300 hover:bg-gray-500/10" onClick={() => archiveInvoice(invoice.id, invoice.invoice_number)} title="Archive paid invoice">
+                                <Archive className="w-4 h-4" />
                               </Button>
                             )}
                             <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" onClick={() => toggleInvoiceExpand(invoice.id)}>

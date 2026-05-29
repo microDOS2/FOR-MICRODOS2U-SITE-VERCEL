@@ -6,7 +6,8 @@ import { formatCurrency } from '@/lib/utils'
 import {
   Search, Download, CheckCircle, Truck, FileText, ShoppingCart,
   Loader2, Building2,
-  Phone, Mail, MapPin, User, Plus, X, CreditCard
+  Phone, Mail, MapPin, User, Plus, X, CreditCard,
+  XCircle, Trash2
 } from 'lucide-react'
 import { PaymentService } from '@/lib/paymentService'
 import { cn } from '@/lib/utils'
@@ -317,6 +318,62 @@ export function OrdersInvoicesPage() {
     }
   }
 
+  // Admin: Cancel an order (any non-shipped)
+  const adminCancelOrder = async (orderId: string, poNumber: string) => {
+    // Check for commissions
+    const { data: comms } = await supabase
+      .from('commission_payments')
+      .select('id, amount, status, users!inner(email)')
+      .eq('order_id', orderId)
+
+    const paidApproved = (comms || []).filter(c => c.status === 'paid' || c.status === 'approved')
+    if (paidApproved.length > 0) {
+      const total = paidApproved.reduce((s, c) => s + (c.amount || 0), 0)
+      if (!confirm(`WARNING: This order has $${total.toFixed(2)} in approved/paid commissions.\n\nCancelling will void pending commissions and flag approved/paid ones for clawback review.\n\nProceed?`)) {
+        return
+      }
+    }
+
+    const reason = prompt(`Cancel order ${poNumber}?\n\nEnter reason:`)
+    if (reason === null) return
+
+    try {
+      const { data, error } = await supabase.rpc('cancel_order', {
+        p_order_id: orderId,
+        p_reason: reason || 'Cancelled by admin',
+      })
+      if (error) throw error
+      const result = typeof data === 'string' ? JSON.parse(data) : data
+      if (result?.success) {
+        toast.success(`Order ${poNumber} cancelled`)
+        fetchData()
+      } else {
+        toast.error(result?.error || 'Cancel failed')
+      }
+    } catch (e: any) {
+      toast.error('Cancel failed: ' + e.message)
+    }
+  }
+
+  // Admin: Hard delete order (test data cleanup)
+  const adminHardDeleteOrder = async (orderId: string, poNumber: string) => {
+    if (!confirm(`PERMANENTLY DELETE order ${poNumber}?\n\nThis removes the order, invoice, commissions, and all related records FOREVER.\n\nThis action cannot be undone!`)) return
+    if (!confirm(`Are you absolutely sure? Type "DELETE" to confirm:`)) return
+
+    try {
+      const { data, error } = await supabase.rpc('admin_delete_order', { p_order_id: orderId })
+      if (error) throw error
+      if (data) {
+        toast.success(`Order ${poNumber} permanently deleted`)
+        fetchData()
+      } else {
+        toast.error('Delete failed — not authorized or order not found')
+      }
+    } catch (e: any) {
+      toast.error('Delete failed: ' + e.message)
+    }
+  }
+
   const filteredOrders = orders.filter(o => {
     const s = search.toLowerCase()
     return (
@@ -435,6 +492,8 @@ export function OrdersInvoicesPage() {
                   const invoice = order.invoices?.[0]
                   if (invoice) markPaid(invId, order.id, method)
                 }}
+                onCancel={adminCancelOrder}
+                onHardDelete={adminHardDeleteOrder}
                 processingId={processingId}
                 getStatusBadge={getStatusBadge}
               />
@@ -780,11 +839,15 @@ export function OrdersInvoicesPage() {
 function OrderCard({
   order,
   onMarkPaid,
+  onCancel,
+  onHardDelete,
   processingId,
   getStatusBadge,
 }: {
   order: FulfillmentOrder
   onMarkPaid: (invId: string, method: 'check' | 'cash' | 'wire') => void
+  onCancel: (orderId: string, poNumber: string) => void
+  onHardDelete: (orderId: string, poNumber: string) => void
   processingId: string | null
   getStatusBadge: (s: string) => string
 }) {
@@ -937,6 +1000,24 @@ function OrderCard({
             Ready to Ship
           </span>
         )}
+        {(order.status === 'pending' || order.status === 'processing') && (
+          <button
+            onClick={() => onCancel(order.id, order.po_number)}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 rounded-lg text-sm font-medium transition-colors"
+            title="Cancel this order. Warns if commissions exist."
+          >
+            <XCircle className="w-4 h-4" />
+            Cancel Order
+          </button>
+        )}
+        <button
+          onClick={() => onHardDelete(order.id, order.po_number)}
+          className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-sm font-medium transition-colors"
+          title="Permanently delete this order and all related records. Use for test data cleanup only."
+        >
+          <Trash2 className="w-4 h-4" />
+          Delete
+        </button>
       </div>
     </div>
   )

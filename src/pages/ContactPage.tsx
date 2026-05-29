@@ -52,7 +52,7 @@ export function ContactPage() {
         <Card className="bg-[#150f24] border-white/10 max-w-md w-full">
           <CardContent className="p-8 text-center">
             <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="w-8 h-8 text-green-500" />
+              <CheckCircle className="w-8 h-8 text-[#44f80c]" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-4">Message Sent!</h2>
             <p className="text-gray-400 mb-6">

@@ -227,7 +227,7 @@ export function StoresPage() {
                   <div className="p-2 bg-[#9a02d0]/10 rounded-lg"><Store className="w-5 h-5 text-[#44f80c]" /></div>
                   {s.store_number && <span className="text-xs font-mono bg-[#ff66c4]/20 text-[#ff66c4] px-2 py-1 rounded">{s.store_number}</span>}
                 </div>
-                <span className={cn('px-2.5 py-1 rounded-full text-xs font-medium', s.is_active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-yellow-500/15 text-yellow-400')}>{s.is_active ? 'Active' : 'Pending'}</span>
+                <span className={cn('px-2.5 py-1 rounded-full text-xs font-medium', s.is_active ? 'bg-[#44f80c]/15 text-[#44f80c]' : 'bg-yellow-500/15 text-yellow-400')}>{s.is_active ? 'Active' : 'Pending'}</span>
               </div>
               <h3 className="text-lg font-semibold text-white mb-1">{s.name}</h3>
               <div className="flex items-center gap-2 mb-2">

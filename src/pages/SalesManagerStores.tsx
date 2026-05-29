@@ -649,7 +649,7 @@ export function SalesManagerStores() {
                         className={cn(
                           'inline-block text-xs px-2 py-0.5 rounded-full',
                           s.stock === 'In Stock'
-                            ? 'bg-green-500/15 text-green-400'
+                            ? 'bg-[#44f80c]/15 text-[#44f80c]'
                             : s.stock === 'Low Stock'
                               ? 'bg-yellow-500/15 text-yellow-400'
                               : 'bg-red-500/15 text-red-400'

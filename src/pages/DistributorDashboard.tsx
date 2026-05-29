@@ -168,8 +168,8 @@ export function DistributorDashboard() {
     const fetchData = async () => {
       setDataLoading(true);
       const [{ data: o, error: oErr }, { data: i, error: iErr }] = await Promise.all([
-        supabase.from('orders').select('id, po_number, items, total, status, notes, created_at, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total)').eq('user_id', user.id).eq('visible_to_user', true).order('created_at', { ascending: false }),
-        supabase.from('invoices').select('id, invoice_number, order_id, amount, status, date, due_date, orders:order_id(po_number, notes, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total))').eq('user_id', user.id).eq('visible_to_user', true).order('date', { ascending: false }),
+        supabase.from('orders').select('id, po_number, items, total, status, notes, created_at, tracking_number, carrier, shipped_date, shipping_address, contact_person, contact_phone, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total)').eq('user_id', user.id).eq('visible_to_user', true).order('created_at', { ascending: false }),
+        supabase.from('invoices').select('id, invoice_number, order_id, amount, status, date, due_date, orders:order_id(po_number, notes, tracking_number, carrier, shipped_date, shipping_address, contact_person, contact_phone, order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total))').eq('user_id', user.id).eq('visible_to_user', true).order('date', { ascending: false }),
       ]);
       if (oErr) console.error('[DistributorDashboard] orders error:', oErr);
       if (iErr) console.error('[DistributorDashboard] invoices error:', iErr);
@@ -779,6 +779,36 @@ export function DistributorDashboard() {
                               </div>
                             ) : (
                               <p className="text-sm text-gray-500">No detailed order information available.</p>
+                            )}
+                            {/* Shipping Information */}
+                            {order.status === 'shipped' && (
+                              <div className="mt-4 pt-3 border-t border-[#44f80c]/20">
+                                <p className="text-xs font-medium text-[#44f80c] mb-2 flex items-center gap-1.5">
+                                  <Truck className="w-3.5 h-3.5" />
+                                  Shipping Information
+                                </p>
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                                  {order.carrier && (
+                                    <div><span className="text-gray-500 text-xs">Carrier:</span> <span className="text-white">{order.carrier}</span></div>
+                                  )}
+                                  {order.tracking_number && (
+                                    <div><span className="text-gray-500 text-xs">Tracking #:</span> <span className="text-[#44f80c] font-mono">{order.tracking_number}</span></div>
+                                  )}
+                                  {order.shipped_date && (
+                                    <div><span className="text-gray-500 text-xs">Shipped:</span> <span className="text-white">{new Date(order.shipped_date).toLocaleDateString()}</span></div>
+                                  )}
+                                  {order.shipping_address && (
+                                    <div className="col-span-2"><span className="text-gray-500 text-xs">Address:</span> <span className="text-white">{order.shipping_address}</span></div>
+                                  )}
+                                  {(order.contact_person || order.contact_phone) && (
+                                    <div className="col-span-2">
+                                      <span className="text-gray-500 text-xs">Contact:</span>{' '}
+                                      <span className="text-white">{order.contact_person || '—'}</span>
+                                      {order.contact_phone && <span className="text-gray-400"> | {order.contact_phone}</span>}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             )}
                           </TableCell>
                         </TableRow>

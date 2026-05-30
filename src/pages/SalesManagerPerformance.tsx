@@ -30,6 +30,28 @@ export function SalesManagerPerformance() {
   const [totalOrders, setTotalOrders] = useState(0);
   const [avgOrderValue, setAvgOrderValue] = useState(0);
   const [teamData, setTeamData] = useState<RepPerformance[]>([]);
+  const [editingTargetRepId, setEditingTargetRepId] = useState<string | null>(null);
+  const [editingTargetValue, setEditingTargetValue] = useState('');
+
+  const saveTarget = async (repId: string, value: string) => {
+    const num = parseInt(value.replace(/[^0-9]/g, ''), 10);
+    if (isNaN(num) || num < 0) {
+      toast.error('Invalid target amount');
+      setEditingTargetRepId(null);
+      return;
+    }
+    const { error } = await supabase
+      .from('users')
+      .update({ monthly_target: num })
+      .eq('id', repId);
+    if (error) {
+      toast.error('Failed to update target: ' + error.message);
+    } else {
+      toast.success('Target updated');
+      setTeamData(prev => prev.map(r => r.id === repId ? { ...r, target: num } : r));
+    }
+    setEditingTargetRepId(null);
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -68,7 +90,7 @@ export function SalesManagerPerformance() {
     // 4. Get team reps
     const { data: repsData } = await supabase
       .from('users')
-      .select('id, business_name, email')
+      .select('id, business_name, email, monthly_target')
       .eq('role', 'sales_rep')
       .eq('manager_id', session.user.id);
 
@@ -95,7 +117,7 @@ export function SalesManagerPerformance() {
         accounts: repAssignments.length,
         orders: repOrders.length,
         revenue: repRevenue,
-        target: 10000, // placeholder — future admin setting
+        target: rep.monthly_target || 10000,
       };
     });
 
@@ -214,7 +236,27 @@ export function SalesManagerPerformance() {
                           <td className="px-4 py-3 text-center text-gray-400">{rep.accounts}</td>
                           <td className="px-4 py-3 text-center text-gray-400">{rep.orders}</td>
                           <td className="px-4 py-3 text-right text-white font-medium">${rep.revenue.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-right text-gray-400">${rep.target.toLocaleString()}</td>
+                          <td className="px-4 py-3 text-right">
+                            {editingTargetRepId === rep.id ? (
+                              <input
+                                type="text"
+                                value={editingTargetValue}
+                                onChange={(e) => setEditingTargetValue(e.target.value)}
+                                onBlur={() => saveTarget(rep.id, editingTargetValue)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') saveTarget(rep.id, editingTargetValue); if (e.key === 'Escape') setEditingTargetRepId(null); }}
+                                autoFocus
+                                className="w-24 px-2 py-1 bg-[#0a0514] border border-[#9a02d0]/50 rounded text-right text-white text-sm"
+                              />
+                            ) : (
+                              <span
+                                onClick={() => { setEditingTargetRepId(rep.id); setEditingTargetValue(String(rep.target)); }}
+                                className="text-gray-400 cursor-pointer hover:text-[#44f80c] hover:underline"
+                                title="Click to edit target"
+                              >
+                                ${rep.target.toLocaleString()}
+                              </span>
+                            )}
+                          </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-2">
                               <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
@@ -238,6 +280,6 @@ export function SalesManagerPerformance() {
           </Card>
         </div>
       </main>
-    </div>
+      </div>
   );
 }

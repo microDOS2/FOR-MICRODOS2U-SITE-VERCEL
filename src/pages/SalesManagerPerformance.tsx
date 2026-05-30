@@ -52,28 +52,12 @@ export function SalesManagerPerformance() {
       return;
     }
 
-    // 1. Get all accounts managed by this manager
-    const { data: accountsData } = await supabase
-      .from('users')
-      .select('id')
-      .eq('manager_id', session.user.id)
-      .in('role', ['wholesaler', 'distributor']);
-
-    const accountIds = (accountsData || []).map((a: any) => a.id);
-
-    // 2. Get all orders from these accounts
-    let ordersData: any[] = [];
-    if (accountIds.length > 0) {
-      const { data } = await supabase
-        .from('orders')
-        .select('id, total_amount, user_id, created_at')
-        .in('user_id', accountIds)
-        .order('created_at', { ascending: false });
-      ordersData = data || [];
-    }
+    // 2. Get all orders via RPC (bypasses RLS)
+    const { data: ordersData = [] } = await supabase
+      .rpc('get_manager_orders', { p_manager_id: session.user.id });
 
     // 3. Calculate totals
-    const revenue = ordersData.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+    const revenue = ordersData.reduce((sum: number, o: any) => sum + (o.total || 0), 0);
     const orderCount = ordersData.length;
     const avg = orderCount > 0 ? Math.round(revenue / orderCount) : 0;
 
@@ -104,7 +88,7 @@ export function SalesManagerPerformance() {
       const repAssignments = assignments.filter((a: any) => a.rep_id === rep.id);
       const repAccountIds = repAssignments.map((a: any) => a.account_id);
       const repOrders = ordersData.filter((o: any) => repAccountIds.includes(o.user_id));
-      const repRevenue = repOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+      const repRevenue = repOrders.reduce((sum: number, o: any) => sum + (o.total || 0), 0);
       return {
         id: rep.id,
         name: rep.business_name || rep.email,

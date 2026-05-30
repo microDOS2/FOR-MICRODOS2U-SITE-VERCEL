@@ -281,3 +281,75 @@ as $$
   order by cp.created_at desc
   limit 500;
 $$;
+
+
+
+-- Shipping orders function
+DROP FUNCTION IF EXISTS public.get_shipping_orders();
+CREATE OR REPLACE FUNCTION public.get_shipping_orders()
+RETURNS TABLE (
+  id uuid, po_number text, items numeric, total numeric,
+  status text, notes text, created_at timestamptz, updated_at timestamptz,
+  shipping_address text, contact_person text, contact_phone text,
+  forwarded_to_fulfillment_at timestamptz, shipped_date timestamptz,
+  tracking_number text, carrier text, user_id uuid,
+  account_name text, account_email text, account_phone text
+)
+LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT 
+    o.id, o.po_number, o.items, o.total,
+    o.status, o.notes, o.created_at, o.updated_at,
+    o.shipping_address, o.contact_person, o.contact_phone,
+    o.forwarded_to_fulfillment_at, o.shipped_date,
+    o.tracking_number, o.carrier, o.user_id,
+    u.business_name as account_name, u.email as account_email, u.phone as account_phone
+  FROM public.orders o
+  JOIN public.users u ON u.id = o.user_id
+  WHERE o.status IN ('processing', 'shipped')
+  ORDER BY o.created_at DESC
+  LIMIT 500;
+$$;
+
+
+
+-- Shipping orders function with order items as JSON
+DROP FUNCTION IF EXISTS public.get_shipping_orders();
+CREATE OR REPLACE FUNCTION public.get_shipping_orders()
+RETURNS TABLE (
+  id uuid, po_number text, items numeric, total numeric,
+  status text, notes text, created_at timestamptz, updated_at timestamptz,
+  shipping_address text, contact_person text, contact_phone text,
+  forwarded_to_fulfillment_at timestamptz, shipped_date timestamptz,
+  tracking_number text, carrier text, user_id uuid,
+  account_name text, account_email text, account_phone text,
+  order_items jsonb
+)
+LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT 
+    o.id, o.po_number, o.items, o.total,
+    o.status, o.notes, o.created_at, o.updated_at,
+    o.shipping_address, o.contact_person, o.contact_phone,
+    o.forwarded_to_fulfillment_at, o.shipped_date,
+    o.tracking_number, o.carrier, o.user_id,
+    u.business_name as account_name, u.email as account_email, u.phone as account_phone,
+    COALESCE(
+      (SELECT jsonb_agg(
+        jsonb_build_object(
+          'id', oi.id,
+          'product_name', oi.product_name,
+          'variant_name', oi.variant_name,
+          'sku', oi.sku,
+          'quantity', oi.quantity,
+          'unit_price', oi.unit_price,
+          'line_total', oi.line_total
+        )
+      )
+      FROM public.order_items oi WHERE oi.order_id = o.id),
+      '[]'::jsonb
+    ) as order_items
+  FROM public.orders o
+  JOIN public.users u ON u.id = o.user_id
+  WHERE o.status IN ('processing', 'shipped')
+  ORDER BY o.created_at DESC
+  LIMIT 500;
+$$;

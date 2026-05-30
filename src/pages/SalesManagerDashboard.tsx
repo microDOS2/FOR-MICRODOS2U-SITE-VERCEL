@@ -219,19 +219,14 @@ export function SalesManagerDashboard() {
         setAssignments([]);
       }
 
-      // Fetch order data for territory accounts
-      if (accountsData && accountsData.length > 0) {
-        const accountIds = accountsData.map((a: any) => a.id);
-        const { data: ordersData } = await supabase
-          .from('orders')
-          .select('total, status')
-          .in('user_id', accountIds);
-        if (ordersData) {
-          const totalVolume = ordersData.reduce((sum, o) => sum + (o.total || 0), 0);
-          const pendingCount = ordersData.filter((o) => o.status === 'pending').length;
-          setMonthlyVolume(totalVolume);
-          setPendingOrders(pendingCount);
-        }
+      // Fetch order data via RPC (bypasses RLS)
+      const { data: ordersData } = await supabase
+        .rpc('get_manager_orders', { p_manager_id: session.user.id });
+      if (ordersData) {
+        const totalVolume = ordersData.reduce((sum: number, o: any) => sum + (o.total || 0), 0);
+        const pendingCount = ordersData.filter((o: any) => o.status === 'pending').length;
+        setMonthlyVolume(totalVolume);
+        setPendingOrders(pendingCount);
       }
 
       // Fetch pending transfers for this manager directly

@@ -130,40 +130,28 @@ export function SalesManagerRepDashboard() {
       .ilike('license_number', `rep:${userId}%`);
     const storeIds = (storeData || []).map((s: any) => s.id);
 
-    // Orders from assigned accounts
-    let ordersData: any[] = [];
-    if (accountIds.length > 0) {
-      const { data } = await supabase
-        .from('orders')
-        .select('id, total_amount, status, user_id, created_at')
-        .in('user_id', accountIds)
-        .order('created_at', { ascending: false });
-      ordersData = data || [];
-    }
+    // Orders from assigned accounts via RPC
+    const { data: ordersData = [] } = await supabase
+      .rpc('get_rep_orders', { p_rep_id: userId });
 
-    // Invoices
-    const orderIds = ordersData.map((o: any) => o.id);
+    // Invoices via RPC
+    const { data: invoiceData = [] } = await supabase
+      .rpc('get_rep_invoices', { p_rep_id: userId });
     let invoiceMap = new Map<string, string>();
-    if (orderIds.length > 0) {
-      const { data: invoiceData } = await supabase
-        .from('invoices')
-        .select('order_id, status, amount')
-        .in('order_id', orderIds);
-      (invoiceData || []).forEach((inv: any) => {
-        invoiceMap.set(inv.order_id, inv.status);
-      });
-    }
+    (invoiceData || []).forEach((inv: any) => {
+      invoiceMap.set(inv.order_id, inv.status);
+    });
 
     let total = 0;
     let paid = 0;
     let pending = 0;
     ordersData.forEach((o: any) => {
-      total += o.total_amount || 0;
+      total += o.total || 0;
       const invStatus = invoiceMap.get(o.id);
       if (invStatus === 'paid') {
-        paid += o.total_amount || 0;
+        paid += o.total || 0;
       } else {
-        pending += o.total_amount || 0;
+        pending += o.total || 0;
       }
     });
 

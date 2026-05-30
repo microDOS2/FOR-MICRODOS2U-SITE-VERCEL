@@ -102,16 +102,10 @@ export function SalesManagerTeam() {
         storesData = data || [];
       }
 
-      // Get order data for volume calc
-      let ordersData: any[] = [];
-      if (accountIds.length > 0) {
-        const { data } = await supabase
-          .from('orders')
-          .select('user_id, total')
-          .in('user_id', accountIds)
-          .eq('status', 'shipped');
-        ordersData = data || [];
-      }
+      // Get order data via RPC (bypasses RLS), filter shipped client-side
+      const { data: allOrders = [] } = await supabase
+        .rpc('get_manager_orders', { p_manager_id: session.user.id });
+      const ordersData: any[] = (allOrders || []).filter((o: any) => o.status === 'shipped');
 
       // Build per-rep data
       const repDataArray: RepData[] = reps.map((rep: DBUser) => {

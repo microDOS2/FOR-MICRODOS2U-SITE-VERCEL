@@ -102,41 +102,28 @@ export function SalesRepDashboard() {
 
     // 3. Orders from assigned accounts AND stores
     // Combine account IDs from account-rep AND store-rep assignments
-    const allStoreAccountIds = [...new Set([...accountIds, ...storeIds.map((s: any) => s.user_id)])]
-    let ordersData: any[] = []
-    if (allStoreAccountIds.length > 0) {
-      const { data } = await supabase
-        .from('orders')
-        .select('id, total_amount, status, user_id, created_at')
-        .in('user_id', allStoreAccountIds)
-        .order('created_at', { ascending: false })
-      ordersData = data || []
-    }
+    const { data: ordersData = [] } = await supabase
+      .rpc('get_rep_orders', { p_rep_id: repId })
 
     // 4. Invoices for those orders
-    const orderIds = ordersData.map((o: any) => o.id)
     let invoiceMap = new Map<string, string>()
-    if (orderIds.length > 0) {
-      const { data: invoiceData } = await supabase
-        .from('invoices')
-        .select('order_id, status, amount')
-        .in('order_id', orderIds)
-      ;(invoiceData || []).forEach((inv: any) => {
-        invoiceMap.set(inv.order_id, inv.status)
-      })
-    }
+    const { data: invoiceData = [] } = await supabase
+      .rpc('get_rep_invoices', { p_rep_id: repId })
+    ;(invoiceData || []).forEach((inv: any) => {
+      invoiceMap.set(inv.order_id, inv.status)
+    })
 
     // Calculate order summary
     let total = 0
     let paid = 0
     let pending = 0
     ordersData.forEach((o: any) => {
-      total += o.total_amount || 0
+      total += o.total || 0
       const invStatus = invoiceMap.get(o.id)
       if (invStatus === 'paid') {
-        paid += o.total_amount || 0
+        paid += o.total || 0
       } else {
-        pending += o.total_amount || 0
+        pending += o.total || 0
       }
     })
 

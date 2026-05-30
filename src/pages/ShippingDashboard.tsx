@@ -86,17 +86,7 @@ export function ShippingDashboard() {
   const fetchOrders = async () => {
     setDataLoading(true);
     const { data, error } = await supabase
-      .from('orders')
-      .select(`
-        id, po_number, items, total, status, notes, created_at, updated_at,
-        shipping_address, contact_person, contact_phone,
-        forwarded_to_fulfillment_at, shipped_date,
-        tracking_number, carrier,
-        order_items(id, product_name, variant_name, sku, quantity, unit_price, line_total),
-        users!orders_user_id_fkey(business_name, email, phone)
-      `)
-      .in('status', ['processing', 'shipped'])
-      .order('created_at', { ascending: false });
+      .rpc('get_shipping_orders');
 
     if (error) {
       console.error('[ShippingDashboard] orders error:', error);

@@ -430,25 +430,20 @@ export function UsersPage() {
       })
       if (insertErr) throw new Error('Failed to insert user record: ' + insertErr.message)
 
-      // 4. Send welcome email via edge function
+      // 4. Send welcome email
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        await fetch(`${SUPABASE_URL}/functions/v1/send-welcome-email`, {
+        const roleLabel = newUserRole.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+        await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token || ''}`,
-          },
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
           body: JSON.stringify({
-            userId: signUpData.user?.id || '',
-            email: newUserEmail,
-            password,
-            businessName: newUserName,
-            role: newUserRole,
+            to: newUserEmail,
+            subject: `Welcome to microDOS(2) - Your ${roleLabel} Account`,
+            html: `<p>Hi ${newUserName},</p><p>Your microDOS(2) account has been created.</p><p><strong>Email:</strong> ${newUserEmail}<br><strong>Password:</strong> ${password}</p><p><a href="https://for-microdos-2-u-site-vercel.vercel.app">Log In</a></p>`,
           }),
         })
       } catch (e) {
-        console.log('Welcome email send failed (non-critical):', e)
+        console.log('Welcome email failed:', e)
       }
 
       await fetchAll()
@@ -685,32 +680,26 @@ export function UsersPage() {
     setActionLoading(user.id + '-invite')
     try {
       const tempPassword = generatePassword()
-      
-      // Step 1: Reset password via database RPC
+      const roleLabel = user.role?.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'User'
+
+      // Reset password via database RPC
       const { data: resetOk, error: resetErr } = await supabase.rpc('admin_reset_password', {
         p_user_id: user.id,
         p_password: tempPassword
       })
       if (resetErr || !resetOk) throw new Error(resetErr?.message || 'Password reset failed')
 
-      // Step 2: Send welcome email via edge function (use anon key header)
-      const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-welcome-email`, {
+      // Send welcome email
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-        },
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
         body: JSON.stringify({
-          email: user.email,
-          password: tempPassword,
-          displayName: user.business_name,
-          roleLabel: user.role,
+          to: user.email,
+          subject: `Welcome to microDOS(2) - Your ${roleLabel} Account`,
+          html: `<p>Hi ${user.business_name || user.email},</p><p>Your microDOS(2) account login:</p><p><strong>Email:</strong> ${user.email}<br><strong>Password:</strong> ${tempPassword}</p><p><a href="https://for-microdos-2-u-site-vercel.vercel.app">Log In</a></p>`,
         }),
       })
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}))
-        throw new Error(errData.error || 'Email send failed')
-      }
+      if (!resp.ok) throw new Error('Email send failed')
 
       setSentEmailTo(user.email)
       setShowEmailSentModal(true)

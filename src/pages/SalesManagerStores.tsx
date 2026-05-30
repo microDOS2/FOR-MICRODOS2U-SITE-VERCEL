@@ -84,6 +84,7 @@ export function SalesManagerStores() {
 
   const [formData, setFormData] = useState({
     name: '',
+    contact_name: '',
     user_id: '',
     address: '',
     city: '',
@@ -359,6 +360,7 @@ export function SalesManagerStores() {
   const handleSave = async () => {
     const payload: any = {
       name: formData.name,
+      contact_name: formData.contact_name || null,
       user_id: formData.user_id,
       address: formData.address,
       city: formData.city || null,
@@ -410,6 +412,7 @@ export function SalesManagerStores() {
     setEditingStore(s);
     setFormData({
       name: s.name || '',
+      contact_name: (s as any).contact_name || '',
       user_id: s.user_id || '',
       address: s.address || '',
       city: s.city || '',
@@ -431,6 +434,7 @@ export function SalesManagerStores() {
   const resetForm = () =>
     setFormData({
       name: '',
+      contact_name: '',
       user_id: '',
       address: '',
       city: '',
@@ -738,11 +742,23 @@ export function SalesManagerStores() {
             <div className="p-5 space-y-4">
               {/* Store Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1.5">Store Name</label>
+                <label className="block text-sm font-medium text-gray-400 mb-1.5">Store Name <span className="text-red-400">*</span></label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
+                />
+              </div>
+
+              {/* Contact Person */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1.5">Contact Person <span className="text-red-400">*</span></label>
+                <input
+                  type="text"
+                  value={formData.contact_name}
+                  onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
+                  placeholder="e.g. Emily Williams"
                   className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#9a02d0]/50"
                 />
               </div>
@@ -809,7 +825,7 @@ export function SalesManagerStores() {
               {/* City / State / ZIP */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1.5">City</label>
+                  <label className="block text-sm font-medium text-gray-400 mb-1.5">City <span className="text-red-400">*</span></label>
                   <input
                     type="text"
                     value={formData.city}
@@ -818,7 +834,7 @@ export function SalesManagerStores() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1.5">State</label>
+                  <label className="block text-sm font-medium text-gray-400 mb-1.5">State <span className="text-red-400">*</span></label>
                   <input
                     type="text"
                     value={formData.state}
@@ -827,7 +843,7 @@ export function SalesManagerStores() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1.5">ZIP</label>
+                  <label className="block text-sm font-medium text-gray-400 mb-1.5">ZIP <span className="text-red-400">*</span></label>
                   <input
                     type="text"
                     value={formData.zip}
@@ -864,7 +880,7 @@ export function SalesManagerStores() {
               {/* Phone / Email */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1.5">Phone</label>
+                  <label className="block text-sm font-medium text-gray-400 mb-1.5">Phone <span className="text-red-400">*</span></label>
                   <input
                     type="text"
                     value={formData.phone}
@@ -873,7 +889,7 @@ export function SalesManagerStores() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1.5">Email</label>
+                  <label className="block text-sm font-medium text-gray-400 mb-1.5">Email <span className="text-red-400">*</span></label>
                   <input
                     type="email"
                     value={formData.email}
@@ -956,7 +972,7 @@ export function SalesManagerStores() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={!formData.name || !formData.user_id || !formData.address}
+                disabled={!formData.name || !formData.contact_name || !formData.user_id || !formData.address || !formData.city || !formData.state || !formData.zip || !formData.phone || !formData.email}
                 className="px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {editingStore ? 'Update' : 'Create'}

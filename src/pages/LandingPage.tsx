@@ -382,6 +382,7 @@ export function LandingPage() {
               rel="noopener noreferrer"
               aria-label="Read Metocin Focus Mechanism PDF"
               className="block bg-[#150f24] border border-green-900/50 p-6 rounded-2xl relative cursor-pointer hover:border-green-500/70 hover:shadow-[0_0_25px_rgba(68,248,12,0.2)] transition-all duration-200"
+              title="A subtle microdose — ideal for social settings and first-time users. Minimal psychoactive effects with mood enhancement."
             >
               <div className="absolute top-0 left-0 w-full h-1 bg-[#44f80c] rounded-t-2xl opacity-50" />
               <h4 className="text-2xl font-bold mb-1 text-white">LIGHT</h4>
@@ -1005,6 +1006,6 @@ export function LandingPage() {
 
         </div>
       </footer>
-           </div>
+        </div>
   );
 }

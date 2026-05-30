@@ -430,16 +430,16 @@ export function UsersPage() {
       })
       if (insertErr) throw new Error('Failed to insert user record: ' + insertErr.message)
 
-      // 4. Send welcome email
+      // 4. Send welcome email via create-auth-user edge function
       try {
-        const roleLabel = newUserRole.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
-        await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+        await fetch(`${SUPABASE_URL}/functions/v1/create-auth-user`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
           body: JSON.stringify({
-            to: newUserEmail,
-            subject: `Welcome to microDOS(2) - Your ${roleLabel} Account`,
-            html: `<p>Hi ${newUserName},</p><p>Your microDOS(2) account has been created.</p><p><strong>Email:</strong> ${newUserEmail}<br><strong>Password:</strong> ${password}</p><p><a href="https://for-microdos-2-u-site-vercel.vercel.app">Log In</a></p>`,
+            email: newUserEmail,
+            password,
+            business_name: newUserName,
+            role: newUserRole,
           }),
         })
       } catch (e) {
@@ -680,30 +680,24 @@ export function UsersPage() {
     setActionLoading(user.id + '-invite')
     try {
       const tempPassword = generatePassword()
-      const roleLabel = user.role?.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'User'
 
-      // Reset password via database RPC
-      const { data: resetOk, error: resetErr } = await supabase.rpc('admin_reset_password', {
-        p_user_id: user.id,
-        p_password: tempPassword
-      })
-      if (resetErr || !resetOk) throw new Error(resetErr?.message || 'Password reset failed')
-
-      // Send welcome email
-      const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+      // Reset password and send welcome email via create-auth-user edge function
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-auth-user`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
         body: JSON.stringify({
-          to: user.email,
-          subject: `Welcome to microDOS(2) - Your ${roleLabel} Account`,
-          html: `<p>Hi ${user.business_name || user.email},</p><p>Your microDOS(2) account login:</p><p><strong>Email:</strong> ${user.email}<br><strong>Password:</strong> ${tempPassword}</p><p><a href="https://for-microdos-2-u-site-vercel.vercel.app">Log In</a></p>`,
+          email: user.email,
+          password: tempPassword,
+          business_name: user.business_name,
+          role: user.role,
         }),
       })
-      if (!resp.ok) throw new Error('Email send failed')
+      const respData = await resp.json().catch(() => ({}))
+      if (!resp.ok && !respData.existing) throw new Error(respData.error || 'Failed')
 
       setSentEmailTo(user.email)
       setShowEmailSentModal(true)
-      toast.success(`Invite sent to ${user.email}`)
+      toast.success(`Invite sent to ${user.email} with password: ${tempPassword}`)
     } catch (err: any) {
       toast.error(err?.message || 'Failed to send invite')
     }

@@ -194,7 +194,7 @@ export function LandingPage() {
             <div className="bg-[#150f24] p-6 rounded-xl text-center card-hover border border-white/5 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-[#9a02d0]/10 rounded-bl-full" />
               <Flask className="text-4xl text-[#9a02d0] mb-4 mx-auto" weight="fill" />
-              <h4 className="text-xl font-bold mb-2">Primary Mechanism</h4>
+              <h4 className="text-xl font-bold mb-2 text-white">Primary Mechanism</h4>
               <p className="text-sm text-gray-400 font-bold uppercase mb-3">Receptor Binding</p>
               <p className="text-gray-300 text-sm">
                 Metocin engages serotonin receptors, notably the{' '}
@@ -209,7 +209,7 @@ export function LandingPage() {
             <div className="bg-[#150f24] p-6 rounded-xl text-center card-hover border border-white/5 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-[#44f80c]/10 rounded-bl-full" />
               <ShieldCheck className="text-4xl text-[#44f80c] mb-4 mx-auto" weight="fill" />
-              <h4 className="text-xl font-bold mb-2">Anti-Inflammatory</h4>
+              <h4 className="text-xl font-bold mb-2 text-white">Anti-Inflammatory</h4>
               <p className="text-sm text-gray-400 font-bold uppercase mb-3">Systemic Response</p>
               <p className="text-gray-300 text-sm">
                 <ContentLink href={contentLinks.antiInflammatoryCytokines} linkType="pdf" ariaLabel="Read Mushrooms Microdosing research PDF">
@@ -224,7 +224,7 @@ export function LandingPage() {
             <div className="bg-[#150f24] p-6 rounded-xl text-center card-hover border border-white/5 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-[#ff66c4]/10 rounded-bl-full" />
               <Graph className="text-4xl text-[#ff66c4] mb-4 mx-auto" weight="fill" />
-              <h4 className="text-xl font-bold mb-2">Neuroplasticity</h4>
+              <h4 className="text-xl font-bold mb-2 text-white">Neuroplasticity</h4>
               <p className="text-sm text-gray-400 font-bold uppercase mb-3">Cellular Growth</p>
               <p className="text-gray-300 text-sm">
                 <ContentLink href={contentLinks.bdnfNeuroplasticity} linkType="pdf" ariaLabel="Read Psilocybin Microdosers research PDF">
@@ -238,7 +238,7 @@ export function LandingPage() {
           <div className="bg-white/5 border border-white/10 rounded-2xl p-8 md:p-12">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
               <div>
-                <h4 className="text-2xl font-bold mb-6 border-b border-white/10 pb-4">
+                <h4 className="text-2xl font-bold mb-6 border-b border-white/10 pb-4 text-white">
                   What It Does
                 </h4>
                 <ul className="space-y-4">
@@ -290,7 +290,7 @@ export function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="bg-[#150f24] p-6 rounded-xl border border-white/5 card-hover">
               <div className="flex justify-between items-start mb-4">
-                <h4 className="text-lg font-bold">Less Mentally Intense</h4>
+                <h4 className="text-lg font-bold text-white">Less Mentally Intense</h4>
                 <span className="text-xs bg-[#44f80c]/20 text-[#44f80c] px-2 py-1 rounded">
                   Ideal for beginners
                 </span>
@@ -303,7 +303,7 @@ export function LandingPage() {
 
             <div className="bg-[#150f24] p-6 rounded-xl border border-white/5 card-hover">
               <div className="flex justify-between items-start mb-4">
-                <h4 className="text-lg font-bold">Fast & Predictable</h4>
+                <h4 className="text-lg font-bold text-white">Fast & Predictable</h4>
                 <span className="text-xs bg-white/10 px-2 py-1 rounded">Plan your day</span>
               </div>
               <p className="text-gray-400 text-sm">
@@ -314,7 +314,7 @@ export function LandingPage() {
 
             <div className="bg-[#150f24] p-6 rounded-xl border border-white/5 card-hover">
               <div className="flex justify-between items-start mb-4">
-                <h4 className="text-lg font-bold">Mood Enhancement</h4>
+                <h4 className="text-lg font-bold text-white">Mood Enhancement</h4>
                 <span className="text-xs bg-[#ff66c4]/20 text-[#ff66c4] px-2 py-1 rounded">
                   Positive headspace
                 </span>
@@ -327,7 +327,7 @@ export function LandingPage() {
 
             <div className="bg-[#150f24] p-6 rounded-xl border border-white/5 card-hover">
               <div className="flex justify-between items-start mb-4">
-                <h4 className="text-lg font-bold">Vivid Visuals</h4>
+                <h4 className="text-lg font-bold text-white">Vivid Visuals</h4>
               </div>
               <p className="text-gray-400 text-sm">
                 Bright, colorful Open Eye visuals and Closed Eye visuals with geometric patterns. One of the most visual
@@ -337,7 +337,7 @@ export function LandingPage() {
 
             <div className="bg-[#150f24] p-6 rounded-xl border border-white/5 card-hover">
               <div className="flex justify-between items-start mb-4">
-                <h4 className="text-lg font-bold">Precise Dosing</h4>
+                <h4 className="text-lg font-bold text-white">Precise Dosing</h4>
               </div>
               <p className="text-gray-400 text-sm">
                 2mg scored tablets allow for accurate, consistent dosing. Start low and titrate to
@@ -347,7 +347,7 @@ export function LandingPage() {
 
             <div className="bg-[#150f24] p-6 rounded-xl border border-white/5 card-hover">
               <div className="flex justify-between items-start mb-4">
-                <h4 className="text-lg font-bold">Sensory Enhancement</h4>
+                <h4 className="text-lg font-bold text-white">Sensory Enhancement</h4>
               </div>
               <p className="text-gray-400 text-sm">
                 Enhanced music appreciation, increased sociability, and pleasurable body sensations
@@ -384,7 +384,7 @@ export function LandingPage() {
               className="block bg-[#150f24] border border-green-900/50 p-6 rounded-2xl relative cursor-pointer hover:border-green-500/70 hover:shadow-[0_0_25px_rgba(68,248,12,0.2)] transition-all duration-200"
             >
               <div className="absolute top-0 left-0 w-full h-1 bg-[#44f80c] rounded-t-2xl opacity-50" />
-              <h4 className="text-2xl font-bold mb-1">LIGHT</h4>
+              <h4 className="text-2xl font-bold mb-1 text-white">LIGHT</h4>
               <div className="flex items-baseline gap-2 mb-6">
                 <span className="text-4xl font-bold text-[#44f80c]">1</span>
                 <span className="text-sm text-gray-400">tab</span>
@@ -417,7 +417,7 @@ export function LandingPage() {
               className="block bg-[#150f24] border border-blue-900/50 p-6 rounded-2xl relative cursor-pointer hover:border-blue-500/70 hover:shadow-[0_0_25px_rgba(59,130,246,0.2)] transition-all duration-200"
             >
               <div className="absolute top-0 left-0 w-full h-1 bg-blue-500 rounded-t-2xl opacity-50 group-hover:opacity-100 transition-opacity" />
-              <h4 className="text-2xl font-bold mb-1">MODERATE</h4>
+              <h4 className="text-2xl font-bold mb-1 text-white">MODERATE</h4>
               <div className="flex items-baseline gap-2 mb-6">
                 <span className="text-4xl font-bold text-blue-400">2</span>
                 <span className="text-sm text-gray-400">tabs</span>
@@ -444,7 +444,7 @@ export function LandingPage() {
 
             <div className="bg-[#150f24] border border-[#9a02d0]/50 p-6 rounded-2xl relative">
               <div className="absolute top-0 left-0 w-full h-1 bg-[#9a02d0] rounded-t-2xl opacity-50" />
-              <h4 className="text-2xl font-bold mb-1">TRIPPY</h4>
+              <h4 className="text-2xl font-bold mb-1 text-white">TRIPPY</h4>
               <div className="flex items-baseline gap-2 mb-6">
                 <span className="text-4xl font-bold text-[#9a02d0]">4</span>
                 <span className="text-sm text-gray-400">tabs</span>
@@ -471,7 +471,7 @@ export function LandingPage() {
 
             <div className="bg-[#150f24] border border-[#ff66c4]/50 p-6 rounded-2xl relative">
               <div className="absolute top-0 left-0 w-full h-1 bg-[#ff66c4] rounded-t-2xl opacity-50" />
-              <h4 className="text-2xl font-bold mb-1">TRANSCEND</h4>
+              <h4 className="text-2xl font-bold mb-1 text-white">TRANSCEND</h4>
               <div className="flex items-baseline gap-2 mb-6">
                 <span className="text-4xl font-bold text-[#ff66c4]">6+</span>
                 <span className="text-sm text-gray-400">tabs</span>
@@ -502,7 +502,7 @@ export function LandingPage() {
           <div className="bg-white/5 border border-white/10 rounded-xl p-6 flex items-start gap-4 max-w-3xl mx-auto">
             <Info className="text-2xl text-[#44f80c] shrink-0 mt-1" weight="fill" />
             <div>
-              <h5 className="font-bold text-lg mb-1">Pro Tip</h5>
+              <h5 className="font-bold text-lg mb-1 text-white">Pro Tip</h5>
               <p className="text-gray-300 text-sm">
                 Start low and assess. Quarter- or half-tab microdosing provides gentler effects for
                 daily wellness. Effects typically begin around 1-2mg.
@@ -852,7 +852,7 @@ export function LandingPage() {
               </div>
 
               <div className="bg-[#150f24] border-l-4 border-[#ff66c4] p-6 rounded-r-lg">
-                <h4 className="font-bold mb-2">Visual Characteristics</h4>
+                <h4 className="font-bold mb-2 text-white">Visual Characteristics</h4>
                 <p className="text-sm text-gray-300">
                   Known for very colorful open eye visuals—surfaces breathe and move, boundaries
                   between objects reduce.
@@ -917,7 +917,7 @@ export function LandingPage() {
                     1
                   </div>
                   <div>
-                    <h4 className="font-bold text-lg">Start with 1 tablet (2mg)</h4>
+                    <h4 className="font-bold text-lg text-white">Start with 1 tablet (2mg)</h4>
                     <p className="text-sm text-gray-400">Perfect for first-time users</p>
                   </div>
                 </div>
@@ -926,7 +926,7 @@ export function LandingPage() {
                     2
                   </div>
                   <div>
-                    <h4 className="font-bold text-lg">Ensure proper set & setting</h4>
+                    <h4 className="font-bold text-lg text-white">Ensure proper set & setting</h4>
                     <p className="text-sm text-gray-400">Calm, comfortable environment</p>
                   </div>
                 </div>
@@ -935,7 +935,7 @@ export function LandingPage() {
                     3
                   </div>
                   <div>
-                    <h4 className="font-bold text-lg">Stay hydrated</h4>
+                    <h4 className="font-bold text-lg text-white">Stay hydrated</h4>
                     <p className="text-sm text-gray-400">Have water and snacks</p>
                   </div>
                 </div>
@@ -944,7 +944,7 @@ export function LandingPage() {
                     4
                   </div>
                   <div>
-                    <h4 className="font-bold text-lg">Allow 4-6 hours</h4>
+                    <h4 className="font-bold text-lg text-white">Allow 4-6 hours</h4>
                     <p className="text-sm text-gray-400">Clear your schedule</p>
                   </div>
                 </div>

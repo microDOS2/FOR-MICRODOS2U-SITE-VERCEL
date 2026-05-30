@@ -154,22 +154,22 @@ export function LandingPage() {
                 <div className="bg-[#150f24] p-6 rounded-xl border border-white/5 text-center">
                   <Timer className="text-3xl text-[#44f80c] mb-3 mx-auto" weight="fill" />
                   <div className="text-sm text-gray-400 uppercase tracking-wider mb-1">Onset</div>
-                  <div className="text-2xl font-bold">~15 min</div>
+                  <div className="text-2xl font-bold"><span className="text-gray-200">~15 min</span></div>
                 </div>
                 <div className="bg-[#150f24] p-6 rounded-xl border border-white/5 text-center">
                   <TrendUp className="text-3xl text-[#9a02d0] mb-3 mx-auto" weight="fill" />
                   <div className="text-sm text-gray-400 uppercase tracking-wider mb-1">Peak</div>
-                  <div className="text-2xl font-bold">1.5-2 hrs</div>
+                  <div className="text-2xl font-bold"><span className="text-gray-200">1.5-2 hrs</span></div>
                 </div>
                 <div className="bg-[#150f24] p-6 rounded-xl border border-white/5 text-center">
                   <div className="text-3xl text-[#ff66c4] mb-3 mx-auto font-bold">≈</div>
                   <div className="text-sm text-gray-400 uppercase tracking-wider mb-1">Duration</div>
-                  <div className="text-2xl font-bold">4 hrs</div>
+                  <div className="text-2xl font-bold"><span className="text-gray-200">4 hrs</span></div>
                 </div>
                 <div className="bg-[#150f24] p-6 rounded-xl border border-white/5 text-center">
                   <div className="text-3xl text-white mb-3 mx-auto font-bold">2mg</div>
                   <div className="text-sm text-gray-400 uppercase tracking-wider mb-1">Form</div>
-                  <div className="text-2xl font-bold">scored tab</div>
+                  <div className="text-2xl font-bold"><span className="text-gray-200">scored tab</span></div>
                 </div>
               </div>
             </div>
@@ -307,7 +307,7 @@ export function LandingPage() {
                 <span className="text-xs bg-white/10 px-2 py-1 rounded text-gray-200">Plan your day</span>
               </div>
               <p className="text-gray-400 text-sm">
-                Rapid onset (~15 min) with a shorter duration (4-6 hours). Perfect for those who want
+                Rapid onset (<span className="text-gray-200">~15 min</span>) with a shorter duration (4-6 hours). Perfect for those who want
                 a manageable time window.
               </p>
             </div>
@@ -340,7 +340,7 @@ export function LandingPage() {
                 <h4 className="text-lg font-bold text-white">Precise Dosing</h4>
               </div>
               <p className="text-gray-400 text-sm">
-                2mg scored tablets allow for accurate, consistent dosing. Start low and titrate to
+                2mg <span className="text-gray-200">scored tab</span>lets allow for accurate, consistent dosing. Start low and titrate to
                 your ideal experience.
               </p>
             </div>
@@ -878,7 +878,7 @@ export function LandingPage() {
                   <div className="pl-6">
                     <h4 className="font-bold text-lg text-white">
                       Peak
-                      <span className="text-sm font-normal text-[#9a02d0] ml-2">1.5-2 hrs</span>
+                      <span className="text-sm font-normal text-[#9a02d0] ml-2"><span className="text-gray-200">1.5-2 hrs</span></span>
                     </h4>
                     <p className="text-gray-400 text-sm mt-1">Maximum effects</p>
                   </div>
@@ -989,7 +989,7 @@ export function LandingPage() {
                   <Target className="text-[#ff66c4] text-xl" weight="fill" />
                   <div>
                     <div className="font-bold text-sm text-white">Precision Dosing</div>
-                    <div className="text-xs text-gray-400">2mg scored tablets</div>
+                    <div className="text-xs text-gray-400">2mg <span className="text-gray-200">scored tab</span>lets</div>
                   </div>
                 </div>
                 <div className="bg-white/5 p-4 rounded-lg flex items-center gap-3">

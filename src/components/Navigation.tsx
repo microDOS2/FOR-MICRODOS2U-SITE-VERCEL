@@ -51,7 +51,8 @@ export function Navigation() {
           .eq('id', data.user.id)
           .single();
         if (userError || !userData) {
-          toast.error('Failed to retrieve user profile');
+          console.error('Profile fetch error:', userError);
+          toast.error('Failed to retrieve user profile: ' + (userError?.message || 'No data'));
           setLoading(false);
           await supabase.auth.signOut();
           return;

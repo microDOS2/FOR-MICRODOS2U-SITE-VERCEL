@@ -685,10 +685,10 @@ export function UsersPage() {
     setActionLoading(user.id + '-invite')
     try {
       const tempPassword = generatePassword()
-      const { error: pwErr } = await supabase.auth.admin.updateUserById(
-        user.id,
-        { password: tempPassword }
-      )
+      const { error: pwErr } = await supabase.rpc('admin_reset_user_password', {
+        p_user_id: user.id,
+        p_new_password: tempPassword
+      })
       if (pwErr) throw new Error('Failed to reset password: ' + pwErr.message)
 
       const { data: { session } } = await supabase.auth.getSession()

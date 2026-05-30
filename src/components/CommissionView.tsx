@@ -42,7 +42,7 @@ export function CommissionView({ userId, role }: CommissionViewProps) {
       try {
         const { data, error } = await supabase
           .from('commission_payments')
-          .select('*, orders!inner(total), users!commission_payments_account_id_fkey(business_name, email)')
+          .select('*, orders!inner(total), users!commission_payments_user_id_fkey(business_name, email)')
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
 

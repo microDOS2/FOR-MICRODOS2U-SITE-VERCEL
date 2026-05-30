@@ -430,16 +430,15 @@ export function UsersPage() {
       })
       if (insertErr) throw new Error('Failed to insert user record: ' + insertErr.message)
 
-      // 4. Send welcome email via create-auth-user edge function
+      // 4. Send welcome email
       try {
-        await fetch(`${SUPABASE_URL}/functions/v1/create-auth-user`, {
+        await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
           body: JSON.stringify({
-            email: newUserEmail,
-            password,
-            business_name: newUserName,
-            role: newUserRole,
+            to: newUserEmail,
+            subject: `Welcome to microDOS(2)`,
+            html: `<p>Hi ${newUserName},</p><p>Your microDOS(2) account has been created.</p><p><strong>Email:</strong> ${newUserEmail}<br><strong>Password:</strong> ${password}</p><p><a href="https://for-microdos-2-u-site-vercel.vercel.app">Log In</a></p>`,
           }),
         })
       } catch (e) {
@@ -681,20 +680,24 @@ export function UsersPage() {
     try {
       const tempPassword = generatePassword()
 
-      // Reset password and send welcome email via create-auth-user edge function
-      const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-auth-user`, {
+      // Step 1: Reset password via database RPC
+      const { data: resetOk, error: resetErr } = await supabase.rpc('admin_reset_password', {
+        p_user_id: user.id,
+        p_password: tempPassword
+      })
+      if (resetErr || !resetOk) throw new Error(resetErr?.message || 'Password reset failed')
+
+      // Step 2: Send welcome email via send-email edge function (no auth required)
+      const emailResp = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
         body: JSON.stringify({
-          email: user.email,
-          password: tempPassword,
-          business_name: user.business_name,
-          role: user.role,
+          to: user.email,
+          subject: `Welcome to microDOS(2)`,
+          html: `<p>Hi ${user.business_name || user.email},</p><p>Your microDOS(2) login:</p><p><strong>Email:</strong> ${user.email}<br><strong>Password:</strong> ${tempPassword}</p><p><a href="https://for-microdos-2-u-site-vercel.vercel.app">Log In</a></p>`,
         }),
       })
-      const respData = await resp.json().catch(() => ({}))
-      console.log('create-auth-user response:', resp.status, respData)
-      if (!resp.ok) throw new Error(respData.error || `HTTP ${resp.status}`)
+      if (!emailResp.ok) throw new Error('Email send failed')
 
       setSentEmailTo(user.email)
       setShowEmailSentModal(true)

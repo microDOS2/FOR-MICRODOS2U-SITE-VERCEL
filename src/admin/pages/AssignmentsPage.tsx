@@ -333,7 +333,7 @@ export function AccountsPage() {
     for (const row of valid) {
       try {
         const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-auth-user`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY, 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY },
           body: JSON.stringify({ email: row.email, password: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2), business_name: row.business_name, role: row.role === 'distributor' ? 'distributor' : 'wholesaler', site_url: window.location.origin })
         })
         let uid: string

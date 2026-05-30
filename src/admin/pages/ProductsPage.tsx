@@ -300,7 +300,7 @@ export function ProductsPage() {
                                   <div key={v.id} className="bg-[#150f24] border border-white/10 rounded-lg p-3">
                                     <div className="flex items-center justify-between mb-1">
                                       <span className="text-sm font-medium text-white">{v.name}</span>
-                                      <span className={cn('text-xs px-2 py-0.5 rounded-full', v.in_stock ? 'bg-[#44f80c]/15 text-[#44f80c]' : 'bg-red-500/15 text-red-400')}>
+                                      <span className={cn('text-xs px-2 py-0.5 rounded-full', v.in_stock ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400')}>
                                         {v.in_stock ? 'In Stock' : 'Out'}
                                       </span>
                                     </div>
@@ -444,7 +444,7 @@ export function ProductsPage() {
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-sm font-semibold text-white">{v.name}</span>
                             <span className="text-xs text-gray-500 uppercase bg-white/5 px-2 py-0.5 rounded">{v.tier}</span>
-                            <span className={cn('text-xs px-2 py-0.5 rounded-full', v.in_stock ? 'bg-[#44f80c]/15 text-[#44f80c]' : 'bg-red-500/15 text-red-400')}>
+                            <span className={cn('text-xs px-2 py-0.5 rounded-full', v.in_stock ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400')}>
                               {v.in_stock ? 'In Stock' : 'Out'}
                             </span>
                           </div>

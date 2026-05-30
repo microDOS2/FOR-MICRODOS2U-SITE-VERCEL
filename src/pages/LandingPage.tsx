@@ -975,13 +975,13 @@ export function LandingPage() {
                 to="/store-locator"
                 className="w-48 h-48 bg-white rounded-xl mb-8 flex flex-col items-center justify-center border-4 border-[#9a02d0] shadow-[0_0_30px_rgba(168,85,247,0.4)] hover:scale-105 transition-transform duration-200 group"
               >
-                <div className="text-6xl mb-2 text-[#9a02d0] group-hover:text-[#9a02d0] transition-colors">
+                <div className="text-6xl mb-2 text-[#6b21a8] group-hover:text-[#9a02d0] transition-colors">
                   <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" viewBox="0 0 256 256">
                     <path d="M128,64a40,40,0,1,0,40,40A40,40,0,0,0,128,64Zm0,64a24,24,0,1,1,24-24A24,24,0,0,1,128,128Zm0-112A88.1,88.1,0,0,0,40,104c0,72,80,128,88,128s88-56,88-128A88.1,88.1,0,0,0,128,16Zm0,206.4C115.2,214,56,167.2,56,104a72,72,0,0,1,144,0C200,167.2,140.8,214,128,222.4Z" />
                   </svg>
                 </div>
                 <span className="text-gray-900 font-bold text-lg">Find a Store</span>
-                <span className="text-[#9a02d0] text-xs uppercase tracking-widest mt-1">Store Finder</span>
+                <span className="text-[#6b21a8] text-xs uppercase tracking-widest mt-1">Store Finder</span>
               </Link>
 
               <div className="space-y-4 w-full text-left">

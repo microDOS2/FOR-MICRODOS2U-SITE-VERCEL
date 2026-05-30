@@ -221,7 +221,7 @@ export function ShippingDashboard() {
             <CardTitle className="text-sm font-medium text-gray-400">In Transit</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-[#44f80c]">{stats.totalShipped}</div>
+            <div className="text-3xl font-bold text-green-400">{stats.totalShipped}</div>
             <p className="text-xs text-gray-500 mt-1">Currently shipped</p>
           </CardContent>
         </Card>
@@ -578,7 +578,7 @@ export function ShippingDashboard() {
             </div>
             <div>
               <Label className="text-gray-400 text-xs uppercase tracking-wider">Status</Label>
-              <p className="text-[#44f80c] font-medium capitalize">{user?.status || '—'}</p>
+              <p className="text-green-400 font-medium capitalize">{user?.status || '—'}</p>
             </div>
           </div>
 

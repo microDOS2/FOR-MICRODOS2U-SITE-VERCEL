@@ -679,25 +679,25 @@ export function UsersPage() {
     setActionLoading(user.id + '-invite')
     try {
       const tempPassword = generatePassword()
+      const { data: { session } } = await supabase.auth.getSession()
 
-      // Step 1: Reset password via database RPC
-      const { data: resetOk, error: resetErr } = await supabase.rpc('admin_reset_password', {
-        p_user_id: user.id,
-        p_password: tempPassword
-      })
-      if (resetErr || !resetOk) throw new Error(resetErr?.message || 'Password reset failed')
-
-      // Step 2: Send welcome email via send-email edge function (no auth required)
-      const emailResp = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+      // Use create-auth-user edge function (handles password reset + email)
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-auth-user`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`,
+        },
         body: JSON.stringify({
-          to: user.email,
-          subject: `Welcome to microDOS(2)`,
-          html: `<p>Hi ${user.business_name || user.email},</p><p>Your microDOS(2) login:</p><p><strong>Email:</strong> ${user.email}<br><strong>Password:</strong> ${tempPassword}</p><p><a href="https://for-microdos-2-u-site-vercel.vercel.app">Log In</a></p>`,
+          email: user.email,
+          password: tempPassword,
+          business_name: user.business_name,
+          role: user.role,
         }),
       })
-      if (!emailResp.ok) throw new Error('Email send failed')
+      const respData = await resp.json().catch(() => ({}))
+      console.log('create-auth-user response:', resp.status, respData)
+      if (!resp.ok && !respData.user) throw new Error(respData.error || 'Failed')
 
       setSentEmailTo(user.email)
       setShowEmailSentModal(true)

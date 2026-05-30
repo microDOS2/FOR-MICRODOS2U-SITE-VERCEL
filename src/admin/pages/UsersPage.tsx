@@ -693,7 +693,8 @@ export function UsersPage() {
         }),
       })
       const respData = await resp.json().catch(() => ({}))
-      if (!resp.ok && !respData.existing) throw new Error(respData.error || 'Failed')
+      console.log('create-auth-user response:', resp.status, respData)
+      if (!resp.ok) throw new Error(respData.error || `HTTP ${resp.status}`)
 
       setSentEmailTo(user.email)
       setShowEmailSentModal(true)

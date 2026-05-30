@@ -478,7 +478,7 @@ export function OrdersInvoicesPage() {
             <AlertTriangle className="w-4 h-4" />
             Pending
             <span className="ml-1 text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
-              {tabOrders.length + tabInvoices.length}
+              {orders.filter(o => o.status === 'pending').length + invoices.filter(i => i.status === 'pending' || i.status === 'overdue').length}
             </span>
           </button>
           <button
@@ -494,7 +494,7 @@ export function OrdersInvoicesPage() {
             <Package className="w-4 h-4" />
             Fulfillment
             <span className="ml-1 text-xs bg-blue-400/20 text-blue-400 px-2 py-0.5 rounded-full">
-              {tabOrders.length}
+              {orders.filter(o => o.status === 'processing').length}
             </span>
           </button>
           <button
@@ -510,7 +510,7 @@ export function OrdersInvoicesPage() {
             <Truck className="w-4 h-4" />
             Shipped
             <span className="ml-1 text-xs bg-[#44f80c]/20 text-[#44f80c] px-2 py-0.5 rounded-full">
-              {tabOrders.length + tabInvoices.length}
+              {orders.filter(o => o.status === 'shipped' && !o.archived_at && !isAutoArchived(o.shipped_date)).length + invoices.filter(i => i.status === 'paid').length}
             </span>
           </button>
           <button

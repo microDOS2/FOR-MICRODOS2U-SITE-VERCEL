@@ -432,7 +432,7 @@ export function UsersPage() {
 
       // 4. Send welcome email
       try {
-        await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+        await fetch(`${SUPABASE_URL}/functions/v1/send-welcome-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
           body: JSON.stringify({

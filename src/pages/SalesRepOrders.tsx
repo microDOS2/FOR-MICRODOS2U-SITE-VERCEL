@@ -57,21 +57,24 @@ export function SalesRepOrders() {
     }
 
     // 1. Get account assignments (account rep)
-    const { data: acctAssignments } = await supabase
+    const { data: acctAssignments, error: acctErr } = await supabase
       .from('rep_account_assignments')
       .select('account_id')
       .eq('rep_id', repId)
+    if (acctErr) console.error('[SalesRepOrders] rep_account_assignments error:', acctErr)
     const accountIds = (acctAssignments || []).map((a: any) => a.account_id)
 
     // 2. Get store assignments (store rep) → find their owner accounts
-    const { data: storeData } = await supabase
+    const { data: storeData, error: storeErr } = await supabase
       .from('wholesaler_store_locations')
       .select('user_id')
       .ilike('license_number', `rep:${repId}%`)
+    if (storeErr) console.error('[SalesRepOrders] wholesaler_store_locations error:', storeErr)
     const storeAccountIds = (storeData || []).map((s: any) => s.user_id).filter(Boolean)
 
     // Combine unique account IDs
     const allAccountIds = [...new Set([...accountIds, ...storeAccountIds])]
+    console.log('[SalesRepOrders] accountIds from rep:', accountIds, '| store:', storeAccountIds, '| all:', allAccountIds)
     if (allAccountIds.length === 0) {
       setOrders([])
       setLoading(false)
@@ -79,11 +82,13 @@ export function SalesRepOrders() {
     }
 
     // 3. Get orders from these accounts
-    const { data: orderData } = await supabase
+    const { data: orderData, error: orderErr } = await supabase
       .from('orders')
       .select('id, user_id, quantity, total_amount, status, shipping_address, created_at')
       .in('user_id', allAccountIds)
       .order('created_at', { ascending: false })
+    if (orderErr) console.error('[SalesRepOrders] orders error:', orderErr)
+    console.log('[SalesRepOrders] orderData count:', (orderData || []).length)
 
     const orderList = orderData || []
     if (orderList.length === 0) {

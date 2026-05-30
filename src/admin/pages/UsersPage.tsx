@@ -22,7 +22,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import {
-  Users, Plus, Search, Check, Store, UserPlus, Loader2, X, Info, Pencil, Trash2, AlertTriangle, Download, Mail
+  Users, Plus, Search, Check, Store, UserPlus, Loader2, X, Info, Pencil, Trash2, AlertTriangle, Download
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DBUser } from '@/lib/supabase'
@@ -668,44 +668,6 @@ export function UsersPage() {
       await fetchAll()
     }
     setSavingManager(null)
-  }
-
-  // ──── SEND INVITE ────
-  const handleSendInvite = async (user: UnifiedUser) => {
-    if (!user.email) {
-      toast.error('User has no email address')
-      return
-    }
-    setActionLoading(user.id + '-invite')
-    try {
-      const tempPassword = generatePassword()
-      const { data: { session } } = await supabase.auth.getSession()
-
-      // Use create-auth-user edge function (handles password reset + email)
-      const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-auth-user`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || ''}`,
-        },
-        body: JSON.stringify({
-          email: user.email,
-          password: tempPassword,
-          business_name: user.business_name,
-          role: user.role,
-        }),
-      })
-      const respData = await resp.json().catch(() => ({}))
-      console.log('create-auth-user response:', resp.status, respData)
-      if (!resp.ok && !respData.user) throw new Error(respData.error || 'Failed')
-
-      setSentEmailTo(user.email)
-      setShowEmailSentModal(true)
-      toast.success(`Invite sent to ${user.email} with password: ${tempPassword}`)
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to send invite')
-    }
-    setActionLoading(null)
   }
 
   // ──── DELETE ────
@@ -1362,12 +1324,6 @@ export function UsersPage() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {account.email && account.role !== 'admin' && (
-                              <Button size="sm" onClick={() => handleSendInvite(account)} disabled={actionLoading === account.id + '-invite'} title="Send welcome email with credentials"
-                                className="bg-[#44f80c]/20 text-[#44f80c] hover:bg-[#44f80c]/30 h-7 px-2">
-                                <Mail className="w-3 h-3" />
-                              </Button>
-                            )}
                             <Button size="sm" onClick={() => openEdit(account)} disabled={actionLoading === account.id + '-edit'} title="Edit this account"
                               className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 h-7 px-2">
                               <Pencil className="w-3 h-3" />

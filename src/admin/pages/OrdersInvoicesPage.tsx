@@ -140,7 +140,7 @@ export function OrdersInvoicesPage() {
 
   const fetchData = async () => {
     setLoading(true)
-    const [{ data: o }, { data: i }] = await Promise.all([
+    const [{ data: o, error: oErr }, { data: i, error: iErr }] = await Promise.all([
       supabase.from('orders')
         .select(`
           *,
@@ -159,6 +159,8 @@ export function OrdersInvoicesPage() {
         .order('created_at', { ascending: false })
         .limit(200),
     ])
+    if (oErr) console.error('Orders fetch error:', oErr)
+    if (iErr) console.error('Invoices fetch error:', iErr)
     setOrders((o as any) || [])
     setInvoices((i as any) || [])
     setLoading(false)

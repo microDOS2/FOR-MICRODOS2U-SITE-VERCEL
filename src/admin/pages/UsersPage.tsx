@@ -685,26 +685,16 @@ export function UsersPage() {
     setActionLoading(user.id + '-invite')
     try {
       const tempPassword = generatePassword()
-      const { data: { session } } = await supabase.auth.getSession()
-      const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-welcome-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || ''}`,
-        },
-        body: JSON.stringify({
+      const { error: fnErr } = await supabase.functions.invoke('send-welcome-email', {
+        body: {
           userId: user.id,
           email: user.email,
           password: tempPassword,
           businessName: user.business_name,
           role: user.role,
-        }),
+        },
       })
-
-      const respData = await resp.json().catch(() => ({}))
-      if (!resp.ok) {
-        throw new Error(respData.error || 'Email send failed')
-      }
+      if (fnErr) throw new Error(fnErr.message || 'Failed to send invite')
 
       setSentEmailTo(user.email)
       setShowEmailSentModal(true)

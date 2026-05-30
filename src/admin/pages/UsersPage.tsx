@@ -685,12 +685,6 @@ export function UsersPage() {
     setActionLoading(user.id + '-invite')
     try {
       const tempPassword = generatePassword()
-      const { error: pwErr } = await supabase.rpc('admin_reset_user_password', {
-        p_user_id: user.id,
-        p_new_password: tempPassword
-      })
-      if (pwErr) throw new Error('Failed to reset password: ' + pwErr.message)
-
       const { data: { session } } = await supabase.auth.getSession()
       const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-welcome-email`, {
         method: 'POST',
@@ -707,9 +701,9 @@ export function UsersPage() {
         }),
       })
 
+      const respData = await resp.json().catch(() => ({}))
       if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}))
-        throw new Error(errData.error || 'Email send failed')
+        throw new Error(respData.error || 'Email send failed')
       }
 
       setSentEmailTo(user.email)

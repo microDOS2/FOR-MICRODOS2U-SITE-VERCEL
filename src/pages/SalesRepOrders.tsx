@@ -86,7 +86,7 @@ export function SalesRepOrders() {
         product_name: null,
         product_sku: null,
         quantity: o.quantity || 1,
-        total_amount: o.total_amount || 0,
+        total_amount: o.total || 0,
         status: o.status || 'pending',
         shipping_address: o.shipping_address,
         created_at: o.created_at,

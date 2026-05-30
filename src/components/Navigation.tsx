@@ -167,6 +167,12 @@ export function Navigation() {
                   >
                     Experience
                   </button>
+                  <Link
+                    to="/store-locator"
+                    className="text-gray-300 hover:text-[#9a02d0] transition-colors"
+                  >
+                    Store Locator
+                  </Link>
                 </>
               ) : (
                 <>

@@ -40,36 +40,56 @@ export function CommissionView({ userId, role }: CommissionViewProps) {
     const fetchCommissions = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
+        // First fetch commissions without joins (RLS-safe)
+        const { data: commissions, error: commError } = await supabase
           .from('commission_payments')
-          .select('*, orders!inner(total), users!commission_payments_user_id_fkey(business_name, email)')
+          .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error('Commission fetch error:', error);
+        if (commError) {
+          console.error('Commission fetch error:', commError);
           setLoading(false);
           return;
         }
 
-        const list: CommissionEntry[] = ((data || []) as any[]).map((row: any) => {
-          const acct = row.users || {};
-          return {
-            id: row.id,
-            order_id: row.order_id || '',
-            order_amount: row.orders?.total || row.order_amount || 0,
-            amount: row.amount || 0,
-            rate_percent: row.rate_percent || 0,
-            account_type: row.account_type || 'wholesaler',
-            period: `${row.period_year}-${String(row.period_month).padStart(2, '0')}`,
-            status: (row.status === 'pending' ? 'accrued' : row.status === 'approved' ? 'processing' : row.status) as CommissionEntry['status'],
-            paid_at: row.paid_at,
-            paid_method: row.paid_method,
-            paid_reference: row.paid_reference,
-            created_at: row.created_at,
-            account_name: acct.business_name || acct.email || row.account_id?.slice(0, 8),
-          };
-        });
+        // Fetch order totals separately
+        const orderIds = (commissions || []).map((c: any) => c.order_id).filter(Boolean);
+        let orderMap: Record<string, number> = {};
+        if (orderIds.length > 0) {
+          const { data: orders } = await supabase
+            .from('orders')
+            .select('id,total')
+            .in('id', orderIds);
+          (orders || []).forEach((o: any) => { orderMap[o.id] = o.total });
+        }
+
+        // Fetch account names separately
+        const accountIds = (commissions || []).map((c: any) => c.account_id).filter(Boolean);
+        let accountMap: Record<string, string> = {};
+        if (accountIds.length > 0) {
+          const { data: accounts } = await supabase
+            .from('users')
+            .select('id,business_name,email')
+            .in('id', accountIds);
+          (accounts || []).forEach((a: any) => { accountMap[a.id] = a.business_name || a.email || a.id.slice(0, 8) });
+        }
+
+        const list: CommissionEntry[] = ((commissions || []) as any[]).map((row: any) => ({
+          id: row.id,
+          order_id: row.order_id || '',
+          order_amount: orderMap[row.order_id] || row.order_amount || 0,
+          amount: row.amount || 0,
+          rate_percent: row.rate_percent || 0,
+          account_type: row.account_type || 'wholesaler',
+          period: `${row.period_year}-${String(row.period_month).padStart(2, '0')}`,
+          status: (row.status === 'pending' ? 'accrued' : row.status === 'approved' ? 'processing' : row.status) as CommissionEntry['status'],
+          paid_at: row.paid_at,
+          paid_method: row.paid_method,
+          paid_reference: row.paid_reference,
+          created_at: row.created_at,
+          account_name: accountMap[row.account_id] || row.account_id?.slice(0, 8) || '—',
+        }));
         setEntries(list);
 
         const now = new Date();

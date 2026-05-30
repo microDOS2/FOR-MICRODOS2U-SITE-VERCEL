@@ -56,40 +56,10 @@ export function SalesRepOrders() {
       return
     }
 
-    // 1. Get account assignments (account rep)
-    const { data: acctAssignments, error: acctErr } = await supabase
-      .from('rep_account_assignments')
-      .select('account_id')
-      .eq('rep_id', repId)
-    if (acctErr) console.error('[SalesRepOrders] rep_account_assignments error:', acctErr)
-    const accountIds = (acctAssignments || []).map((a: any) => a.account_id)
-
-    // 2. Get store assignments (store rep) → find their owner accounts
-    const { data: storeData, error: storeErr } = await supabase
-      .from('wholesaler_store_locations')
-      .select('user_id')
-      .ilike('license_number', `rep:${repId}%`)
-    if (storeErr) console.error('[SalesRepOrders] wholesaler_store_locations error:', storeErr)
-    const storeAccountIds = (storeData || []).map((s: any) => s.user_id).filter(Boolean)
-
-    // Combine unique account IDs
-    const allAccountIds = [...new Set([...accountIds, ...storeAccountIds])]
-    console.log('[SalesRepOrders] accountIds from rep:', accountIds, '| store:', storeAccountIds, '| all:', allAccountIds)
-    if (allAccountIds.length === 0) {
-      setOrders([])
-      setLoading(false)
-      return
-    }
-
-    // 3. Get orders from these accounts
+    // Use SECURITY DEFINER RPC to bypass RLS nesting issues
     const { data: orderData, error: orderErr } = await supabase
-      .from('orders')
-      .select('id, user_id, quantity, total_amount, status, shipping_address, created_at')
-      .in('user_id', allAccountIds)
-      .order('created_at', { ascending: false })
-    if (orderErr) console.error('[SalesRepOrders] orders error:', orderErr)
-    console.log('[SalesRepOrders] orderData count:', (orderData || []).length)
-
+      .rpc('get_rep_orders', { p_rep_id: repId })
+    if (orderErr) console.error('[SalesRepOrders] get_rep_orders error:', orderErr)
     const orderList = orderData || []
     if (orderList.length === 0) {
       setOrders([])
@@ -97,36 +67,23 @@ export function SalesRepOrders() {
       return
     }
 
-    // 4. Get invoices for these orders
-    const orderIds = orderList.map((o: any) => o.id)
+    // Get invoices for these orders
     const { data: invoiceData } = await supabase
-      .from('invoices')
-      .select('order_id, status, paid_at')
-      .in('order_id', orderIds)
+      .rpc('get_rep_invoices', { p_rep_id: repId })
 
     const invoiceMap = new Map<string, { status: string; paid_at: string | null }>()
     ;(invoiceData || []).forEach((inv: any) => {
       invoiceMap.set(inv.order_id, { status: inv.status, paid_at: inv.paid_at })
     })
 
-    // 5. Get account names
-    const { data: accountNames } = await supabase
-      .from('users')
-      .select('id, business_name')
-      .in('id', allAccountIds)
-
-    const nameMap = new Map<string, string>()
-    ;(accountNames || []).forEach((a: any) => {
-      nameMap.set(a.id, a.business_name)
-    })
-
-    // 6. Enrich orders with invoice data and account names
+    // Account names are already included from the RPC
+    // Enrich orders with invoice data - account_name comes from RPC
     const enriched: OrderItem[] = orderList.map((o: any) => {
       const inv = invoiceMap.get(o.id)
       return {
         id: o.id,
         user_id: o.user_id,
-        product_name: null, // Would need order_items join
+        product_name: null,
         product_sku: null,
         quantity: o.quantity || 1,
         total_amount: o.total_amount || 0,
@@ -135,7 +92,7 @@ export function SalesRepOrders() {
         created_at: o.created_at,
         invoice_status: inv?.status || 'pending',
         invoice_paid_at: inv?.paid_at || null,
-        account_name: nameMap.get(o.user_id) || 'Unknown',
+        account_name: o.account_name || 'Unknown',
       }
     })
 

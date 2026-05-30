@@ -48,7 +48,14 @@ module.exports = {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-
+        psy: {
+          dark: '#0a0514',
+          purple: '#6b21a8',
+          neonPurple: '#9a02d0',
+          neonGreen: '#44f80c',
+          neonPink: '#ff66c4',
+          card: '#150f24',
+        },
       },
       borderRadius: {
         xl: "calc(var(--radius) + 4px)",

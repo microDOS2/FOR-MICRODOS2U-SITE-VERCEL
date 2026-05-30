@@ -437,12 +437,12 @@ export function UsersPage() {
           headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
           body: JSON.stringify({
             to: newUserEmail,
-            subject: `Welcome to microDOS(2)`,
-            html: `<p>Hi ${newUserName},</p><p>Your microDOS(2) account has been created.</p><p><strong>Email:</strong> ${newUserEmail}<br><strong>Password:</strong> ${password}</p><p><a href="https://for-microdos-2-u-site-vercel.vercel.app">Log In</a></p>`,
+            subject: 'Welcome to microDOS(2)',
+            html: `<p>Hi ${newUserName},</p><p>Your account has been created.</p><p><strong>Email:</strong> ${newUserEmail}<br><strong>Password:</strong> ${password}</p><p><a href="https://for-microdos-2-u-site-vercel.vercel.app">Log In</a></p>`,
           }),
         })
       } catch (e) {
-        console.log('Welcome email failed:', e)
+        console.log('Email failed:', e)
       }
 
       await fetchAll()

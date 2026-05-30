@@ -244,19 +244,19 @@ export function LandingPage() {
                 <ul className="space-y-4">
                   <li className="flex items-start gap-3">
                     <CheckCircle className="text-[#44f80c] text-xl mt-1 shrink-0" weight="fill" />
-                    <span>Modulates mood and emotional processing</span>
+                    <span className="text-gray-200">Modulates mood and emotional processing</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle className="text-[#44f80c] text-xl mt-1 shrink-0" weight="fill" />
-                    <span>Enhances cognitive flexibility and creativity</span>
+                    <span className="text-gray-200">Enhances cognitive flexibility and creativity</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle className="text-[#44f80c] text-xl mt-1 shrink-0" weight="fill" />
-                    <span>Alters sensory perception and visual processing</span>
+                    <span className="text-gray-200">Alters sensory perception and visual processing</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle className="text-[#44f80c] text-xl mt-1 shrink-0" weight="fill" />
-                    <span>Reduces activity in the default mode network (DMN)</span>
+                    <span className="text-gray-200">Reduces activity in the default mode network (DMN)</span>
                   </li>
                 </ul>
               </div>
@@ -700,7 +700,7 @@ export function LandingPage() {
 
           <div className="grid md:grid-cols-3 gap-6 mb-12">
             <div className="bg-white/5 p-6 rounded-xl border border-white/10">
-              <h4 className="font-bold mb-4 flex items-center gap-2">
+              <h4 className="font-bold mb-4 flex items-center gap-2 text-white">
                 <div className="w-2 h-2 rounded-full bg-[#9a02d0]" />
                 FDA Breakthrough Therapy
               </h4>
@@ -715,7 +715,7 @@ export function LandingPage() {
             </div>
 
             <div className="bg-white/5 p-6 rounded-xl border border-white/10">
-              <h4 className="font-bold mb-4 flex items-center gap-2">
+              <h4 className="font-bold mb-4 flex items-center gap-2 text-white">
                 <Heartbeat className="text-[#ff66c4]" weight="fill" />
                 Mental Health
               </h4>
@@ -727,14 +727,14 @@ export function LandingPage() {
             </div>
 
             <div className="bg-white/5 p-6 rounded-xl border border-white/10">
-              <h4 className="font-bold mb-4 flex items-center gap-2">
+              <h4 className="font-bold mb-4 flex items-center gap-2 text-white">
                 <ChartBar className="text-[#9a02d0]" weight="fill" />
                 Key Study Results
               </h4>
               <div className="space-y-3 text-sm">
                 <div>
                   <div className="flex justify-between">
-                    <span>Mood Improvement</span>
+                    <span className="text-gray-200">Mood Improvement</span>
                     <strong className="text-[#44f80c]">85%</strong>
                   </div>
                   <div className="w-full bg-black/50 rounded-full h-1.5 mt-1">
@@ -743,7 +743,7 @@ export function LandingPage() {
                 </div>
                 <div>
                   <div className="flex justify-between">
-                    <span>Anxiety Reduction</span>
+                    <span className="text-gray-200">Anxiety Reduction</span>
                     <strong className="text-[#9a02d0]">78%</strong>
                   </div>
                   <div className="w-full bg-black/50 rounded-full h-1.5 mt-1">
@@ -819,35 +819,35 @@ export function LandingPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
                 <div className="flex items-center gap-3 bg-[#150f24] p-4 rounded-lg border border-white/5">
                   <Eye className="text-[#9a02d0] text-xl" weight="fill" />
-                  <span className="text-sm">Open & closed eye visuals</span>
+                  <span className="text-sm text-gray-200">Open & closed eye visuals</span>
                 </div>
                 <div className="flex items-center gap-3 bg-[#150f24] p-4 rounded-lg border border-white/5">
                   <Smiley className="text-[#9a02d0] text-xl" weight="fill" />
-                  <span className="text-sm">Increased humor & laughter</span>
+                  <span className="text-sm text-gray-200">Increased humor & laughter</span>
                 </div>
                 <div className="flex items-center gap-3 bg-[#150f24] p-4 rounded-lg border border-white/5">
                   <MusicNotes className="text-[#9a02d0] text-xl" weight="fill" />
-                  <span className="text-sm">Music enhancement</span>
+                  <span className="text-sm text-gray-200">Music enhancement</span>
                 </div>
                 <div className="flex items-center gap-3 bg-[#150f24] p-4 rounded-lg border border-white/5">
                   <Users className="text-[#9a02d0] text-xl" weight="fill" />
-                  <span className="text-sm">Increased sociability</span>
+                  <span className="text-sm text-gray-200">Increased sociability</span>
                 </div>
                 <div className="flex items-center gap-3 bg-[#150f24] p-4 rounded-lg border border-white/5">
                   <Waves className="text-[#9a02d0] text-xl" weight="fill" />
-                  <span className="text-sm">Pleasurable body sensations</span>
+                  <span className="text-sm text-gray-200">Pleasurable body sensations</span>
                 </div>
                 <div className="flex items-center gap-3 bg-[#150f24] p-4 rounded-lg border border-white/5">
                   <Lightning className="text-[#9a02d0] text-xl" weight="fill" />
-                  <span className="text-sm">Increased energy</span>
+                  <span className="text-sm text-gray-200">Increased energy</span>
                 </div>
                 <div className="flex items-center gap-3 bg-[#150f24] p-4 rounded-lg border border-white/5">
                   <Aperture className="text-[#9a02d0] text-xl" weight="fill" />
-                  <span className="text-sm">Bright, colorful patterns</span>
+                  <span className="text-sm text-gray-200">Bright, colorful patterns</span>
                 </div>
                 <div className="flex items-center gap-3 bg-[#150f24] p-4 rounded-lg border border-white/5">
                   <Brain className="text-[#9a02d0] text-xl" weight="fill" />
-                  <span className="text-sm">Clear mental state</span>
+                  <span className="text-sm text-gray-200">Clear mental state</span>
                 </div>
               </div>
 

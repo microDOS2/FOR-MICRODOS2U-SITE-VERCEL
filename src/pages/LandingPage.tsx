@@ -264,7 +264,7 @@ export function LandingPage() {
                 <h4 className="text-sm uppercase tracking-widest text-[#9a02d0] mb-4 font-bold">
                   User Reports
                 </h4>
-                <blockquote className="text-xl italic font-light leading-relaxed">
+                <blockquote className="text-xl italic font-light leading-relaxed text-gray-200">
                   "Users often report a clear, energetic headspace with vivid sensory enhancement—a
                   uniquely manageable psychedelic experience."
                 </blockquote>
@@ -304,7 +304,7 @@ export function LandingPage() {
             <div className="bg-[#150f24] p-6 rounded-xl border border-white/5 card-hover">
               <div className="flex justify-between items-start mb-4">
                 <h4 className="text-lg font-bold text-white">Fast & Predictable</h4>
-                <span className="text-xs bg-white/10 px-2 py-1 rounded">Plan your day</span>
+                <span className="text-xs bg-white/10 px-2 py-1 rounded text-gray-200">Plan your day</span>
               </div>
               <p className="text-gray-400 text-sm">
                 Rapid onset (~15 min) with a shorter duration (4-6 hours). Perfect for those who want
@@ -988,14 +988,14 @@ export function LandingPage() {
                 <div className="bg-white/5 p-4 rounded-lg flex items-center gap-3">
                   <Target className="text-[#ff66c4] text-xl" weight="fill" />
                   <div>
-                    <div className="font-bold text-sm">Precision Dosing</div>
+                    <div className="font-bold text-sm text-white">Precision Dosing</div>
                     <div className="text-xs text-gray-400">2mg scored tablets</div>
                   </div>
                 </div>
                 <div className="bg-white/5 p-4 rounded-lg flex items-center gap-3">
                   <Timer className="text-[#9a02d0] text-xl" weight="fill" />
                   <div>
-                    <div className="font-bold text-sm">Predictable Effects</div>
+                    <div className="font-bold text-sm text-white">Predictable Effects</div>
                     <div className="text-xs text-gray-400">Fast onset, consistent duration</div>
                   </div>
                 </div>
@@ -1005,6 +1005,6 @@ export function LandingPage() {
 
         </div>
       </footer>
-    </div>
+           </div>
   );
 }

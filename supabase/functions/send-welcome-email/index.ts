@@ -1,5 +1,4 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 serve(async (req) => {
   if (req.method !== 'POST') {
@@ -12,30 +11,14 @@ serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') || '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
-      { auth: { persistSession: false } }
-    );
+    const { email, password, displayName, roleLabel } = await req.json();
 
-    const payload = await req.json();
-    const { userId, email, password, businessName, role } = payload;
-
-    if (!email || !password || !userId) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400 });
+    if (!email || !password) {
+      return new Response(JSON.stringify({ error: 'Missing email or password' }), { status: 400 });
     }
 
-    // Reset password server-side using service_role
-    const { error: pwErr } = await supabase.auth.admin.updateUserById(
-      userId,
-      { password }
-    );
-    if (pwErr) {
-      return new Response(JSON.stringify({ error: 'Password reset failed: ' + pwErr.message }), { status: 500 });
-    }
-
-    const displayName = businessName || email.split('@')[0];
-    const roleLabel = role ? role.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : 'User';
+    const name = displayName || email.split('@')[0];
+    const role = roleLabel || 'User';
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
@@ -53,7 +36,7 @@ h1{text-align:center;font-size:22px;margin-bottom:8px}
 </style></head><body>
 <div class="container">
 <div class="logo"><span class="green">micro</span><span class="purple">DOS</span><span class="pink">(2)</span></div>
-<h1>Welcome, ${displayName}!</h1><p class="subtitle">Your ${roleLabel} account has been created.</p>
+<h1>Welcome, ${name}!</h1><p class="subtitle">Your ${role} account has been created.</p>
 <div class="credentials"><div style="margin-bottom:16px"><div class="label">Email</div><div class="value">${email}</div></div>
 <div><div class="label">Password</div><div class="value">${password}</div></div></div>
 <a href="https://for-microdos-2-u-site-vercel.vercel.app" class="btn">Log In to Your Portal</a>
@@ -65,14 +48,14 @@ h1{text-align:center;font-size:22px;margin-bottom:8px}
       body: JSON.stringify({
         from: 'microDOS(2) <notifications@microdos2.com>',
         to: email,
-        subject: `Welcome to microDOS(2) - Your ${roleLabel} Account`,
+        subject: `Welcome to microDOS(2) - Your ${role} Account`,
         html,
       }),
     });
 
     const data = await res.json();
     if (!res.ok) {
-      return new Response(JSON.stringify({ error: data.message || 'Failed to send email' }), { status: 500 });
+      return new Response(JSON.stringify({ error: data.message || 'Failed to send' }), { status: 500 });
     }
 
     return new Response(JSON.stringify({ success: true, id: data.id }), { status: 200 });

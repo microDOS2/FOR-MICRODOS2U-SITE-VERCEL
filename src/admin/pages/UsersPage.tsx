@@ -685,16 +685,32 @@ export function UsersPage() {
     setActionLoading(user.id + '-invite')
     try {
       const tempPassword = generatePassword()
-      const { error: fnErr } = await supabase.functions.invoke('send-welcome-email', {
-        body: {
-          userId: user.id,
+      
+      // Step 1: Reset password via database RPC
+      const { data: resetOk, error: resetErr } = await supabase.rpc('admin_reset_password', {
+        p_user_id: user.id,
+        p_password: tempPassword
+      })
+      if (resetErr || !resetOk) throw new Error(resetErr?.message || 'Password reset failed')
+
+      // Step 2: Send welcome email via edge function (use anon key header)
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-welcome-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
           email: user.email,
           password: tempPassword,
-          businessName: user.business_name,
-          role: user.role,
-        },
+          displayName: user.business_name,
+          roleLabel: user.role,
+        }),
       })
-      if (fnErr) throw new Error(fnErr.message || 'Failed to send invite')
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}))
+        throw new Error(errData.error || 'Email send failed')
+      }
 
       setSentEmailTo(user.email)
       setShowEmailSentModal(true)

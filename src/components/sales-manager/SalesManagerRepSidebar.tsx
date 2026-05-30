@@ -117,6 +117,7 @@ export function SalesManagerRepSidebar() {
                     <li key={item.path}>
                       <Link
                         to={item.path}
+                        onClick={() => sessionStorage.setItem('lastPortal', '/sales-manager-rep-dashboard')}
                         className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${
                           isActive
                             ? 'bg-gradient-to-r from-[#9a02d0]/20 to-[#44f80c]/20 text-white border border-white/10'

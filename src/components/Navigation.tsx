@@ -47,7 +47,7 @@ export function Navigation() {
         // Fetch role from users table
         const { data: userData, error: userError } = await supabase
           .from('users')
-          .select('role, business_name')
+          .select('role, business_name, also_rep')
           .eq('id', data.user.id)
           .single();
         if (userError || !userData) {
@@ -63,27 +63,38 @@ export function Navigation() {
         setLoginOpen(false);
         setEmail('');
         setPassword('');
-        // Route based on role
-        switch (role) {
-          case 'admin':
-            navigate('/admin');
-            break;
-          case 'sales_manager':
-            navigate('/sales-manager-dashboard');
-            break;
-          case 'sales_rep':
-            navigate('/sales-rep-dashboard');
-            break;
-          case 'shipping_fulfillment':
-            navigate('/shipping-dashboard');
-            break;
-          case 'distributor':
-            navigate('/distributor-dashboard');
-            break;
-          case 'wholesaler':
-          default:
-            navigate('/wholesaler-dashboard');
-            break;
+
+        // Check for last portal preference
+        const lastPortal = sessionStorage.getItem('lastPortal');
+        if (lastPortal) {
+          navigate(lastPortal);
+          return;
+        }
+
+        // Route based on role (dual-role manager+rep goes to unified dashboard)
+        if (role === 'sales_manager' && userData.also_rep) {
+          navigate('/sales-manager-rep-dashboard');
+        } else if (role === 'sales_manager') {
+          navigate('/sales-manager-dashboard');
+        } else {
+          switch (role) {
+            case 'admin':
+              navigate('/admin');
+              break;
+            case 'sales_rep':
+              navigate('/sales-rep-dashboard');
+              break;
+            case 'shipping_fulfillment':
+              navigate('/shipping-dashboard');
+              break;
+            case 'distributor':
+              navigate('/distributor-dashboard');
+              break;
+            case 'wholesaler':
+            default:
+              navigate('/wholesaler-dashboard');
+              break;
+          }
         }
       }
     } catch {

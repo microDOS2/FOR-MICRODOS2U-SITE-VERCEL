@@ -47,6 +47,7 @@ export function SalesRepSidebar() {
           <NavLink
             key={item.path}
             to={item.path}
+            onClick={() => sessionStorage.setItem('lastPortal', '/sales-rep-dashboard')}
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors',

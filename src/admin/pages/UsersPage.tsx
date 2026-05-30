@@ -22,7 +22,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import {
-  Users, Plus, Search, Check, Store, UserPlus, Loader2, X, Info, Pencil, Trash2, AlertTriangle, Download
+  Users, Plus, Search, Check, Store, UserPlus, Loader2, X, Info, Pencil, Trash2, AlertTriangle, Download, Mail
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DBUser } from '@/lib/supabase'
@@ -432,20 +432,23 @@ export function UsersPage() {
 
       // 4. Send welcome email via edge function
       try {
-        await fetch(`${SUPABASE_URL}/functions/v1/notify-application`, {
+        const { data: { session } } = await supabase.auth.getSession()
+        await fetch(`${SUPABASE_URL}/functions/v1/send-welcome-email`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${session?.access_token || ''}`,
           },
           body: JSON.stringify({
-            to: newUserEmail,
-            subject: `Your microDOS(2) Account is Ready`,
-            html: `<p>Hi ${newUserName},</p><p>Your microDOS(2) account has been created by an administrator.</p><p><strong>Login:</strong> ${newUserEmail}<br><strong>Password:</strong> ${password}</p><p>Please log in and change your password.</p>`,
+            userId: signUpData.user?.id || '',
+            email: newUserEmail,
+            password,
+            businessName: newUserName,
+            role: newUserRole,
           }),
         })
       } catch (e) {
-        console.log('Email send failed (non-critical):', e)
+        console.log('Welcome email send failed (non-critical):', e)
       }
 
       await fetchAll()
@@ -671,6 +674,51 @@ export function UsersPage() {
       await fetchAll()
     }
     setSavingManager(null)
+  }
+
+  // ──── SEND INVITE ────
+  const handleSendInvite = async (user: UnifiedUser) => {
+    if (!user.email) {
+      toast.error('User has no email address')
+      return
+    }
+    setActionLoading(user.id + '-invite')
+    try {
+      const tempPassword = generatePassword()
+      const { error: pwErr } = await supabase.auth.admin.updateUserById(
+        user.id,
+        { password: tempPassword }
+      )
+      if (pwErr) throw new Error('Failed to reset password: ' + pwErr.message)
+
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-welcome-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`,
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          email: user.email,
+          password: tempPassword,
+          businessName: user.business_name,
+          role: user.role,
+        }),
+      })
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}))
+        throw new Error(errData.error || 'Email send failed')
+      }
+
+      setSentEmailTo(user.email)
+      setShowEmailSentModal(true)
+      toast.success(`Invite sent to ${user.email}`)
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to send invite')
+    }
+    setActionLoading(null)
   }
 
   // ──── DELETE ────
@@ -1327,6 +1375,12 @@ export function UsersPage() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {account.email && account.role !== 'admin' && (
+                              <Button size="sm" onClick={() => handleSendInvite(account)} disabled={actionLoading === account.id + '-invite'} title="Send welcome email with credentials"
+                                className="bg-[#44f80c]/20 text-[#44f80c] hover:bg-[#44f80c]/30 h-7 px-2">
+                                <Mail className="w-3 h-3" />
+                              </Button>
+                            )}
                             <Button size="sm" onClick={() => openEdit(account)} disabled={actionLoading === account.id + '-edit'} title="Edit this account"
                               className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 h-7 px-2">
                               <Pencil className="w-3 h-3" />

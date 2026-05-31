@@ -66,7 +66,7 @@ export function Navigation() {
 
         // Check for last portal preference
         const lastPortal = sessionStorage.getItem('lastPortal');
-        if (lastPortal) {
+        if (lastPortal && lastPortal !== '/products' && lastPortal !== '/' && lastPortal !== '/store-locator') {
           navigate(lastPortal);
           return;
         }

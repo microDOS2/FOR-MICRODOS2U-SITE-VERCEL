@@ -450,7 +450,7 @@ export function UsersPage() {
           console.error('[UsersPage] Welcome email failed:', emailResp.status, errText)
           toast.error(`Welcome email failed (${emailResp.status}). User created but email not sent.`)
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error('[UsersPage] Welcome email exception:', e)
         toast.error(`Welcome email failed: ${e.message}. User created but email not sent.`)
       }

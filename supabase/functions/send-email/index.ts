@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: 'microDOS(2) <notifications@microdos2.com>',
+            from: 'microDOS(2) <notifications@microdos2u.com>',
             to: app.email,
             subject: existing ? 'Your microDOS(2) Password Has Been Reset' : 'Welcome to microDOS(2) - Your Account Has Been Created',
             html: emailHtml,

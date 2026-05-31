@@ -432,17 +432,27 @@ export function UsersPage() {
 
       // 4. Send welcome email
       try {
-        await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+        const emailResp = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'apikey': SUPABASE_ANON_KEY,
+          },
           body: JSON.stringify({
             to: newUserEmail,
             subject: 'Welcome to microDOS(2)',
             html: `<p>Hi ${newUserName},</p><p>Your account has been created.</p><p><strong>Email:</strong> ${newUserEmail}<br><strong>Password:</strong> ${password}</p><p><a href="https://for-microdos-2-u-site-vercel.vercel.app">Log In</a></p>`,
           }),
         })
+        if (!emailResp.ok) {
+          const errText = await emailResp.text().catch(() => emailResp.statusText)
+          console.error('[UsersPage] Welcome email failed:', emailResp.status, errText)
+          toast.error(`Welcome email failed (${emailResp.status}). User created but email not sent.`)
+        }
       } catch (e) {
-        console.log('Email failed:', e)
+        console.error('[UsersPage] Welcome email exception:', e)
+        toast.error(`Welcome email failed: ${e.message}. User created but email not sent.`)
       }
 
       await fetchAll()

@@ -39,7 +39,8 @@ async function logAudit(action: string, table_name: string, record_id: string, o
       new_data,
       user_id: session?.user?.id || null,
     })
-  } catch (e) {
+  } catch (e: any) {
+    console.error('[logAudit] Failed:', e);
   }
 }
 
@@ -712,8 +713,9 @@ export function UsersPage() {
             },
             body: JSON.stringify({ user_id: user.id }),
           })
-        } catch {
-          // Auth delete is best-effort — user may not exist in auth
+        } catch (e: any) {
+          console.error('[UsersPage] delete-auth-user failed:', e);
+          toast.warning('Database user deleted but auth cleanup failed: ' + e.message);
         }
       } else {
         await supabase.from('applications').delete().eq('id', user.id)
@@ -881,7 +883,9 @@ export function UsersPage() {
             },
             body: JSON.stringify({ user_id: u.id }),
           })
-        } catch {
+        } catch (e: any) {
+          console.error('[UsersPage] delete-auth-user failed:', e);
+          toast.warning('Database user deleted but auth cleanup failed: ' + e.message);
           results.authFailed++
         }
 

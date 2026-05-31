@@ -10,6 +10,12 @@ interface NotificationPayload {
   test_email?: string; // Optional: send copy to test email
 }
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
 const emailColors = {
   pending: { bg: '#1a1600', border: '#ca8a04', accent: '#facc15' },
   processing: { bg: '#0a1628', border: '#3b82f6', accent: '#60a5fa' },
@@ -96,8 +102,16 @@ function buildEmailHTML(params: {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders },
+    });
   }
 
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -121,7 +135,10 @@ serve(async (req) => {
 
     if (orderErr || !order) {
       console.error('Order fetch error:', orderErr);
-      return new Response(JSON.stringify({ error: 'Order not found' }), { status: 404 });
+      return new Response(JSON.stringify({ error: 'Order not found' }), {
+        status: 404,
+        headers: { ...corsHeaders },
+      });
     }
 
     const userData = order.users as any;
@@ -129,7 +146,10 @@ serve(async (req) => {
     const businessName = userData?.business_name || userData?.contact_name || 'Valued Customer';
 
     if (!customerEmail) {
-      return new Response(JSON.stringify({ error: 'Customer email not found' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'Customer email not found' }), {
+        status: 400,
+        headers: { ...corsHeaders },
+      });
     }
 
     // Build email HTML
@@ -177,10 +197,16 @@ serve(async (req) => {
       console.log(`Notification sent to ${to}:`, sendData.id || sendData.error);
     }
 
-    return new Response(JSON.stringify({ success: true, results }), { status: 200 });
+    return new Response(JSON.stringify({ success: true, results }), {
+      status: 200,
+      headers: { ...corsHeaders },
+    });
 
   } catch (err: any) {
     console.error('send-order-notification error:', err);
-    return new Response(JSON.stringify({ error: err.message || 'Unknown error' }), { status: 500 });
+    return new Response(JSON.stringify({ error: err.message || 'Unknown error' }), {
+      status: 500,
+      headers: { ...corsHeaders },
+    });
   }
 });

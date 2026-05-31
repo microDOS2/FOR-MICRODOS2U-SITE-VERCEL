@@ -154,7 +154,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
     if (itemsError) {
-      console.error('[placeOrder] order_items insert error:', itemsError);
+      await supabase.from('orders').delete().eq('id', orderData.id);
+      throw new Error('Failed to add order items: ' + itemsError.message);
     }
 
     // 3. Fetch the auto-created invoice

@@ -498,6 +498,12 @@ export function SalesManagerDashboard() {
               pendingAssignmentCount={accounts.filter((a) => !assignments.some((asgn) => asgn.account_id === a.id)).length}
               monthlyVolume={monthlyVolume}
               pendingOrders={pendingOrders}
+              onCardClick={(card) => {
+                if (card === 'team') navigate('/sales-manager-team');
+                else if (card === 'accounts') navigate('/sales-manager-accounts');
+                else if (card === 'volume') navigate('/sales-manager-commissions');
+                else if (card === 'orders') navigate('/sales-manager-performance');
+              }}
             />
           </div>
 

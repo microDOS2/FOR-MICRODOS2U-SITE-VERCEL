@@ -225,7 +225,7 @@ export function ShippingDashboard() {
             <p className="text-xs text-gray-500 mt-1">Currently shipped</p>
           </CardContent>
         </Card>
-        <Card className="bg-brand-800 border-brand-700 cursor-pointer hover:border-blue-400/40 transition-colors" onClick={() => { setOrderFilter(''); setActiveTab('orders'); }}>
+        <Card className="bg-brand-800 border-brand-700 cursor-pointer hover:border-blue-400/40 transition-colors" onClick={() => { setOrderFilter('all'); setActiveTab('orders'); }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-400">Active Pipeline</CardTitle>
           </CardHeader>

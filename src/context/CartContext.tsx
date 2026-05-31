@@ -167,12 +167,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     // 4. If payment was made, update invoice to paid via RPC (bypasses RLS)
     if (paymentTransactionId && invoiceData) {
-      await supabase.rpc('mark_invoice_paid', {
+      const { error: invoiceError } = await supabase.rpc('mark_invoice_paid', {
         p_invoice_id: invoiceData.id,
         p_transaction_id: paymentTransactionId,
         p_paid_method: 'Authorize.net',
         p_paid_reference: paymentTransactionId,
       });
+      if (invoiceError) {
+        console.error('[placeOrder] mark_invoice_paid failed:', invoiceError);
+        throw new Error('Payment succeeded but invoice update failed. Please contact support.');
+      }
 
       // Auto-forward to fulfillment (paid orders go straight to shipping)
       await supabase.from('orders').update({

@@ -84,6 +84,11 @@ export function useAuth() {
 
       if (data) {
         const u = data as DBUser;
+        console.log('[DEBUG useAuth] loadUser data:', JSON.stringify({
+          id: u.id, email: u.email, business_name: u.business_name,
+          phone: u.phone, address: u.address, city: u.city, state: u.state,
+          zip: u.zip, website: u.website, license_number: u.license_number
+        }));
         setUser(u);
         setCachedUser(u);
       } else {

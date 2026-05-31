@@ -64,13 +64,6 @@ export function Navigation() {
         setEmail('');
         setPassword('');
 
-        // Check for last portal preference
-        const lastPortal = sessionStorage.getItem('lastPortal');
-        if (lastPortal && lastPortal !== '/products' && lastPortal !== '/' && lastPortal !== '/store-locator') {
-          navigate(lastPortal);
-          return;
-        }
-
         // Route based on role (dual-role manager+rep goes to unified dashboard)
         if (role === 'sales_manager' && userData.also_rep) {
           navigate('/sales-manager-rep-dashboard');

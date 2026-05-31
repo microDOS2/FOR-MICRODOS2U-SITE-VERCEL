@@ -46,7 +46,7 @@ serve(async (req) => {
   }
 
   const supabaseAdmin = createClient(
-    'https://fildaxejimuvfrcqmoba.supabase.co',
+    Deno.env.get('SUPABASE_URL') || '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
   )
 

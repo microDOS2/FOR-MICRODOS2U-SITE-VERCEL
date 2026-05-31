@@ -196,7 +196,7 @@ export function SalesRepDashboard() {
 
           {/* Stats Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="bg-[#150f24] border-white/10">
+            <Card className="bg-[#150f24] border-white/10 cursor-pointer hover:border-white/30 transition-colors" onClick={() => navigate('/sales-rep-accounts')}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div>
@@ -207,7 +207,7 @@ export function SalesRepDashboard() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-[#150f24] border-white/10">
+            <Card className="bg-[#150f24] border-white/10 cursor-pointer hover:border-white/30 transition-colors" onClick={() => navigate('/sales-rep-stores')}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div>
@@ -218,7 +218,7 @@ export function SalesRepDashboard() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-[#150f24] border-white/10">
+            <Card className="bg-[#150f24] border-white/10 cursor-pointer hover:border-white/30 transition-colors" onClick={() => navigate('/sales-rep-orders')}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div>
@@ -229,7 +229,7 @@ export function SalesRepDashboard() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-[#150f24] border-white/10">
+            <Card className="bg-[#150f24] border-white/10 cursor-pointer hover:border-white/30 transition-colors" onClick={() => navigate('/sales-rep-commissions')}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div>

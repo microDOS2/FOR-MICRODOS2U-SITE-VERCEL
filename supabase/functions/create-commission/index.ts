@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
 
   try {
     const { order_id } = await req.json()
-    if (!order_id) return new Response(JSON.stringify({ error: 'order_id required' }), { status: 400, headers: corsHeaders })
+    if (!order_id) return new Response(JSON.stringify({ error: 'order_id required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') || '',
@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
       .select('id, user_id, total, status')
       .eq('id', order_id)
       .single()
-    if (orderErr || !order) return new Response(JSON.stringify({ error: 'Order not found' }), { status: 404, headers: corsHeaders })
+    if (orderErr || !order) return new Response(JSON.stringify({ error: 'Order not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
     // 2. Skip if commission already exists for this order
     const { data: existing } = await supabaseAdmin
@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       .from('commission_settings')
       .select('rep_rate, manager_override_rate')
       .single()
-    if (!settings) return new Response(JSON.stringify({ error: 'Commission settings not found' }), { status: 500, headers: corsHeaders })
+    if (!settings) return new Response(JSON.stringify({ error: 'Commission settings not found' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
     // 4. Find the rep for this account
     const { data: assignment } = await supabaseAdmin
@@ -87,13 +87,13 @@ Deno.serve(async (req) => {
       .select()
       .single()
 
-    if (insertErr) return new Response(JSON.stringify({ error: insertErr.message }), { status: 500, headers: corsHeaders })
+    if (insertErr) return new Response(JSON.stringify({ error: insertErr.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
     return new Response(
       JSON.stringify({ success: true, commission: entry }),
       { status: 200, headers: corsHeaders }
     )
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders })
+    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 })

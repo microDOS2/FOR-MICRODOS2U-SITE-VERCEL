@@ -141,7 +141,6 @@ export function ShippingDashboard() {
             orderDate: order.created_at,
             trackingNumber: inputs.tracking,
             carrier: inputs.carrier,
-            testEmail: 'holtcrowder@gmail.com',
           });
         }
       } catch (notifyErr: any) {

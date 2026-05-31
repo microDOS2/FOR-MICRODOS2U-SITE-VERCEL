@@ -198,7 +198,7 @@ export function ShippingDashboard() {
   const renderOverview = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-brand-800 border-brand-700">
+        <Card className="bg-brand-800 border-brand-700 cursor-pointer hover:border-[#44f80c]/40 transition-colors" onClick={() => { setOrderFilter('processing'); setActiveTab('orders'); }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-400">Needs Shipping</CardTitle>
           </CardHeader>
@@ -207,7 +207,7 @@ export function ShippingDashboard() {
             <p className="text-xs text-gray-500 mt-1">Processing orders</p>
           </CardContent>
         </Card>
-        <Card className="bg-brand-800 border-brand-700">
+        <Card className="bg-brand-800 border-brand-700 cursor-pointer hover:border-purple-400/40 transition-colors" onClick={() => { setOrderFilter('shipped'); setActiveTab('orders'); }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-400">Shipped Today</CardTitle>
           </CardHeader>
@@ -216,7 +216,7 @@ export function ShippingDashboard() {
             <p className="text-xs text-gray-500 mt-1">Out for delivery</p>
           </CardContent>
         </Card>
-        <Card className="bg-brand-800 border-brand-700">
+        <Card className="bg-brand-800 border-brand-700 cursor-pointer hover:border-green-400/40 transition-colors" onClick={() => { setOrderFilter('shipped'); setActiveTab('orders'); }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-400">In Transit</CardTitle>
           </CardHeader>
@@ -225,7 +225,7 @@ export function ShippingDashboard() {
             <p className="text-xs text-gray-500 mt-1">Currently shipped</p>
           </CardContent>
         </Card>
-        <Card className="bg-brand-800 border-brand-700">
+        <Card className="bg-brand-800 border-brand-700 cursor-pointer hover:border-blue-400/40 transition-colors" onClick={() => { setOrderFilter(''); setActiveTab('orders'); }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-400">Active Pipeline</CardTitle>
           </CardHeader>

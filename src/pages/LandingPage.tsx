@@ -50,15 +50,9 @@ export function LandingPage() {
 
   useEffect(() => {
     async function fetchHeroImage() {
-      console.log('[DEBUG LandingPage] fetching hero image...');
-      const { data, error } = await supabase
-        .from('app_config')
-        .select('value')
-        .eq('key', 'landing_hero_image')
-        .maybeSingle();
-      console.log('[DEBUG LandingPage] result:', { data, error: error?.message });
-      if (!error && data) {
-        setHeroImage(data.value);
+      const { data } = await supabase.rpc('get_landing_hero_image');
+      if (data) {
+        setHeroImage(data);
       }
     }
     fetchHeroImage();

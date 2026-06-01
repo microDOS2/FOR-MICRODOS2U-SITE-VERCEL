@@ -239,7 +239,7 @@ export function Navigation() {
                   </button>
                   <Link
                     to="/store-locator"
-                    className="block text-gray-300 hover:text-[#9a02d0]"
+                    className="block w-full text-left text-gray-300 hover:text-[#9a02d0]"
                     onClick={() => setIsOpen(false)}
                   >
                     Store Locator
@@ -249,14 +249,14 @@ export function Navigation() {
                 <>
                   <Link
                     to="/"
-                    className="block text-gray-300 hover:text-[#9a02d0]"
+                    className="block w-full text-left text-gray-300 hover:text-[#9a02d0]"
                     onClick={() => setIsOpen(false)}
                   >
                     Home
                   </Link>
                   <Link
                     to="/store-locator"
-                    className="block text-gray-300 hover:text-[#9a02d0]"
+                    className="block w-full text-left text-gray-300 hover:text-[#9a02d0]"
                     onClick={() => setIsOpen(false)}
                   >
                     Store Locator

@@ -90,16 +90,16 @@ export function StoreLocator() {
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-[#0a0514]"><Loader2 className="w-8 h-8 text-[#9a02d0] animate-spin" /></div>;
 
   return (
-    <div className="min-h-screen bg-[#0a0514] pt-16 overflow-x-hidden">
+    <div className="min-h-screen bg-[#0a0514] pt-16 overflow-hidden w-full max-w-[100vw]">
       <div className="bg-[#150f24] border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Find a <span className="text-[#9a02d0]">Retailer</span></h1>
           <p className="text-gray-400">Locate authorized dispensaries and wellness centers carrying microDOS(2) products.</p>
         </div>
       </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1 space-y-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8 w-full">
+          <div className="lg:col-span-1 space-y-4 w-full min-w-0">
             <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" /><Input placeholder="Search by city or name..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 bg-[#150f24] border-white/10 text-white placeholder:text-gray-600" /></div>
             <div className="text-xs text-gray-500">{filteredStores.length} store{filteredStores.length !== 1 ? 's' : ''} found</div>
             <div className="space-y-3 max-h-[250px] sm:max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
@@ -107,13 +107,13 @@ export function StoreLocator() {
                 <Card key={store.id} className={`bg-[#150f24] border-white/10 cursor-pointer transition-all hover:border-[#9a02d0]/50 ${selectedStore?.id === store.id ? 'border-[#9a02d0] ring-1 ring-[#9a02d0]' : ''}`} onClick={() => setSelectedStore(store)}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-2 gap-2 flex-wrap">
-                      <h3 className="font-semibold text-white break-all">{store.name}</h3>
+                      <h3 className="font-semibold text-white break-all min-w-0">{store.name}</h3>
                       <Badge className="bg-green-500/20 text-green-400 border-green-500/30 shrink-0">In Stock</Badge>
                     </div>
                     <div className="space-y-1 text-sm text-gray-400 max-w-full">
-                      <div className="flex items-center gap-2 min-w-0"><MapPin className="w-4 h-4 text-[#9a02d0] shrink-0" /><span className="break-words">{store.address}, {store.city}, {store.state}</span></div>
-                      {store.phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-[#9a02d0] shrink-0" /><span>{store.phone}</span></div>}
-                      {store.website && <div className="flex items-center gap-2 min-w-0"><Globe className="w-4 h-4 text-[#44f80c] shrink-0" /><a href={store.website.startsWith('http') ? store.website : `https://${store.website}`} target="_blank" rel="noopener noreferrer" className="text-[#44f80c] hover:underline truncate" onClick={e => e.stopPropagation()}>{store.website}</a></div>}
+                      <div className="flex items-center gap-2 min-w-0"><MapPin className="w-4 h-4 text-[#9a02d0] shrink-0" /><span className="break-all">{store.address}, {store.city}, {store.state}</span></div>
+                      {store.phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-[#9a02d0] shrink-0" /><span className="break-all">{store.phone}</span></div>}
+                      {store.website && <div className="flex items-center gap-2 min-w-0"><Globe className="w-4 h-4 text-[#44f80c] shrink-0" /><a href={store.website.startsWith('http') ? store.website : `https://${store.website}`} target="_blank" rel="noopener noreferrer" className="text-[#44f80c] hover:underline truncate min-w-0" onClick={e => e.stopPropagation()}>{store.website}</a></div>}
                     </div>
                   </CardContent>
                 </Card>
@@ -121,24 +121,24 @@ export function StoreLocator() {
               {filteredStores.length === 0 && <div className="text-center py-8 text-gray-500">No stores found matching your search.</div>}
             </div>
           </div>
-          <div className="lg:col-span-2">
-            <Card className="bg-[#150f24] border-white/10 h-[300px] sm:h-[600px] overflow-hidden w-full">
-              <MapContainer center={[39.7392, -104.9903]} zoom={10} style={{ height: '100%', width: '100%' }}>
+          <div className="lg:col-span-2 w-full min-w-0">
+            <Card className="bg-[#150f24] border-white/10 h-[300px] sm:h-[600px] overflow-hidden w-full max-w-full">
+              <MapContainer center={[39.7392, -104.9903]} zoom={10} style={{ height: '100%', width: '100%' }} className="w-full h-full">
                 <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <MapBounds stores={filteredStores} />
                 <MapInteraction selectedStore={selectedStore} markerRefs={markerRefs} />
                 {filteredStores.map(store => (
                   <Marker key={store.id} position={[store.lat, store.lng]} icon={createMarkerIcon(selectedStore?.id === store.id)} ref={ref => { if (ref) markerRefs.current.set(store.id, ref); }} eventHandlers={{ click: () => setSelectedStore(store) }}>
                     <Popup>
-                      <div className="p-2 max-w-[250px]">
+                      <div className="p-2 max-w-[200px] sm:max-w-[250px]">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-gray-900">{store.name}</h3>
-                          {store.store_number && <span className="text-xs font-mono bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">{store.store_number}</span>}
+                          <h3 className="font-semibold text-gray-900 break-all">{store.name}</h3>
+                          {store.store_number && <span className="text-xs font-mono bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded shrink-0">{store.store_number}</span>}
                         </div>
-                        <p className="text-sm text-gray-600">{store.address}</p>
+                        <p className="text-sm text-gray-600 break-all">{store.address}</p>
                         <p className="text-sm text-gray-600">{store.city}, {store.state} {store.zip}</p>
                         {store.phone && <p className="text-sm text-gray-600">{store.phone}</p>}
-                        {store.website && <p className="text-sm mt-1"><a href={store.website.startsWith('http') ? store.website : `https://${store.website}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{store.website}</a></p>}
+                        {store.website && <p className="text-sm mt-1 break-all"><a href={store.website.startsWith('http') ? store.website : `https://${store.website}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{store.website}</a></p>}
                         <div className="mt-2"><Badge className="bg-green-500/20 text-green-600 border-green-500/30">In Stock</Badge></div>
                       </div>
                     </Popup>

@@ -102,7 +102,7 @@ export function StoreLocator() {
           <div className="lg:col-span-1 space-y-4">
             <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" /><Input placeholder="Search by city or name..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 bg-[#150f24] border-white/10 text-white placeholder:text-gray-600" /></div>
             <div className="text-xs text-gray-500">{filteredStores.length} store{filteredStores.length !== 1 ? 's' : ''} found</div>
-            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-3 max-h-[250px] sm:max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
               {filteredStores.map(store => (
                 <Card key={store.id} className={`bg-[#150f24] border-white/10 cursor-pointer transition-all hover:border-[#9a02d0]/50 ${selectedStore?.id === store.id ? 'border-[#9a02d0] ring-1 ring-[#9a02d0]' : ''}`} onClick={() => setSelectedStore(store)}>
                   <CardContent className="p-4">
@@ -122,7 +122,7 @@ export function StoreLocator() {
             </div>
           </div>
           <div className="lg:col-span-2">
-            <Card className="bg-[#150f24] border-white/10 h-[600px] overflow-hidden">
+            <Card className="bg-[#150f24] border-white/10 h-[300px] sm:h-[600px] overflow-hidden">
               <MapContainer center={[39.7392, -104.9903]} zoom={10} style={{ height: '100%', width: '100%' }}>
                 <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <MapBounds stores={filteredStores} />

@@ -93,30 +93,30 @@ export function LandingPage() {
       {/* Hero Section */}
       <section className="hero-bg pt-32 pb-20 px-4 sm:px-6 lg:px-8 min-h-[80vh] flex items-center">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-extrabold tracking-tight mb-4 sm:mb-6">
             <span className="text-white">Discover</span>
             <span className="text-[#44f80c]">micro</span>
             <span className="text-[#9a02d0]">DOS</span>
             <span className="text-[#ff66c4]">(2)</span>
           </h1>
-          <p className="text-2xl md:text-3xl font-light text-gray-300 mb-4">
+          <p className="text-base sm:text-xl md:text-2xl lg:text-3xl font-light text-gray-300 mb-4">
             Precision Psychedelic Wellness
           </p>
           <p className="text-lg md:text-xl text-gray-400 mb-12 uppercase tracking-widest">
             for the Modern Explorer
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-6">
-            <div className="flex items-center justify-center gap-2 text-[#44f80c] bg-white/5 px-6 py-3 rounded-full border border-[#44f80c]/30">
-              <Flask className="text-xl" weight="fill" />
-              <span className="font-medium">Research-Backed</span>
+            <div className="flex items-center justify-center gap-2 text-[#44f80c] bg-white/5 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full border border-[#44f80c]/30">
+              <Flask className="text-lg sm:text-xl" weight="fill" />
+              <span className="font-medium text-sm sm:text-base">Research-Backed</span>
             </div>
-            <div className="flex items-center justify-center gap-2 text-[#9a02d0] bg-white/5 px-6 py-3 rounded-full border border-[#9a02d0]/30">
-              <ShieldCheck className="text-xl" weight="fill" />
-              <span className="font-medium">Safety First</span>
+            <div className="flex items-center justify-center gap-2 text-[#9a02d0] bg-white/5 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full border border-[#9a02d0]/30">
+              <ShieldCheck className="text-lg sm:text-xl" weight="fill" />
+              <span className="font-medium text-sm sm:text-base">Safety First</span>
             </div>
-            <div className="flex items-center justify-center gap-2 text-[#ff66c4] bg-white/5 px-6 py-3 rounded-full border border-[#ff66c4]/30">
-              <Target className="text-xl" weight="fill" />
-              <span className="font-medium">Precise Dosing</span>
+            <div className="flex items-center justify-center gap-2 text-[#ff66c4] bg-white/5 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full border border-[#ff66c4]/30">
+              <Target className="text-lg sm:text-xl" weight="fill" />
+              <span className="font-medium text-sm sm:text-base">Precise Dosing</span>
             </div>
           </div>
 
@@ -126,7 +126,7 @@ export function LandingPage() {
               <img
                 src={heroImage}
                 alt="Featured product display"
-                className="max-h-[400px] w-auto rounded-xl border border-white/10 object-contain shadow-2xl"
+                className="max-h-[220px] sm:max-h-[400px] w-auto rounded-xl border border-white/10 object-contain shadow-2xl"
               />
             </div>
           )}
@@ -134,7 +134,7 @@ export function LandingPage() {
       </section>
 
       {/* Introduction & Specs */}
-      <section id="science" className="py-20 bg-black/50 border-y border-white/5">
+      <section id="science" className="py-10 sm:py-16 lg:py-20 bg-black/50 border-y border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
@@ -200,7 +200,7 @@ export function LandingPage() {
       </section>
 
       {/* Mechanism of Action */}
-      <section className="py-20 bg-[#0a0514]">
+      <section className="py-10 sm:py-20 bg-[#0a0514]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-center mb-12">
             <span className="text-[#9a02d0]">Mechanism</span>{' '}
@@ -297,12 +297,12 @@ export function LandingPage() {
       </section>
 
       {/* Key Advantages */}
-      <section className="py-20 bg-black/50 border-y border-white/5">
+      <section className="py-10 sm:py-16 lg:py-20 bg-black/50 border-y border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-sm text-center text-[#44f80c] font-bold tracking-widest uppercase mb-2">
             Key Advantages
           </h2>
-          <h3 className="text-3xl md:text-5xl font-bold text-center mb-16">
+          <h3 className="text-2xl sm:text-3xl md:text-5xl font-bold text-center mb-8 sm:mb-16">
             Why Choose
             <span className="text-[#44f80c]">micro</span>
             <span className="text-[#9a02d0]">DOS</span>
@@ -381,7 +381,7 @@ export function LandingPage() {
       </section>
 
       {/* Dosage Guide */}
-      <section id="dosage" className="py-20 bg-[#0a0514]">
+      <section id="dosage" className="py-10 sm:py-20 bg-[#0a0514]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-sm text-center text-[#9a02d0] font-bold tracking-widest uppercase mb-2">
             Dosage Guide
@@ -537,9 +537,9 @@ export function LandingPage() {
       </section>
 
       {/* Microdosing vs Macrodosing */}
-      <section className="py-20 bg-black/50 border-y border-white/5">
+      <section className="py-10 sm:py-16 lg:py-20 bg-black/50 border-y border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl md:text-5xl font-bold text-center mb-16">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold text-center mb-8 sm:mb-16">
             Microdosing vs Macrodosing
           </h2>
 
@@ -669,7 +669,7 @@ export function LandingPage() {
       </section>
 
       {/* Clinical Data / Safety */}
-      <section id="safety" className="py-20 bg-[#0a0514]">
+      <section id="safety" className="py-10 sm:py-20 bg-[#0a0514]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-sm text-center text-[#44f80c] font-bold tracking-widest uppercase mb-2">
             Clinical Data
@@ -680,7 +680,7 @@ export function LandingPage() {
 
           <div className="grid md:grid-cols-2 gap-8 mb-12">
             <div className="bg-[#150f24] p-8 rounded-xl text-center border border-white/5">
-              <div className="text-6xl font-bold text-[#44f80c] mb-2">500×</div>
+              <div className="text-4xl sm:text-5xl md:text-6xl font-bold text-[#44f80c] mb-2">500×</div>
               <div className="text-xl font-bold text-white mb-2">Safety Margin</div>
               <p className="text-gray-400 text-sm">
                 Lethal dose estimated at 500 times a therapeutic dose of up to 30mg. One of the
@@ -781,7 +781,7 @@ export function LandingPage() {
       </section>
 
       {/* Self-Hosted Video Carousel — loaded from Supabase Storage */}
-      <section className="py-20 bg-black/50 border-y border-white/5">
+      <section className="py-10 sm:py-16 lg:py-20 bg-black/50 border-y border-white/5">
         <div className="max-w-md mx-auto px-4">
           <div className="relative rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(154,2,208,0.2)] border-2 border-[#9a02d0]/30 bg-[#0a0514]">
             {videoLoading ? (
@@ -828,9 +828,9 @@ export function LandingPage() {
       </section>
 
       {/* What to Expect / Experience */}
-      <section id="experience" className="py-20 bg-black/50 border-y border-white/5">
+      <section id="experience" className="py-10 sm:py-16 lg:py-20 bg-black/50 border-y border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl md:text-5xl font-bold text-center mb-16">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold text-center mb-8 sm:mb-16">
             What to Expect from
             <span className="text-[#44f80c]">micro</span>
             <span className="text-[#9a02d0]">DOS</span>
@@ -999,7 +999,7 @@ export function LandingPage() {
                 to="/store-locator"
                 className="w-48 h-48 bg-white rounded-xl mb-8 flex flex-col items-center justify-center border-4 border-[#9a02d0] shadow-[0_0_30px_rgba(168,85,247,0.4)] hover:scale-105 transition-transform duration-200 group"
               >
-                <div className="text-6xl mb-2 text-[#6b21a8] group-hover:text-[#9a02d0] transition-colors">
+                <div className="text-4xl sm:text-5xl md:text-6xl mb-2 text-[#6b21a8] group-hover:text-[#9a02d0] transition-colors">
                   <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" viewBox="0 0 256 256">
                     <path d="M128,64a40,40,0,1,0,40,40A40,40,0,0,0,128,64Zm0,64a24,24,0,1,1,24-24A24,24,0,0,1,128,128Zm0-112A88.1,88.1,0,0,0,40,104c0,72,80,128,88,128s88-56,88-128A88.1,88.1,0,0,0,128,16Zm0,206.4C115.2,214,56,167.2,56,104a72,72,0,0,1,144,0C200,167.2,140.8,214,128,222.4Z" />
                   </svg>

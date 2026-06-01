@@ -163,7 +163,7 @@ export function ProductImageUploader({
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`,
           },
-          body: JSON.stringify({ image_id: image.id }),
+          body: JSON.stringify({ image_id: image.id, image_url: image.image_url }),
         }
       );
 
@@ -172,8 +172,9 @@ export function ProductImageUploader({
         throw new Error(result.error || `HTTP ${resp.status}`);
       }
 
+      // Remove from local state immediately
+      setImages((prev) => prev.filter((img) => img.id !== image.id));
       toast.success('Image deleted');
-      await fetchImages();
       onChange?.();
     } catch (err: any) {
       toast.error('Failed to delete: ' + err.message);

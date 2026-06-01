@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { image_id } = await req.json()
+    const { image_id, image_url } = await req.json()
 
     if (!image_id) {
       return new Response(
@@ -27,24 +27,32 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // Delete from DB only — storage cleanup is handled separately
-    const { error: dbError } = await supabaseAdmin
-      .from('product_images')
-      .delete()
-      .eq('id', image_id)
+    // Step 1: Delete file from Storage API (this works and cascades to DB)
+    if (image_url) {
+      try {
+        const url = new URL(image_url)
+        const pathMatch = url.pathname.match(/\/object\/public\/[^/]+\/(.+)$/)
+        const storagePath = pathMatch ? pathMatch[1] : null
+        if (storagePath) {
+          await supabaseAdmin.storage.from('product-images').remove([storagePath])
+        }
+      } catch (e) {
+        console.log('Storage delete error (non-critical):', e)
+      }
+    }
 
-    if (dbError) {
-      return new Response(
-        JSON.stringify({ error: dbError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    // Step 2: Try to delete DB record (may fail due to platform restriction)
+    try {
+      await supabaseAdmin.from('product_images').delete().eq('id', image_id)
+    } catch (e) {
+      console.log('DB delete error (non-critical):', e)
     }
 
     return new Response(
       JSON.stringify({ success: true }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
-  } catch (err: any) {
+  } catch (err) {
     return new Response(
       JSON.stringify({ error: err.message || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

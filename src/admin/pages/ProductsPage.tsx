@@ -262,8 +262,8 @@ export function ProductsPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-400 font-mono">{p.sku || '-'}</td>
                       <td className="px-4 py-3 text-sm font-medium text-[#44f80c]">{formatCurrency(p.price)}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-amber-400">{p.wholesaler_price ? formatCurrency(p.wholesaler_price) : '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-400">{p.retail_price ? formatCurrency(p.retail_price) : '-'}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-amber-400">{p.wholesaler_price != null ? formatCurrency(p.wholesaler_price) : '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-400">{p.retail_price != null ? formatCurrency(p.retail_price) : '-'}</td>
                       <td className="px-4 py-3">
                         <span className={cn('text-sm', p.stock < 10 ? 'text-red-400' : p.stock < 50 ? 'text-amber-400' : 'text-emerald-400')}>{p.stock}</span>
                       </td>
@@ -362,21 +362,25 @@ export function ProductsPage() {
                 onClick={() => setActiveTab('variants')}
                 className={cn('px-5 py-3 text-sm font-medium transition-colors', activeTab === 'variants' ? 'text-[#44f80c] border-b-2 border-[#44f80c]' : 'text-gray-400 hover:text-white')}
               >Variants ({editingProduct ? getProductVariants(editingProduct.id).length : 0})</button>
-              {editingProduct && (
-                <button
-                  onClick={() => setActiveTab('images')}
-                  className={cn('px-5 py-3 text-sm font-medium transition-colors', activeTab === 'images' ? 'text-[#44f80c] border-b-2 border-[#44f80c]' : 'text-gray-400 hover:text-white')}
-                >Images</button>
-              )}
+              <button
+                onClick={() => setActiveTab('images')}
+                className={cn('px-5 py-3 text-sm font-medium transition-colors', activeTab === 'images' ? 'text-[#44f80c] border-b-2 border-[#44f80c]' : 'text-gray-400 hover:text-white')}
+              >Images</button>
             </div>
 
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto p-5">
-              {activeTab === 'images' && editingProduct ? (
-                <ProductImageUploader
-                  productId={editingProduct.id}
-                  maxImages={5}
-                />
+              {activeTab === 'images' ? (
+                editingProduct ? (
+                  <ProductImageUploader
+                    productId={editingProduct.id}
+                    maxImages={5}
+                  />
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    <p className="text-sm">Save the product details first, then you can upload images here.</p>
+                  </div>
+                )
               ) : activeTab === 'details' ? (
                 <div className="space-y-4">
                   <div>

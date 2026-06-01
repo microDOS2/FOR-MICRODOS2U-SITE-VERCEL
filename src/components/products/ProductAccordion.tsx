@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { Product, UserRole } from '@/types/products';
 import { PackagingCard } from './PackagingCard';
-import { ChevronDown, ChevronUp, Package } from 'lucide-react';
+import { ProductImageThumbnail, getProductInitials } from '@/pages/Products';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ProductAccordionProps {
   product: Product;
@@ -19,9 +20,7 @@ export function ProductAccordion({ product, role }: ProductAccordionProps) {
         className="w-full flex items-center justify-between p-5 hover:bg-white/5 transition-colors"
       >
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-[#0a0514] rounded-lg border border-white/10 flex items-center justify-center">
-            <Package className="w-8 h-8 text-[#9a02d0]" />
-          </div>
+          <ProductImageThumbnail src={product.image} alt={product.name} size="lg" />
           <div className="text-left">
             <h3 className="text-xl font-bold text-white">{product.name}</h3>
             <p className="text-gray-400">{product.description}</p>

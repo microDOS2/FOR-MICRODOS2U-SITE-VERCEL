@@ -274,16 +274,18 @@ export function Navigation() {
 
       {/* Login Dialog */}
       <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
-        <DialogContent className="bg-[#150f24] border border-white/10 text-white !z-[9999]">
+        <DialogContent className="bg-[#150f24] border border-white/10 text-white !z-[9999]" aria-describedby="login-desc">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">Login to your Account</DialogTitle>
           </DialogHeader>
+          <p id="login-desc" className="sr-only">Enter your email and password to access your portal dashboard.</p>
           <form onSubmit={handleLogin} className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@company.com"
@@ -295,6 +297,7 @@ export function Navigation() {
               <Label htmlFor="password">Password</Label>
               <PasswordInput
                 id="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"

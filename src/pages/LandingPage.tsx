@@ -94,7 +94,7 @@ export function LandingPage() {
       <section className="hero-bg pt-32 pb-20 px-4 sm:px-6 lg:px-8 min-h-[80vh] flex items-center">
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-extrabold tracking-tight mb-4 sm:mb-6">
-            <span className="text-white">Discover</span>
+            <span className="text-white">Discover</span>{" "}
             <span className="text-[#44f80c]">micro</span>
             <span className="text-[#9a02d0]">DOS</span>
             <span className="text-[#ff66c4]">(2)</span>

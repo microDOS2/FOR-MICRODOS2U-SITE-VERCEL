@@ -90,7 +90,7 @@ export function StoreLocator() {
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-[#0a0514]"><Loader2 className="w-8 h-8 text-[#9a02d0] animate-spin" /></div>;
 
   return (
-    <div className="min-h-screen bg-[#0a0514] pt-16">
+    <div className="min-h-screen bg-[#0a0514] pt-16 overflow-x-hidden">
       <div className="bg-[#150f24] border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Find a <span className="text-[#9a02d0]">Retailer</span></h1>
@@ -106,14 +106,14 @@ export function StoreLocator() {
               {filteredStores.map(store => (
                 <Card key={store.id} className={`bg-[#150f24] border-white/10 cursor-pointer transition-all hover:border-[#9a02d0]/50 ${selectedStore?.id === store.id ? 'border-[#9a02d0] ring-1 ring-[#9a02d0]' : ''}`} onClick={() => setSelectedStore(store)}>
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start justify-between mb-2 gap-2">
                       <h3 className="font-semibold text-white">{store.name}</h3>
                       <Badge className="bg-green-500/20 text-green-400 border-green-500/30">In Stock</Badge>
                     </div>
                     <div className="space-y-1 text-sm text-gray-400">
                       <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-[#9a02d0] shrink-0" /><span>{store.address}, {store.city}, {store.state}</span></div>
                       {store.phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-[#9a02d0] shrink-0" /><span>{store.phone}</span></div>}
-                      {store.website && <div className="flex items-center gap-2"><Globe className="w-4 h-4 text-[#44f80c] shrink-0" /><a href={store.website.startsWith('http') ? store.website : `https://${store.website}`} target="_blank" rel="noopener noreferrer" className="text-[#44f80c] hover:underline truncate" onClick={e => e.stopPropagation()}>{store.website}</a></div>}
+                      {store.website && <div className="flex items-center gap-2 min-w-0"><Globe className="w-4 h-4 text-[#44f80c] shrink-0" /><a href={store.website.startsWith('http') ? store.website : `https://${store.website}`} target="_blank" rel="noopener noreferrer" className="text-[#44f80c] hover:underline truncate" onClick={e => e.stopPropagation()}>{store.website}</a></div>}
                     </div>
                   </CardContent>
                 </Card>
@@ -122,7 +122,7 @@ export function StoreLocator() {
             </div>
           </div>
           <div className="lg:col-span-2">
-            <Card className="bg-[#150f24] border-white/10 h-[300px] sm:h-[600px] overflow-hidden">
+            <Card className="bg-[#150f24] border-white/10 h-[300px] sm:h-[600px] overflow-hidden w-full">
               <MapContainer center={[39.7392, -104.9903]} zoom={10} style={{ height: '100%', width: '100%' }}>
                 <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <MapBounds stores={filteredStores} />
@@ -130,7 +130,7 @@ export function StoreLocator() {
                 {filteredStores.map(store => (
                   <Marker key={store.id} position={[store.lat, store.lng]} icon={createMarkerIcon(selectedStore?.id === store.id)} ref={ref => { if (ref) markerRefs.current.set(store.id, ref); }} eventHandlers={{ click: () => setSelectedStore(store) }}>
                     <Popup>
-                      <div className="p-2 min-w-[200px]">
+                      <div className="p-2 max-w-[250px]">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-semibold text-gray-900">{store.name}</h3>
                           {store.store_number && <span className="text-xs font-mono bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">{store.store_number}</span>}

@@ -43,6 +43,7 @@ const emptyVariantForm = {
 export function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [variants, setVariants] = useState<Variant[]>([])
+  const [productImages, setProductImages] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
@@ -75,6 +76,23 @@ export function ProductsPage() {
       .select('*')
       .order('sku')
     if (!vError && vData) setVariants(vData as Variant[])
+
+    // Fetch primary product images for thumbnails
+    const { data: imgData } = await supabase
+      .from('product_images')
+      .select('product_id, image_url, is_primary')
+      .is('variant_id', null)
+      .order('sort_order', { ascending: true })
+    if (imgData) {
+      const imgMap = new Map<string, string>()
+      for (const img of imgData) {
+        const key = img.product_id as string
+        if (!imgMap.has(key) || img.is_primary) {
+          imgMap.set(key, img.image_url)
+        }
+      }
+      setProductImages(imgMap)
+    }
 
     setLoading(false)
   }
@@ -251,9 +269,16 @@ export function ProductsPage() {
                     <tr className="hover:bg-white/5 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-[#0a0514] border border-white/10 flex items-center justify-center text-lg">
-                            {p.image_url ? <img src={p.image_url} className="w-full h-full object-cover rounded-lg" alt="" /> : <PkgIcon className="w-5 h-5 text-gray-500" />}
-                          </div>
+                          {(() => {
+                            const thumbUrl = productImages.get(p.id) || p.image_url
+                            return thumbUrl ? (
+                              <img src={thumbUrl} className="w-10 h-10 rounded-lg object-cover border border-white/10" alt="" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-[#0a0514] border border-white/10 flex items-center justify-center">
+                                <PkgIcon className="w-5 h-5 text-gray-500" />
+                              </div>
+                            )
+                          })()}
                           <div>
                             <div className="text-sm font-medium text-white">{p.name}</div>
                             <div className="text-xs text-gray-500 truncate max-w-[200px]">{p.description}</div>

@@ -31,6 +31,7 @@ import { ShippingPortal } from './pages/ShippingPortal';
 import { ShippingDashboard } from './pages/ShippingDashboard';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import { Navigation } from './components/Navigation';
 import { Footer } from './components/Footer';
 import { CartProvider } from './context/CartContext';
@@ -176,6 +177,9 @@ function AppContent() {
           {/* Redirect old /command-center URLs to /admin */}
           <Route path="/command-center" element={<Navigate to="/admin" replace />} />
           <Route path="/command-center/*" element={<Navigate to="/admin" replace />} />
+
+          {/* Catch-all: 404 page */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
         {isLandingPage && <Footer />}
       </div>

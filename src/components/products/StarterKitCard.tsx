@@ -4,8 +4,9 @@ import { QuantitySelector } from './QuantitySelector';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/context/CartContext';
 import { getPrice } from '@/data/products';
+import { ProductImageThumbnail } from '@/pages/Products';
 import { toast } from 'sonner';
-import { Package, Store, CreditCard, Award } from 'lucide-react';
+import { Package, Store, CreditCard } from 'lucide-react';
 
 interface StarterKitCardProps {
   kit: WholesalerStarterKit;
@@ -36,9 +37,7 @@ export function StarterKitCard({ kit, role }: StarterKitCardProps) {
       <div className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-[#9a02d0] to-[#44f80c] rounded-lg flex items-center justify-center">
-              <Award className="w-8 h-8 text-white" />
-            </div>
+            <ProductImageThumbnail src={kit.image} alt={kit.name} size="lg" />
             <div>
               <h3 className="text-xl font-bold text-white">{kit.name}</h3>
               <p className="text-gray-400">{kit.description}</p>

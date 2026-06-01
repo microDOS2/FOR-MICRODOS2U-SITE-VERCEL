@@ -32,6 +32,7 @@ export interface WholesalerStarterKit {
   id: string;
   name: string;
   description: string;
+  image: string;
   contents: {
     boxes: number;
     starterCards: number;

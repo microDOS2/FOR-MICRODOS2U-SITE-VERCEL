@@ -231,11 +231,13 @@ function transformToFrontend(
   if (kitProduct) {
     const kitVariants = dbVariants.filter((v) => v.product_id === kitProduct.id);
     const kitVariant = kitVariants[0];
+    const kitPrimaryImage = getPrimaryImageUrl(kitProduct.images);
     kit = {
       id: kitProduct.id,
       name: kitProduct.name,
       description:
         kitProduct.description || 'Everything to get started selling microDOS(2)',
+      image: kitPrimaryImage || kitProduct.image_url || '/placeholder-box.png',
       contents: { boxes: 9, starterCards: 7, display: true, placard: true },
       totalPills: kitVariant?.total_pills || 104,
       pricing: {

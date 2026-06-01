@@ -386,7 +386,8 @@ export function DistributorDashboard() {
       if (kitProduct) {
         const kitVariants = enrichedVariants.filter((v: any) => v.product_id === kitProduct.id);
         const kitVariant = kitVariants[0];
-        transformedKit = { id: kitProduct.id, name: kitProduct.name, description: kitProduct.description || 'Everything to get started selling microDOS(2)', contents: { boxes: 9, starterCards: 7, display: true, placard: true }, totalPills: kitVariant?.total_pills || 104, pricing: { msrp: kitVariant?.msrp_price || kitProduct.retail_price || 474.65, wholesalerPrice: kitVariant?.wholesaler_price || 155.76, distributorPrice: kitVariant?.distributor_price || kitProduct.price || 116.82 }, sku: kitProduct.sku, inStock: kitVariant?.in_stock ?? true };
+        const kitPrimaryImage = getPrimaryImageUrl(kitProduct.images);
+        transformedKit = { id: kitProduct.id, name: kitProduct.name, description: kitProduct.description || 'Everything to get started selling microDOS(2)', image: kitPrimaryImage || kitProduct.image_url || '/placeholder-box.png', contents: { boxes: 9, starterCards: 7, display: true, placard: true }, totalPills: kitVariant?.total_pills || 104, pricing: { msrp: kitVariant?.msrp_price || kitProduct.retail_price || 474.65, wholesalerPrice: kitVariant?.wholesaler_price || 155.76, distributorPrice: kitVariant?.distributor_price || kitProduct.price || 116.82 }, sku: kitProduct.sku, inStock: kitVariant?.in_stock ?? true };
       }
       setProducts(transformedProducts);
       setKit(transformedKit);

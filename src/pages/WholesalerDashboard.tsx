@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { getPrimaryImageUrl } from '@/pages/Products';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -434,9 +435,10 @@ export function WholesalerDashboard() {
         const productVariants = enrichedVariants.filter((v: any) => v.product_id === dbp.id);
         const firstVariant = productVariants[0];
         const basePillCount = firstVariant ? Math.round(firstVariant.total_pills / firstVariant.quantity) : 10;
+        const primaryImage = getPrimaryImageUrl(dbp.images);
         return {
           id: dbp.id, name: dbp.name, description: dbp.description || '',
-          basePillCount, image: dbp.image_url || '/placeholder-box.png',
+          basePillCount, image: primaryImage || dbp.image_url || '/placeholder-box.png',
           packagingOptions: productVariants.map((v: any) => ({
             id: v.sku, tier: v.tier as 'individual' | 'case' | 'master_case' | 'special',
             name: v.name, quantity: v.quantity, totalPills: v.total_pills,

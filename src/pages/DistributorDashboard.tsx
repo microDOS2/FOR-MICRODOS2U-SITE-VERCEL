@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { getPrimaryImageUrl } from '@/pages/Products';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -378,7 +379,8 @@ export function DistributorDashboard() {
         const productVariants = enrichedVariants.filter((v: any) => v.product_id === dbp.id);
         const firstVariant = productVariants[0];
         const basePillCount = firstVariant ? Math.round(firstVariant.total_pills / firstVariant.quantity) : 10;
-        return { id: dbp.id, name: dbp.name, description: dbp.description || '', basePillCount, image: dbp.image_url || '/placeholder-box.png', packagingOptions: productVariants.map((v: any) => ({ id: v.sku, tier: v.tier as 'individual' | 'case' | 'master_case' | 'special', name: v.name, quantity: v.quantity, totalPills: v.total_pills, pricing: { msrp: v.msrp_price, wholesalerPrice: v.wholesaler_price, distributorPrice: v.distributor_price }, sku: v.sku, inStock: v.in_stock })) };
+        const primaryImage = getPrimaryImageUrl(dbp.images);
+        return { id: dbp.id, name: dbp.name, description: dbp.description || '', basePillCount, image: primaryImage || dbp.image_url || '/placeholder-box.png', packagingOptions: productVariants.map((v: any) => ({ id: v.sku, tier: v.tier as 'individual' | 'case' | 'master_case' | 'special', name: v.name, quantity: v.quantity, totalPills: v.total_pills, pricing: { msrp: v.msrp_price, wholesalerPrice: v.wholesaler_price, distributorPrice: v.distributor_price }, sku: v.sku, inStock: v.in_stock })) };
       });
       let transformedKit: WholesalerStarterKit | null = null;
       if (kitProduct) {

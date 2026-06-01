@@ -64,7 +64,7 @@ function getFallbackRole(role: UserRole | undefined): UserRole {
  * Return the primary image URL from an images array.
  * Falls back to the first image (sorted by sort_order) if no primary is set.
  */
-function getPrimaryImageUrl(
+export function getPrimaryImageUrl(
   images: DBProductImage[] | null | undefined
 ): string | null {
   if (!images || images.length === 0) return null;

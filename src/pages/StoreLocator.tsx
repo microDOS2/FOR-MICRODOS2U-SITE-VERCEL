@@ -106,12 +106,12 @@ export function StoreLocator() {
               {filteredStores.map(store => (
                 <Card key={store.id} className={`bg-[#150f24] border-white/10 cursor-pointer transition-all hover:border-[#9a02d0]/50 ${selectedStore?.id === store.id ? 'border-[#9a02d0] ring-1 ring-[#9a02d0]' : ''}`} onClick={() => setSelectedStore(store)}>
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-2 gap-2">
-                      <h3 className="font-semibold text-white">{store.name}</h3>
-                      <Badge className="bg-green-500/20 text-green-400 border-green-500/30">In Stock</Badge>
+                    <div className="flex items-start justify-between mb-2 gap-2 flex-wrap">
+                      <h3 className="font-semibold text-white break-all">{store.name}</h3>
+                      <Badge className="bg-green-500/20 text-green-400 border-green-500/30 shrink-0">In Stock</Badge>
                     </div>
-                    <div className="space-y-1 text-sm text-gray-400">
-                      <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-[#9a02d0] shrink-0" /><span>{store.address}, {store.city}, {store.state}</span></div>
+                    <div className="space-y-1 text-sm text-gray-400 max-w-full">
+                      <div className="flex items-center gap-2 min-w-0"><MapPin className="w-4 h-4 text-[#9a02d0] shrink-0" /><span className="break-words">{store.address}, {store.city}, {store.state}</span></div>
                       {store.phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-[#9a02d0] shrink-0" /><span>{store.phone}</span></div>}
                       {store.website && <div className="flex items-center gap-2 min-w-0"><Globe className="w-4 h-4 text-[#44f80c] shrink-0" /><a href={store.website.startsWith('http') ? store.website : `https://${store.website}`} target="_blank" rel="noopener noreferrer" className="text-[#44f80c] hover:underline truncate" onClick={e => e.stopPropagation()}>{store.website}</a></div>}
                     </div>

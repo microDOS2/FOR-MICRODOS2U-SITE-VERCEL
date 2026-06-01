@@ -237,6 +237,13 @@ export function Navigation() {
                   >
                     Experience
                   </button>
+                  <Link
+                    to="/store-locator"
+                    className="block text-gray-300 hover:text-[#9a02d0]"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Store Locator
+                  </Link>
                 </>
               ) : (
                 <>

@@ -1,8 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
 import {
-  Upload,
   X,
   Star,
   Loader2,
@@ -38,7 +36,6 @@ export function ProductImageUploader({
   onChange,
 }: ProductImageUploaderProps) {
   const [images, setImages] = useState<ProductImage[]>([]);
-  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,7 +45,6 @@ export function ProductImageUploader({
   // Fetch images on mount or when scope changes
   const fetchImages = useCallback(async () => {
     if (!scopeId) return;
-    setLoading(true);
     try {
       let query = supabase
         .from('product_images')
@@ -66,8 +62,6 @@ export function ProductImageUploader({
       setImages((data || []) as ProductImage[]);
     } catch (err: any) {
       toast.error('Failed to load images: ' + err.message);
-    } finally {
-      setLoading(false);
     }
   }, [scopeId, isVariant, variantId, productId]);
 

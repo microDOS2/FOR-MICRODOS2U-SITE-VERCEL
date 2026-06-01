@@ -239,12 +239,7 @@ export function DistributorDashboard() {
   // Populate settings
   useEffect(() => {
     if (user) {
-      console.log('[DEBUG Distributor] Populate settings from user:', {
-        bn: user.business_name, ph: user.phone, ad: user.address,
-        ci: user.city, st: user.state, zi: user.zip,
-        ws: user.website, ln: user.license_number
-      });
-      setSettingsForm({
+      const formData = {
         business_name: user.business_name || '',
         phone: user.phone || '',
         address: user.address || '',
@@ -253,7 +248,9 @@ export function DistributorDashboard() {
         zip: user.zip || '',
         website: user.website || '',
         license_number: user.license_number || '',
-      });
+      };
+      console.log('[DEBUG Distributor] Populate settings from user, setting:', JSON.stringify(formData));
+      setSettingsForm(formData);
     }
   }, [user]);
 
@@ -266,11 +263,9 @@ export function DistributorDashboard() {
         .from('users')
         .select('business_name, phone, address, city, state, zip, website, license_number')
         .eq('id', user!.id).maybeSingle();
-      console.log('[DEBUG Distributor] refreshProfile result:', { data, error: error?.message });
       if (error) { console.error('[Settings] refreshProfile error:', error); return; }
       if (data) {
-        console.log('[DEBUG Distributor] Setting form from refreshProfile:', data);
-        setSettingsForm({
+        const formData = {
           business_name: data.business_name || '',
           phone: data.phone || '',
           address: data.address || '',
@@ -279,7 +274,10 @@ export function DistributorDashboard() {
           zip: data.zip || '',
           website: data.website || '',
           license_number: data.license_number || '',
-        });
+        };
+        console.log('[DEBUG Distributor] refreshProfile data:', JSON.stringify(data));
+        console.log('[DEBUG Distributor] Setting form from refreshProfile:', JSON.stringify(formData));
+        setSettingsForm(formData);
       }
     }
     refreshProfile();
@@ -1162,7 +1160,7 @@ export function DistributorDashboard() {
   );
 
   const renderSettings = () => {
-    console.log('[DEBUG Distributor] renderSettings form values:', settingsForm);
+    console.log('[DEBUG Distributor] renderSettings form values:', JSON.stringify(settingsForm));
     if (!user) {
       return (
         <div className="flex items-center justify-center py-20">

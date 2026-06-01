@@ -155,23 +155,13 @@ export function ProductImageUploader({
     if (!confirm('Delete this image?')) return;
 
     try {
-      // Extract storage path
-      const url = new URL(image.image_url);
-      const pathMatch = url.pathname.match(/\/object\/public\/[^/]+\/(.+)$/);
-      const storagePath = pathMatch ? pathMatch[1] : null;
+      // Call edge function to delete (bypasses RLS)
+      const { data, error } = await supabase.functions.invoke('delete-product-image', {
+        body: { image_id: image.id, image_url: image.image_url },
+      });
 
-      // Delete from DB
-      const { error } = await supabase
-        .from('product_images')
-        .delete()
-        .eq('id', image.id);
-
-      if (error) throw new Error(error.message);
-
-      // Clean up storage
-      if (storagePath) {
-        await supabase.storage.from('product-images').remove([storagePath]);
-      }
+      if (error) throw new Error(error.message || 'Delete failed');
+      if (data?.error) throw new Error(data.error);
 
       toast.success('Image deleted');
       await fetchImages();

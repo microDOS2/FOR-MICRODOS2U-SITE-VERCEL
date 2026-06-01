@@ -1,0 +1,68 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': 'https://for-microdos-2-u-site-vercel.vercel.app',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  try {
+    const { image_id, image_url } = await req.json()
+
+    if (!image_id) {
+      return new Response(
+        JSON.stringify({ error: 'image_id is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') || '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+
+    // 1. Delete from DB
+    const { error: dbError } = await supabaseAdmin
+      .from('product_images')
+      .delete()
+      .eq('id', image_id)
+
+    if (dbError) {
+      return new Response(
+        JSON.stringify({ error: dbError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // 2. Delete from Storage if URL provided
+    if (image_url) {
+      try {
+        const url = new URL(image_url)
+        const pathMatch = url.pathname.match(/\/object\/public\/[^/]+\/(.+)$/)
+        const storagePath = pathMatch ? pathMatch[1] : null
+        if (storagePath) {
+          await supabaseAdmin.storage.from('product-images').remove([storagePath])
+        }
+      } catch (e) {
+        // Best effort — don't fail if storage cleanup fails
+        console.error('Storage cleanup error (non-critical):', e)
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ success: true }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  } catch (err: any) {
+    return new Response(
+      JSON.stringify({ error: err.message || 'Internal server error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+})

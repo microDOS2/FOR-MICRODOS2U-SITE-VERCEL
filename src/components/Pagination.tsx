@@ -49,7 +49,7 @@ export function Pagination({
         <select
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className="bg-brand-900 border border-brand-700 text-white rounded px-2 py-1 text-xs ml-2"
+          className="!bg-brand-900 border border-brand-700 text-white rounded px-2 py-1 text-xs ml-2"
         >
           {pageSizeOptions.map((s) => (
             <option key={s} value={s}>{s}/page</option>

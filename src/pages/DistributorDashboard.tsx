@@ -239,7 +239,7 @@ export function DistributorDashboard() {
   // Populate settings
   useEffect(() => {
     if (user) {
-      const formData = {
+      setSettingsForm({
         business_name: user.business_name || '',
         phone: user.phone || '',
         address: user.address || '',
@@ -248,9 +248,7 @@ export function DistributorDashboard() {
         zip: user.zip || '',
         website: user.website || '',
         license_number: user.license_number || '',
-      };
-      console.log('[DEBUG Distributor] Populate settings from user, setting:', JSON.stringify(formData));
-      setSettingsForm(formData);
+      });
     }
   }, [user]);
 
@@ -258,14 +256,13 @@ export function DistributorDashboard() {
   useEffect(() => {
     if (activeTab !== 'settings' || !user?.id) return;
     async function refreshProfile() {
-      console.log('[DEBUG Distributor] refreshProfile running, user.id:', user!.id);
       const { data, error } = await supabase
         .from('users')
         .select('business_name, phone, address, city, state, zip, website, license_number')
         .eq('id', user!.id).maybeSingle();
       if (error) { console.error('[Settings] refreshProfile error:', error); return; }
       if (data) {
-        const formData = {
+        setSettingsForm({
           business_name: data.business_name || '',
           phone: data.phone || '',
           address: data.address || '',
@@ -274,10 +271,7 @@ export function DistributorDashboard() {
           zip: data.zip || '',
           website: data.website || '',
           license_number: data.license_number || '',
-        };
-        console.log('[DEBUG Distributor] refreshProfile data:', JSON.stringify(data));
-        console.log('[DEBUG Distributor] Setting form from refreshProfile:', JSON.stringify(formData));
-        setSettingsForm(formData);
+        });
       }
     }
     refreshProfile();
@@ -686,9 +680,9 @@ export function DistributorDashboard() {
 
       {/* Date Range Filter */}
       <div className="flex gap-2">
-        <Input type="date" value={orderDateFrom} onChange={(e) => { setOrderDateFrom(e.target.value); setOrderPage(1); }} className="bg-brand-900 border-brand-700 text-white w-auto" />
+        <Input type="date" value={orderDateFrom} onChange={(e) => { setOrderDateFrom(e.target.value); setOrderPage(1); }} className="!bg-brand-900 border-brand-700 text-white w-auto" />
         <span className="text-gray-500 self-center">to</span>
-        <Input type="date" value={orderDateTo} onChange={(e) => { setOrderDateTo(e.target.value); setOrderPage(1); }} className="bg-brand-900 border-brand-700 text-white w-auto" />
+        <Input type="date" value={orderDateTo} onChange={(e) => { setOrderDateTo(e.target.value); setOrderPage(1); }} className="!bg-brand-900 border-brand-700 text-white w-auto" />
       </div>
 
       <Card className="bg-brand-800 border-brand-700">
@@ -852,9 +846,9 @@ export function DistributorDashboard() {
           className="btn-primary-gradient border-0"
         />
         <div className="flex gap-2 items-center">
-          <Input type="date" value={invoiceDateFrom} onChange={(e) => { setInvoiceDateFrom(e.target.value); setInvoicePage(1); }} className="bg-brand-900 border-brand-700 text-white w-auto" />
+          <Input type="date" value={invoiceDateFrom} onChange={(e) => { setInvoiceDateFrom(e.target.value); setInvoicePage(1); }} className="!bg-brand-900 border-brand-700 text-white w-auto" />
           <span className="text-gray-500">to</span>
-          <Input type="date" value={invoiceDateTo} onChange={(e) => { setInvoiceDateTo(e.target.value); setInvoicePage(1); }} className="bg-brand-900 border-brand-700 text-white w-auto" />
+          <Input type="date" value={invoiceDateTo} onChange={(e) => { setInvoiceDateTo(e.target.value); setInvoicePage(1); }} className="!bg-brand-900 border-brand-700 text-white w-auto" />
         </div>
       </div>
 
@@ -1160,7 +1154,6 @@ export function DistributorDashboard() {
   );
 
   const renderSettings = () => {
-    console.log('[DEBUG Distributor] renderSettings form values:', JSON.stringify(settingsForm));
     if (!user) {
       return (
         <div className="flex items-center justify-center py-20">
@@ -1182,42 +1175,42 @@ export function DistributorDashboard() {
               <div>
                 <Label className="text-gray-400">Business Name</Label>
                 <Input value={settingsForm.business_name} onChange={e => setSettingsForm({...settingsForm, business_name: e.target.value})}
-                  className="bg-brand-900 border-brand-700 text-white mt-1" placeholder="Your business name" />
+                  className="!bg-brand-900 border-brand-700 text-white mt-1" placeholder="Your business name" />
               </div>
               <div>
                 <Label className="text-gray-400">Phone</Label>
                 <Input value={settingsForm.phone} onChange={e => setSettingsForm({...settingsForm, phone: e.target.value})}
-                  className="bg-brand-900 border-brand-700 text-white mt-1" placeholder="(555) 000-0000" />
+                  className="!bg-brand-900 border-brand-700 text-white mt-1" placeholder="(555) 000-0000" />
               </div>
               <div>
                 <Label className="text-gray-400">Website</Label>
                 <Input value={settingsForm.website} onChange={e => setSettingsForm({...settingsForm, website: e.target.value})}
-                  className="bg-brand-900 border-brand-700 text-white mt-1" placeholder="https://yourbusiness.com" />
+                  className="!bg-brand-900 border-brand-700 text-white mt-1" placeholder="https://yourbusiness.com" />
               </div>
               <div className="md:col-span-2">
                 <Label className="text-gray-400">Street Address</Label>
                 <Input value={settingsForm.address} onChange={e => setSettingsForm({...settingsForm, address: e.target.value})}
-                  className="bg-brand-900 border-brand-700 text-white mt-1" placeholder="123 Main St" />
+                  className="!bg-brand-900 border-brand-700 text-white mt-1" placeholder="123 Main St" />
               </div>
               <div>
                 <Label className="text-gray-400">City</Label>
                 <Input value={settingsForm.city} onChange={e => setSettingsForm({...settingsForm, city: e.target.value})}
-                  className="bg-brand-900 border-brand-700 text-white mt-1" placeholder="City" />
+                  className="!bg-brand-900 border-brand-700 text-white mt-1" placeholder="City" />
               </div>
               <div>
                 <Label className="text-gray-400">State</Label>
                 <Input value={settingsForm.state} onChange={e => setSettingsForm({...settingsForm, state: e.target.value})}
-                  className="bg-brand-900 border-brand-700 text-white mt-1" placeholder="CA" />
+                  className="!bg-brand-900 border-brand-700 text-white mt-1" placeholder="CA" />
               </div>
               <div>
                 <Label className="text-gray-400">ZIP Code</Label>
                 <Input value={settingsForm.zip} onChange={e => setSettingsForm({...settingsForm, zip: e.target.value})}
-                  className="bg-brand-900 border-brand-700 text-white mt-1" placeholder="12345" />
+                  className="!bg-brand-900 border-brand-700 text-white mt-1" placeholder="12345" />
               </div>
               <div>
                 <Label className="text-gray-400">License Number</Label>
                 <Input value={settingsForm.license_number} onChange={e => setSettingsForm({...settingsForm, license_number: e.target.value})}
-                  className="bg-brand-900 border-brand-700 text-white mt-1" placeholder="License #" />
+                  className="!bg-brand-900 border-brand-700 text-white mt-1" placeholder="License #" />
               </div>
             </div>
             {settingsMessage && (
@@ -1243,7 +1236,7 @@ export function DistributorDashboard() {
                 <PasswordInput
                   value={passwordForm.current}
                   onChange={(e) => setPasswordForm({...passwordForm, current: e.target.value})}
-                  className="bg-brand-900 border-brand-700 text-white mt-1"
+                  className="!bg-brand-900 border-brand-700 text-white mt-1"
                   placeholder="••••••••"
                 />
               </div>
@@ -1252,7 +1245,7 @@ export function DistributorDashboard() {
                 <PasswordInput
                   value={passwordForm.new}
                   onChange={(e) => setPasswordForm({...passwordForm, new: e.target.value})}
-                  className="bg-brand-900 border-brand-700 text-white mt-1"
+                  className="!bg-brand-900 border-brand-700 text-white mt-1"
                   placeholder="••••••••"
                 />
               </div>
@@ -1261,7 +1254,7 @@ export function DistributorDashboard() {
                 <PasswordInput
                   value={passwordForm.confirm}
                   onChange={(e) => setPasswordForm({...passwordForm, confirm: e.target.value})}
-                  className="bg-brand-900 border-brand-700 text-white mt-1"
+                  className="!bg-brand-900 border-brand-700 text-white mt-1"
                   placeholder="••••••••"
                 />
               </div>

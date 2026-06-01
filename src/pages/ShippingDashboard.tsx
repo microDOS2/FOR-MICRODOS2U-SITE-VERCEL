@@ -486,7 +486,7 @@ export function ShippingDashboard() {
                                       placeholder="Tracking number"
                                       value={trackingInputs[order.id]?.tracking || ''}
                                       onChange={(e) => updateTrackingInput(order.id, 'tracking', e.target.value)}
-                                      className="bg-brand-900 border-brand-700 text-white sm:w-56"
+                                      className="!bg-brand-900 border-brand-700 text-white sm:w-56"
                                     />
                                     <select
                                       value={trackingInputs[order.id]?.carrier || ''}

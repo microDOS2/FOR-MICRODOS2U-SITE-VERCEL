@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Product, UserRole } from '@/types/products';
 import { PackagingCard } from './PackagingCard';
-import { ProductImageThumbnail, getProductInitials } from '@/pages/Products';
+import { ProductImageThumbnail } from '@/pages/Products';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ProductAccordionProps {

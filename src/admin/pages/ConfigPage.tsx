@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
-import { Search, Plus, Pencil, Trash2, X, Save, Settings, Store, CreditCard, Link, Server, Key, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, X, Save, Settings, Store, CreditCard, Link, Server, Key, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, Image, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface ConfigItem {
@@ -214,6 +214,9 @@ export function ConfigPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Landing Page Hero Image */}
+      <HeroImageConfig />
 
       {/* Payment Processor Configuration — Authorize.net */}
       <Card className="bg-[#150f24] border-white/10">
@@ -435,5 +438,129 @@ export function ConfigPage() {
         </div>
       )}
     </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/*  Landing Page Hero Image — editable from admin                     */
+/* ------------------------------------------------------------------ */
+function HeroImageConfig() {
+  const [currentUrl, setCurrentUrl] = useState<string>('')
+  const [previewUrl, setPreviewUrl] = useState<string>('')
+  const [uploading, setUploading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase.from('app_config').select('value').eq('key', 'landing_hero_image').maybeSingle()
+      if (data?.value) {
+        setCurrentUrl(data.value)
+        setPreviewUrl(data.value)
+      }
+    }
+    load()
+  }, [])
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Max 5MB'); return }
+
+    setUploading(true)
+    try {
+      const ext = file.name.split('.').pop() || 'jpg'
+      const path = `landing/hero-${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('product-images').upload(path, file, { cacheControl: '3600', upsert: false })
+      if (upErr) throw new Error(upErr.message)
+
+      const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(path)
+      setPreviewUrl(urlData.publicUrl)
+      toast.success('Image uploaded')
+    } catch (err: any) {
+      toast.error('Upload failed: ' + err.message)
+    } finally {
+      setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  const handleSave = async () => {
+    if (!previewUrl) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('app_config').upsert({ key: 'landing_hero_image', value: previewUrl }, { onConflict: 'key' })
+      if (error) throw new Error(error.message)
+      setCurrentUrl(previewUrl)
+      toast.success('Hero image saved')
+    } catch (err: any) {
+      toast.error('Save failed: ' + err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleRemove = async () => {
+    if (!confirm('Remove hero image from landing page?')) return
+    setSaving(true)
+    try {
+      await supabase.from('app_config').delete().eq('key', 'landing_hero_image')
+      setCurrentUrl('')
+      setPreviewUrl('')
+      toast.success('Hero image removed')
+    } catch (err: any) {
+      toast.error('Remove failed: ' + err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card className="bg-[#150f24] border-white/10">
+      <CardHeader>
+        <CardTitle className="text-white flex items-center gap-2">
+          <Image className="w-5 h-5 text-[#ff66c4]" />
+          Landing Page Hero Image
+          {currentUrl && <Badge className="bg-green-500/20 text-green-400 ml-2"><CheckCircle className="w-3 h-3 mr-1" /> ACTIVE</Badge>}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {previewUrl ? (
+          <div className="relative">
+            <img src={previewUrl} alt="Hero preview" className="w-full max-h-[250px] object-contain rounded-lg border border-white/10 bg-[#0a0514]" />
+            <button onClick={() => setPreviewUrl('')} className="absolute top-2 right-2 p-1.5 bg-[#1a0a2e] hover:bg-red-600 rounded-full text-white transition-colors" title="Clear preview">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2 px-4 py-8 bg-[#0a0514] border border-dashed border-white/20 rounded-lg text-gray-400">
+            <Image className="w-8 h-8" />
+            <p className="text-sm">No hero image set</p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+          <button onClick={() => fileRef.current?.click()} disabled={uploading} className="flex items-center gap-2 px-4 py-2.5 bg-[#9a02d0] hover:bg-[#9a02d0]/80 rounded-lg text-sm text-white transition-colors disabled:opacity-50">
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            {uploading ? 'Uploading...' : 'Upload Image'}
+          </button>
+
+          {previewUrl && previewUrl !== currentUrl && (
+            <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#44f80c] to-[#9a02d0] hover:opacity-90 rounded-lg text-sm text-white font-medium transition-opacity disabled:opacity-50">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save to Landing Page
+            </button>
+          )}
+
+          {currentUrl && (
+            <button onClick={handleRemove} disabled={saving} className="flex items-center gap-2 px-4 py-2.5 bg-[#0a0514] hover:bg-red-600/20 border border-white/10 rounded-lg text-sm text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50">
+              <Trash2 className="w-4 h-4" /> Remove
+            </button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   )
 }

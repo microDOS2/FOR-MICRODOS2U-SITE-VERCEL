@@ -46,6 +46,21 @@ export function LandingPage() {
   const [videoLoading, setVideoLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [heroImage, setHeroImage] = useState<string>('');
+
+  useEffect(() => {
+    async function fetchHeroImage() {
+      const { data, error } = await supabase
+        .from('app_config')
+        .select('value')
+        .eq('key', 'landing_hero_image')
+        .maybeSingle();
+      if (!error && data) {
+        setHeroImage(data.value);
+      }
+    }
+    fetchHeroImage();
+  }, []);
 
   useEffect(() => {
     async function fetchVideos() {
@@ -108,6 +123,17 @@ export function LandingPage() {
               <span className="font-medium">Precise Dosing</span>
             </div>
           </div>
+
+          {/* Hero Image — admin editable */}
+          {heroImage && (
+            <div className="mt-12 flex justify-center">
+              <img
+                src={heroImage}
+                alt="Featured product display"
+                className="max-h-[400px] w-auto rounded-xl border border-white/10 object-contain shadow-2xl"
+              />
+            </div>
+          )}
         </div>
       </section>
 

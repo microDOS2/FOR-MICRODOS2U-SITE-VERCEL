@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { image_id, image_url } = await req.json()
+    const { image_id } = await req.json()
 
     if (!image_id) {
       return new Response(
@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // 1. Delete from DB
+    // Delete from DB only — storage cleanup is handled separately
     const { error: dbError } = await supabaseAdmin
       .from('product_images')
       .delete()
@@ -38,21 +38,6 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: dbError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
-    }
-
-    // 2. Delete from Storage if URL provided
-    if (image_url) {
-      try {
-        const url = new URL(image_url)
-        const pathMatch = url.pathname.match(/\/object\/public\/[^/]+\/(.+)$/)
-        const storagePath = pathMatch ? pathMatch[1] : null
-        if (storagePath) {
-          await supabaseAdmin.storage.from('product-images').remove([storagePath])
-        }
-      } catch (e) {
-        // Best effort — don't fail if storage cleanup fails
-        console.error('Storage cleanup error (non-critical):', e)
-      }
     }
 
     return new Response(

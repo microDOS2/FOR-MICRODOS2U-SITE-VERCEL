@@ -436,6 +436,7 @@ export function WholesalerDashboard() {
         const firstVariant = productVariants[0];
         const basePillCount = firstVariant ? Math.round(firstVariant.total_pills / firstVariant.quantity) : 10;
         const primaryImage = getPrimaryImageUrl(dbp.images);
+        console.log('[DEBUG WD] product:', dbp.name, 'primaryImage:', primaryImage?.slice(0, 50), 'dbp.images:', dbp.images?.length || 0);
         return {
           id: dbp.id, name: dbp.name, description: dbp.description || '',
           basePillCount, image: primaryImage || dbp.image_url || '/placeholder-box.png',

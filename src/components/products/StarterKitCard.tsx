@@ -6,7 +6,7 @@ import { useCart } from '@/context/CartContext';
 import { getPrice } from '@/data/products';
 import { ProductImageThumbnail } from '@/pages/Products';
 import { toast } from 'sonner';
-import { Package, Store, CreditCard } from 'lucide-react';
+import { Package, Store, CreditCard, Award } from 'lucide-react';
 
 interface StarterKitCardProps {
   kit: WholesalerStarterKit;

@@ -293,6 +293,11 @@ export function Products() {
 
         const dbProducts = rpcData?.products || [];
         const dbVariants = rpcData?.variants || [];
+        console.log('[DEBUG FETCH] products count:', dbProducts.length, 'variants count:', dbVariants.length);
+        if (dbProducts[0]) {
+          console.log('[DEBUG FETCH] first product:', dbProducts[0].name, 'images:', dbProducts[0].images?.length || 0);
+          console.log('[DEBUG FETCH] first product image URLs:', dbProducts[0].images?.map((i: any) => i.image_url?.slice(0, 40)));
+        }
 
         if (cancelled) return;
 

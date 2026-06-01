@@ -152,9 +152,32 @@ export function ProductImageUploader({
   };
 
   const handleDelete = async (image: ProductImage) => {
-    if (!confirm('Delete this image?\n\nNote: Image delete is temporarily disabled. Please contact admin.')) return;
-    toast.info('Image delete is temporarily disabled.');
-    return;
+    if (!confirm('Delete this image?')) return;
+
+    try {
+      const resp = await fetch(
+        'https://fildaxejimuvfrcqmoba.supabase.co/functions/v1/delete-product-image',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`,
+          },
+          body: JSON.stringify({ image_id: image.id }),
+        }
+      );
+
+      const result = await resp.json();
+      if (!resp.ok) {
+        throw new Error(result.error || `HTTP ${resp.status}`);
+      }
+
+      toast.success('Image deleted');
+      await fetchImages();
+      onChange?.();
+    } catch (err: any) {
+      toast.error('Failed to delete: ' + err.message);
+    }
   };
 
   const handleSetPrimary = async (imageId: string) => {

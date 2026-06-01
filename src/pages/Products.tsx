@@ -67,6 +67,7 @@ function getFallbackRole(role: UserRole | undefined): UserRole {
 function getPrimaryImageUrl(
   images: DBProductImage[] | null | undefined
 ): string | null {
+  console.log('[DEBUG getPrimaryImageUrl] images count:', images?.length || 0, 'first:', images?.[0]?.image_url?.slice(0, 50));
   if (!images || images.length === 0) return null;
   const primary = images.find((img) => img.is_primary);
   if (primary) return primary.image_url;
@@ -110,6 +111,7 @@ export function ProductImageThumbnail({
     lg: 'w-20 h-20',
   };
 
+  console.log('[DEBUG ProductImageThumbnail] src:', src?.slice(0, 60), 'alt:', alt);
   const hasImage = src && src !== '/placeholder-box.png';
 
   if (!hasImage) {
@@ -203,6 +205,7 @@ function transformToFrontend(
     const primaryProductImage = getPrimaryImageUrl(dbp.images);
     const productImage =
       primaryProductImage || dbp.image_url || '/placeholder-box.png';
+    console.log('[DEBUG transform] product:', dbp.name, 'primary:', primaryProductImage?.slice(0, 50), 'final:', productImage?.slice(0, 50));
 
     return {
       id: dbp.id,

@@ -143,7 +143,7 @@ function AppContent() {
           <Route path="/sales-rep-notifications" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepNotifications /></RequireAuth>} />
           <Route path="/sales-rep-settings" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepSettings /></RequireAuth>} />
           <Route path="/sales-rep-visits" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepVisits /></RequireAuth>} />
-          <Route path="/admin-portal" element={<AdminPortal />} />
+          <Route path="/admin-portal" element={<RequireAuth allowedRoles={['admin']}><AdminPortal /></RequireAuth>} />
           <Route path="/products" element={<RequireAuth><Products /></RequireAuth>} />
           <Route path="/shipping-portal" element={<RequireAuth allowedRoles={['shipping_fulfillment', 'admin']}><ShippingPortal /></RequireAuth>} />
           <Route path="/shipping-dashboard" element={<RequireAuth allowedRoles={['shipping_fulfillment', 'admin']}><ShippingDashboard /></RequireAuth>} />

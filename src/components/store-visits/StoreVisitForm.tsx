@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { logStoreVisit } from '@/lib/storeVisits';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, MapPin, FileText, Camera, Loader2, CheckCircle } from 'lucide-react';
+import { Calendar, MapPin, FileText, Camera, Loader2, CheckCircle, X, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Store {
@@ -22,9 +23,76 @@ export function StoreVisitForm({ stores, onSuccess }: StoreVisitFormProps) {
   const [storeId, setStoreId] = useState('');
   const [visitDate, setVisitDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
-  const [photoUrl, setPhotoUrl] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file (JPG, PNG, etc.)');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be smaller than 5MB');
+      return;
+    }
+
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadPhoto = async (file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `visits/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('visit-photos')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      // If bucket doesn't exist, try product-images as fallback
+      if (uploadError.message?.includes('bucket') || uploadError.message?.includes('not found')) {
+        const { error: fallbackError } = await supabase.storage
+          .from('product-images')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false,
+          });
+        if (fallbackError) throw new Error(fallbackError.message);
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(filePath);
+        return publicUrl;
+      }
+      throw new Error(uploadError.message);
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('visit-photos')
+      .getPublicUrl(filePath);
+    return publicUrl;
+  };
 
   const handleSubmit = async () => {
     if (!storeId) { toast.error('Please select a store'); return; }
@@ -33,11 +101,18 @@ export function StoreVisitForm({ stores, onSuccess }: StoreVisitFormProps) {
 
     setIsSubmitting(true);
     try {
+      let uploadedPhotoUrl: string | undefined;
+
+      // Upload photo if selected
+      if (photoFile) {
+        uploadedPhotoUrl = await uploadPhoto(photoFile);
+      }
+
       await logStoreVisit({
         storeId,
         visitDate,
         notes: notes.trim(),
-        photoUrl: photoUrl || undefined,
+        photoUrl: uploadedPhotoUrl,
       });
       toast.success('Store visit logged successfully!');
       setSubmitted(true);
@@ -45,7 +120,8 @@ export function StoreVisitForm({ stores, onSuccess }: StoreVisitFormProps) {
         setSubmitted(false);
         setStoreId('');
         setNotes('');
-        setPhotoUrl('');
+        setPhotoFile(null);
+        setPhotoPreview('');
         setVisitDate(new Date().toISOString().split('T')[0]);
         onSuccess?.();
       }, 2000);
@@ -126,19 +202,47 @@ export function StoreVisitForm({ stores, onSuccess }: StoreVisitFormProps) {
           />
         </div>
 
-        {/* Photo URL (optional) */}
-        <div className="space-y-1">
+        {/* Photo Upload (optional) */}
+        <div className="space-y-2">
           <label className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1">
-            <Camera className="w-3 h-3" /> Photo URL (optional)
+            <Camera className="w-3 h-3" /> Photo (optional)
           </label>
+
+          {photoPreview ? (
+            <div className="relative">
+              <img
+                src={photoPreview}
+                alt="Visit photo preview"
+                className="w-full h-48 object-cover rounded-lg border border-white/10"
+              />
+              <button
+                type="button"
+                onClick={handleRemovePhoto}
+                className="absolute top-2 right-2 bg-[#1a0a2e] hover:bg-red-600 text-white rounded-full p-1.5 transition-colors"
+                title="Remove photo"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full px-4 py-6 bg-[#0a0514] border border-dashed border-white/20 rounded-lg text-gray-400 hover:border-[#9a02d0] hover:text-[#9a02d0] transition-colors flex flex-col items-center gap-2"
+            >
+              <Upload className="w-6 h-6" />
+              <span className="text-sm">Click to upload a photo</span>
+              <span className="text-xs text-gray-600">JPG, PNG up to 5MB</span>
+            </button>
+          )}
+
           <input
-            type="url"
-            value={photoUrl}
-            onChange={(e) => setPhotoUrl(e.target.value)}
-            placeholder="https://example.com/photo.jpg"
-            className="w-full px-4 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-white placeholder:text-gray-600 focus:outline-none focus:border-[#9a02d0] text-sm"
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            className="hidden"
           />
-          <p className="text-xs text-gray-600">Paste a link to a photo of the store visit</p>
         </div>
 
         {/* Submit */}

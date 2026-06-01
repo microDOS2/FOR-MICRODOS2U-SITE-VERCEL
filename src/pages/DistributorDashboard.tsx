@@ -239,6 +239,11 @@ export function DistributorDashboard() {
   // Populate settings
   useEffect(() => {
     if (user) {
+      console.log('[DEBUG Distributor] Populate settings from user:', {
+        bn: user.business_name, ph: user.phone, ad: user.address,
+        ci: user.city, st: user.state, zi: user.zip,
+        ws: user.website, ln: user.license_number
+      });
       setSettingsForm({
         business_name: user.business_name || '',
         phone: user.phone || '',
@@ -256,12 +261,15 @@ export function DistributorDashboard() {
   useEffect(() => {
     if (activeTab !== 'settings' || !user?.id) return;
     async function refreshProfile() {
+      console.log('[DEBUG Distributor] refreshProfile running, user.id:', user!.id);
       const { data, error } = await supabase
         .from('users')
         .select('business_name, phone, address, city, state, zip, website, license_number')
         .eq('id', user!.id).maybeSingle();
+      console.log('[DEBUG Distributor] refreshProfile result:', { data, error: error?.message });
       if (error) { console.error('[Settings] refreshProfile error:', error); return; }
       if (data) {
+        console.log('[DEBUG Distributor] Setting form from refreshProfile:', data);
         setSettingsForm({
           business_name: data.business_name || '',
           phone: data.phone || '',
@@ -1154,6 +1162,7 @@ export function DistributorDashboard() {
   );
 
   const renderSettings = () => {
+    console.log('[DEBUG Distributor] renderSettings form values:', settingsForm);
     if (!user) {
       return (
         <div className="flex items-center justify-center py-20">

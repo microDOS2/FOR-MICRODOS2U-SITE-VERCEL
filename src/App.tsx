@@ -7,6 +7,10 @@ import { ContactPage } from './pages/ContactPage';
 import { WholesalerDashboard } from './pages/WholesalerDashboard';
 import { DistributorPortal } from './pages/DistributorPortal';
 import { DistributorDashboard } from './pages/DistributorDashboard';
+import { DistributorOrders } from './pages/DistributorOrders';
+import { DistributorInvoices } from './pages/DistributorInvoices';
+import { DistributorAgreements } from './pages/DistributorAgreements';
+import { DistributorSettings } from './pages/DistributorSettings';
 import { SalesManagerPortal } from './pages/SalesManagerPortal';
 import { SalesManagerDashboard } from './pages/SalesManagerDashboard';
 import { SalesManagerTeam } from './pages/SalesManagerTeam';
@@ -121,10 +125,10 @@ function AppContent() {
           <Route path="/wholesaler-dashboard" element={<RequireAuth allowedRoles={['wholesaler', 'admin']}><WholesalerDashboard /></RequireAuth>} />
           <Route path="/distributor-portal" element={<RequireAuth allowedRoles={['distributor', 'admin']}><DistributorPortal /></RequireAuth>} />
           <Route path="/distributor-dashboard" element={<RequireAuth allowedRoles={['distributor', 'admin']}><DistributorDashboard /></RequireAuth>} />
-          <Route path="/distributor-orders" element={<RequireAuth allowedRoles={['distributor', 'admin']}><Navigate to="/distributor-dashboard" replace /></RequireAuth>} />
-          <Route path="/distributor-invoices" element={<RequireAuth allowedRoles={['distributor', 'admin']}><Navigate to="/distributor-dashboard" replace /></RequireAuth>} />
-          <Route path="/distributor-agreements" element={<RequireAuth allowedRoles={['distributor', 'admin']}><Navigate to="/distributor-dashboard" replace /></RequireAuth>} />
-          <Route path="/distributor-settings" element={<RequireAuth allowedRoles={['distributor', 'admin']}><Navigate to="/distributor-dashboard" replace /></RequireAuth>} />
+          <Route path="/distributor-orders" element={<RequireAuth allowedRoles={['distributor', 'admin']}><DistributorOrders /></RequireAuth>} />
+          <Route path="/distributor-invoices" element={<RequireAuth allowedRoles={['distributor', 'admin']}><DistributorInvoices /></RequireAuth>} />
+          <Route path="/distributor-agreements" element={<RequireAuth allowedRoles={['distributor', 'admin']}><DistributorAgreements /></RequireAuth>} />
+          <Route path="/distributor-settings" element={<RequireAuth allowedRoles={['distributor', 'admin']}><DistributorSettings /></RequireAuth>} />
           <Route path="/sales-manager-portal" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerPortal /></RequireAuth>} />
           <Route path="/sales-manager-dashboard" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerDashboard /></RequireAuth>} />
           <Route path="/sales-manager-team" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerTeam /></RequireAuth>} />

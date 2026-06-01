@@ -156,17 +156,29 @@ export function ProductImageUploader({
 
     try {
       // Call edge function to delete (bypasses RLS)
-      const { data, error } = await supabase.functions.invoke('delete-product-image', {
-        body: { image_id: image.id, image_url: image.image_url },
-      });
+      const resp = await fetch(
+        'https://fildaxejimuvfrcqmoba.supabase.co/functions/v1/delete-product-image',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`,
+          },
+          body: JSON.stringify({ image_id: image.id, image_url: image.image_url }),
+        }
+      );
 
-      if (error) throw new Error(error.message || 'Delete failed');
-      if (data?.error) throw new Error(data.error);
+      const result = await resp.json();
+      if (!resp.ok) {
+        console.error('[delete image] HTTP error:', resp.status, result);
+        throw new Error(result.error || `HTTP ${resp.status}`);
+      }
 
       toast.success('Image deleted');
       await fetchImages();
       onChange?.();
     } catch (err: any) {
+      console.error('[delete image] Error:', err);
       toast.error('Failed to delete: ' + err.message);
     }
   };

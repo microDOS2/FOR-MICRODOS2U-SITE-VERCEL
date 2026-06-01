@@ -4,6 +4,7 @@ import { downloadCSV, formatCurrency } from '@/lib/utils'
 import { Search, Download, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { ProductImageUploader } from '@/components/products/ProductImageUploader'
 
 interface Product {
   id: string
@@ -49,7 +50,7 @@ export function ProductsPage() {
   const [showModal, setShowModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'details' | 'variants'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'variants' | 'images'>('details')
   const [formData, setFormData] = useState({
     name: '', description: '', price: 0, wholesaler_price: 0, retail_price: 0, sku: '', stock: 0, min_order: 1, is_active: true
   })
@@ -361,11 +362,22 @@ export function ProductsPage() {
                 onClick={() => setActiveTab('variants')}
                 className={cn('px-5 py-3 text-sm font-medium transition-colors', activeTab === 'variants' ? 'text-[#44f80c] border-b-2 border-[#44f80c]' : 'text-gray-400 hover:text-white')}
               >Variants ({editingProduct ? getProductVariants(editingProduct.id).length : 0})</button>
+              {editingProduct && (
+                <button
+                  onClick={() => setActiveTab('images')}
+                  className={cn('px-5 py-3 text-sm font-medium transition-colors', activeTab === 'images' ? 'text-[#44f80c] border-b-2 border-[#44f80c]' : 'text-gray-400 hover:text-white')}
+                >Images</button>
+              )}
             </div>
 
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto p-5">
-              {activeTab === 'details' ? (
+              {activeTab === 'images' && editingProduct ? (
+                <ProductImageUploader
+                  productId={editingProduct.id}
+                  maxImages={5}
+                />
+              ) : activeTab === 'details' ? (
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-400 mb-1.5">Name</label>
@@ -470,6 +482,15 @@ export function ProductsPage() {
                               <span className="text-gray-500">Distributor</span>
                               <p className="text-[#44f80c]">{formatCurrency(v.distributor_price)}</p>
                             </div>
+                          </div>
+                          {/* Variant Images */}
+                          <div className="mt-3 pt-3 border-t border-white/10">
+                            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Variant Images</p>
+                            <ProductImageUploader
+                              productId={editingProduct.id}
+                              variantId={v.id}
+                              maxImages={5}
+                            />
                           </div>
                         </div>
                         <div className="flex items-center gap-1 ml-3">

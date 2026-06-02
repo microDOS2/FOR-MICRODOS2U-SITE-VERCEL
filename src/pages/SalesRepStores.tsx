@@ -81,45 +81,40 @@ export function SalesRepStores() {
       }
     }
 
-    // Get stores for this rep by deriving from assigned accounts
-    // Account → Stores (store name prefix matches account referral_code)
+    // Get stores for this rep's assigned accounts (wholesalers & distributors only)
     let storeList: any[] = []
 
-    // Step 1: Get account assignments
+    // Step 1: Get account assignments (only business accounts, not managers)
     const { data: assignmentsData } = await supabase
       .from('rep_account_assignments')
       .select('account_id')
       .eq('rep_id', repId)
 
-    const accountIds = (assignmentsData || []).map((a: any) => a.account_id)
-
-    if (accountIds.length > 0) {
-      // Step 2: Get referral_codes for those accounts
+    // Step 2: Filter to only wholesaler/distributor accounts
+    const rawAccountIds = (assignmentsData || []).map((a: any) => a.account_id)
+    let businessAccountIds: string[] = []
+    if (rawAccountIds.length > 0) {
       const { data: acctsData } = await supabase
         .from('users')
         .select('id, referral_code, website')
-        .in('id', accountIds)
+        .in('id', rawAccountIds)
+        .in('role', ['wholesaler', 'distributor'])
+      businessAccountIds = (acctsData || []).map((a: any) => a.id)
+    }
 
-      const refCodes = (acctsData || []).map((a: any) => a.referral_code).filter(Boolean)
-
-      if (refCodes.length > 0) {
-        // Step 3: Get all stores whose name starts with any referral_code
-        const { data: acctStores } = await supabase
-          .from('wholesaler_store_locations')
-          .select('id, name, address, city, state, license_number, user_id, contact_name, phone')
-          .order('name', { ascending: true })
-
-        storeList = (acctStores || []).filter((s: any) => {
-          const namePrefix = (s.name || '').match(/^(\d+[a-z])/)?.[1]
-          if (!namePrefix) return false
-          const acctNum = namePrefix.replace(/[a-z]$/, '')
-          return refCodes.includes(acctNum)
-        })
-      }
+    // Step 3: Get ALL stores belonging to those accounts
+    if (businessAccountIds.length > 0) {
+      const { data: acctStores } = await supabase
+        .from('wholesaler_store_locations')
+        .select('id, name, address, city, state, license_number, user_id, contact_name, phone')
+        .in('user_id', businessAccountIds)
+        .eq('is_active', true)
+        .order('name', { ascending: true })
+      storeList = acctStores || []
     }
 
     // Step 4: Look up account details for the stores
-    const storeAccountIds = storeList.map((s: any) => s.user_id).filter(Boolean)
+    const storeAccountIds = [...new Set(storeList.map((s: any) => s.user_id).filter(Boolean))]
     const { data: accountsData } = storeAccountIds.length > 0
       ? await supabase.from('users').select('id,business_name,email,phone,manager_id').in('id', storeAccountIds)
       : { data: [] }

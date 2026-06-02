@@ -306,7 +306,7 @@ export function ShippingDashboard() {
                 orders.filter((o) => o.status === 'processing').slice(0, 5).map((order) => (
                   <TableRow key={order.id} className="border-brand-700">
                     <TableCell className="font-medium text-white">{order.po_number}</TableCell>
-                    <TableCell className="text-gray-300">{order.users?.business_name || '—'}</TableCell>
+                    <TableCell className="text-gray-300">{order.account_name || '—'}</TableCell>
                     <TableCell className="text-gray-300">{order.items}</TableCell>
                     <TableCell className="text-gray-300">{formatCurrency(order.total)}</TableCell>
                     <TableCell>
@@ -386,8 +386,8 @@ export function ShippingDashboard() {
                         <TableCell className="font-medium text-white">{order.po_number}</TableCell>
                         <TableCell className="text-gray-300">
                           <div className="flex flex-col">
-                            <span>{order.users?.business_name || '—'}</span>
-                            <span className="text-xs text-gray-500">{order.users?.email}</span>
+                            <span>{order.account_name || '—'}</span>
+                            <span className="text-xs text-gray-500">{order.account_email}</span>
                           </div>
                         </TableCell>
                         <TableCell className="text-gray-300">{order.created_at?.slice(0, 10) || '—'}</TableCell>
@@ -422,12 +422,12 @@ export function ShippingDashboard() {
                                   <p className="text-xs font-medium text-gray-400 flex items-center gap-1">
                                     <User className="w-3 h-3" /> Contact
                                   </p>
-                                  <p className="text-white">{order.contact_person || order.users?.business_name || '—'}</p>
+                                  <p className="text-white">{order.contact_person || order.account_name || '—'}</p>
                                   <p className="text-gray-400 flex items-center gap-1">
-                                    <Phone className="w-3 h-3" /> {order.contact_phone || order.users?.phone || '—'}
+                                    <Phone className="w-3 h-3" /> {order.contact_phone || order.account_phone || '—'}
                                   </p>
                                   <p className="text-gray-400 flex items-center gap-1">
-                                    <Mail className="w-3 h-3" /> {order.users?.email || '—'}
+                                    <Mail className="w-3 h-3" /> {order.account_email || '—'}
                                   </p>
                                 </div>
                                 <div className="space-y-1 md:col-span-2">

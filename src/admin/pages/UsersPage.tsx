@@ -178,7 +178,7 @@ export function UsersPage() {
   const [lastLoginMap, setLastLoginMap] = useState<Map<string, string>>(new Map())
 
   // Sort state
-  type SortColumn = 'name' | 'email' | 'role' | 'location'
+  type SortColumn = 'name' | 'email' | 'role' | 'location' | 'website'
   const [sortColumn, setSortColumn] = useState<SortColumn>('role')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
@@ -346,6 +346,7 @@ export function UsersPage() {
         case 'email': return acct.email.toLowerCase()
         case 'role': return (acct.role || acct.account_type || '').toLowerCase()
         case 'location': return `${acct.city || ''}, ${acct.state || ''}`.toLowerCase()
+        case 'website': return (acct.website || '').toLowerCase()
       }
     }
     const aVal = getVal(a, sortColumn)
@@ -1172,6 +1173,7 @@ export function UsersPage() {
                       { key: 'email' as SortColumn, label: 'Email', align: 'left' },
                       { key: 'role' as SortColumn, label: 'Role', align: 'left' },
                       { key: 'location' as SortColumn, label: 'Location', align: 'left' },
+                      { key: 'website' as SortColumn, label: 'Website', align: 'left' },
                     ].map((col) => (
                       <th
                         key={col.key}
@@ -1199,7 +1201,7 @@ export function UsersPage() {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {sorted.length === 0 && (
-                    <tr><td colSpan={7} className="text-center text-gray-500 py-8">No approved users found</td></tr>
+                    <tr><td colSpan={8} className="text-center text-gray-500 py-8">No approved users found</td></tr>
                   )}
                   {sorted.map((account) => {
                     const role = account.role || ''
@@ -1221,6 +1223,13 @@ export function UsersPage() {
                         </td>
                         <td className="px-4 py-3 text-gray-400 text-sm">
                           {account.city && account.state ? `${account.city}, ${account.state}` : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-400 text-sm max-w-[150px] truncate">
+                          {account.website ? (
+                            <a href={account.website.startsWith('http') ? account.website : `https://${account.website}`} target="_blank" rel="noopener noreferrer" className="text-[#44f80c] hover:underline truncate" onClick={e => e.stopPropagation()}>
+                              {account.website}
+                            </a>
+                          ) : '—'}
                         </td>
                         <td className="px-4 py-3 text-sm">
                           {formatLastLogin(lastLoginMap.get(account.id))}

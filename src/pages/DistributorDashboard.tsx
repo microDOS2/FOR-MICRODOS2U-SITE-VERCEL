@@ -1044,6 +1044,16 @@ export function DistributorDashboard() {
                 <p className="text-xs text-gray-500 uppercase tracking-wide">License</p>
                 <p className="text-gray-300">{user?.license_number || 'Not set'}</p>
               </div>
+              <div className="space-y-1">
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Website</p>
+                {user?.website ? (
+                  <a href={user.website.startsWith('http') ? user.website : `https://${user.website}`} target="_blank" rel="noopener noreferrer" className="text-[#44f80c] hover:underline truncate block">
+                    {user.website}
+                  </a>
+                ) : (
+                  <p className="text-gray-300">Not set</p>
+                )}
+              </div>
             </div>
           </div>
 

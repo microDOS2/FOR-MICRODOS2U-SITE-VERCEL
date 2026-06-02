@@ -13,6 +13,7 @@ import {
   Building2,
   Shield,
   User,
+  Globe,
 } from 'lucide-react'
 
 interface StoreData {
@@ -25,6 +26,7 @@ interface StoreData {
   account_name: string
   account_email: string | null
   account_phone: string | null
+  account_website: string | null
   manager_name: string | null
   manager_email: string | null
   manager_phone: string | null
@@ -95,7 +97,7 @@ export function SalesRepStores() {
       // Step 2: Get referral_codes for those accounts
       const { data: acctsData } = await supabase
         .from('users')
-        .select('id, referral_code')
+        .select('id, referral_code, website')
         .in('id', accountIds)
 
       const refCodes = (acctsData || []).map((a: any) => a.referral_code).filter(Boolean)
@@ -135,6 +137,7 @@ export function SalesRepStores() {
         account_name: acct?.business_name || 'Unknown',
         account_email: acct?.email || null,
         account_phone: acct?.phone || null,
+        account_website: acct?.website || null,
         manager_name: myManagerInfo?.name || 'Unassigned',
         manager_email: myManagerInfo?.email || null,
         manager_phone: myManagerInfo?.phone || null,
@@ -247,6 +250,14 @@ export function SalesRepStores() {
                         <div className="flex items-center gap-2">
                           <Phone className="w-3.5 h-3.5 text-gray-500" />
                           <span className="text-xs text-gray-400">{s.account_phone}</span>
+                        </div>
+                      )}
+                      {s.account_website && (
+                        <div className="flex items-center gap-2">
+                          <Globe className="w-3.5 h-3.5 text-gray-500" />
+                          <a href={s.account_website.startsWith('http') ? s.account_website : `https://${s.account_website}`} target="_blank" rel="noopener noreferrer" className="text-xs text-[#44f80c] hover:underline">
+                            {s.account_website}
+                          </a>
                         </div>
                       )}
 

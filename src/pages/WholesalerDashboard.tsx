@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getPrimaryImageUrl } from '@/pages/Products';
+import { geocodeAddress } from '@/lib/geocode';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -569,6 +570,15 @@ export function WholesalerDashboard() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const userId = user?.id || 'demo-user';
+      
+      // Geocode address before saving
+      let lat = null, lng = null;
+      const fullAddress = [storeForm.address, storeForm.city, storeForm.state, storeForm.zip].filter(Boolean).join(', ');
+      if (fullAddress) {
+        const geo = await geocodeAddress(fullAddress);
+        if (geo) { lat = geo.lat; lng = geo.lng; }
+      }
+      
       const payload = {
         user_id: userId,
         name: storeForm.name,
@@ -582,6 +592,9 @@ export function WholesalerDashboard() {
         contact_name: storeForm.contact_name || null,
         is_primary: storeForm.is_primary,
         is_active: true,
+        source: 'wholesaler',
+        lat,
+        lng,
       };
       if (editingStore) {
         const { data, error } = await supabase
@@ -601,7 +614,7 @@ export function WholesalerDashboard() {
       } else {
         const { data, error } = await supabase
           .from('wholesaler_store_locations')
-          .insert({ ...payload, lat: null, lng: null })
+          .insert(payload)
           .select()
           .single();
         if (!error && data) {
@@ -656,7 +669,7 @@ export function WholesalerDashboard() {
           zip: s.zip || null, phone: s.phone || null, email: s.email || null,
           website: s.website || null, stock: s.stock || 'In Stock',
           is_primary: s.is_primary || false, is_active: true,
-          lat: s.lat, lng: s.lng, user_id: user.id, source: 'admin',
+          lat: s.lat, lng: s.lng, user_id: user.id, source: 'wholesaler',
         });
         if (error) { failed++; } else { inserted++; }
       }

@@ -131,7 +131,7 @@ export function StoresPage() {
   const handleSave = async () => {
     const payload: any = { name: formData.name, address: formData.address, city: formData.city, state: formData.state, zip: formData.zip, lat: formData.lat ? parseFloat(formData.lat) : null, lng: formData.lng ? parseFloat(formData.lng) : null, phone: formData.phone || null, email: formData.email || null, contact_name: formData.contact_name || null, website: formData.website || null }
     if (editingStore) { const { error } = await supabase.from('wholesaler_store_locations').update(payload).eq('id', editingStore.id); error ? toast.error('Error') : toast.success('Updated') }
-    else { const { error } = await supabase.from('wholesaler_store_locations').insert([{ ...payload, stock: 'In Stock', is_active: true, source: 'admin' }]); error ? toast.error('Error') : toast.success('Created') }
+    else { const { error } = await supabase.from('wholesaler_store_locations').insert([{ ...payload, stock: 'In Stock', is_active: true, source: 'wholesaler' }]); error ? toast.error('Error') : toast.success('Created') }
     setShowModal(false); setEditingStore(null); setFormData({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '', contact_name: '', website: '' }); fetchStores()
   }
   const handleDelete = async (id: string) => { if (!confirm('Delete?')) return; const { error } = await supabase.from('wholesaler_store_locations').delete().eq('id', id); error ? toast.error('Error') : toast.success('Deleted'); fetchStores() }
@@ -196,7 +196,7 @@ export function StoresPage() {
           lat: s.lat,
           lng: s.lng,
           user_id: ownerId || null,
-          source: 'admin',
+          source: 'wholesaler',
         })
         if (error) { failed++; } else { inserted++; }
       }

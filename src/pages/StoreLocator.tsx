@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Phone, Search, Loader2, Globe } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { geocodeAddress } from '@/lib/geocode';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -68,10 +67,19 @@ export function StoreLocator() {
           .order('created_at', { ascending: false });
         if (error) { console.error('StoreLocator fetch error:', error); setStores([]); setLoading(false); return; }
         if (data && data.length > 0) {
-          const storesWithCoords = await Promise.all(data.map(async (s: any) => {
-            let lat = s.lat ? parseFloat(s.lat) : null; let lng = s.lng ? parseFloat(s.lng) : null;
-            if (!lat || !lng) { const result = await geocodeAddress([s.address, s.city, s.state, s.zip].filter(Boolean).join(', ')); if (result) { lat = result.lat; lng = result.lng; } }
-            return { id: s.id, name: s.name ? s.name.replace(/^\d+[a-z]\s*-\s*/, '') : 'Unnamed Store', address: s.address || '', city: s.city || '', state: s.state || '', zip: s.zip || '', lat: lat || 39.7392, lng: lng || -104.9903, phone: s.phone || '', website: s.website || null, store_number: parseStoreNumber(s.name || '') };
+          // Read coordinates directly from DB (auto-geocoded on insert via trigger)
+          const storesWithCoords = data.map((s: any) => ({
+            id: s.id,
+            name: s.name ? s.name.replace(/^\d+[a-z]\s*-\s*/, '') : 'Unnamed Store',
+            address: s.address || '',
+            city: s.city || '',
+            state: s.state || '',
+            zip: s.zip || '',
+            lat: s.lat ? parseFloat(s.lat) : 39.7392,
+            lng: s.lng ? parseFloat(s.lng) : -104.9903,
+            phone: s.phone || '',
+            website: s.website || null,
+            store_number: parseStoreNumber(s.name || '')
           }));
           setStores(storesWithCoords);
         }

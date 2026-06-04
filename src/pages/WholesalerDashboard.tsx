@@ -897,8 +897,8 @@ export function WholesalerDashboard() {
                   const StatusIcon = getStatusIcon(order.status);
                   const isExpanded = expandedOrders.has(order.id);
                   return (
-                    <React.Fragment key={order.id}>
-                      <TableRow key={order.id} className="border-brand-700">
+                    <Fragment key={order.id}>
+                      <TableRow className="border-brand-700">
                         <TableCell className="font-medium text-white">{order.po_number}</TableCell>
                         <TableCell className="text-gray-300">{order.created_at?.slice(0, 10) || '—'}</TableCell>
                         <TableCell className="text-gray-300">{order.items}</TableCell>
@@ -1146,7 +1146,7 @@ export function WholesalerDashboard() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </Fragment>
+                    </>
                   );
                 })
               )}

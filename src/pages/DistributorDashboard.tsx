@@ -711,8 +711,8 @@ export function DistributorDashboard() {
                   const StatusIcon = getStatusIcon(order.status);
                   const isExpanded = expandedOrders.has(order.id);
                   return (
-                    <React.Fragment key={order.id}>
-                      <TableRow key={order.id} className="border-brand-700 hover:bg-brand-700/50">
+                    <Fragment key={order.id}>
+                      <TableRow className="border-brand-700 hover:bg-brand-700/50">
                         <TableCell className="text-white font-medium">{order.po_number}</TableCell>
                         <TableCell className="text-gray-400">{order.items}</TableCell>
                         <TableCell className="text-white">${(order.total || 0).toLocaleString()}</TableCell>
@@ -878,8 +878,8 @@ export function DistributorDashboard() {
                 {paginatedInvoices.map((invoice) => {
                   const isInvExpanded = expandedInvoices.has(invoice.id);
                   return (
-                    <React.Fragment key={invoice.id}>
-                      <TableRow key={invoice.id} className="border-brand-700 hover:bg-brand-700/50">
+                    <Fragment key={invoice.id}>
+                      <TableRow className="border-brand-700 hover:bg-brand-700/50">
                         <TableCell className="text-white font-medium">{invoice.invoice_number}</TableCell>
                         <TableCell className="text-gray-400">{invoice.orders?.po_number || (invoice.order_id ? invoice.order_id.slice(0, 8) : 'N/A')}</TableCell>
                         <TableCell className="text-white">${(invoice.amount || 0).toLocaleString()}</TableCell>

@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Building2, Mail, Phone, MapPin, FileText, CheckCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { Building2, Mail, Phone, MapPin, FileText, CheckCircle, ArrowRight, Loader2, User } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -45,6 +45,7 @@ export function WholesaleApplication() {
 
   const [formData, setFormData] = useState({
     business_name: '',
+    contact_name: '',
     license_number: '',
     ein: '',
     website: '',
@@ -76,7 +77,7 @@ export function WholesaleApplication() {
   };
 
   const validateStep1 = () => {
-    if (!formData.business_name || !formData.license_number || !formData.ein || !formData.email || !formData.password || !formData.account_type) {
+    if (!formData.business_name || !formData.contact_name || !formData.license_number || !formData.ein || !formData.email || !formData.password || !formData.account_type) {
       return false;
     }
     // Business type required only for wholesalers
@@ -126,6 +127,7 @@ export function WholesaleApplication() {
       const newErrors: Record<string, string> = {};
       if (step === 1) {
         if (!formData.business_name) newErrors.business_name = 'Business name is required';
+        if (!formData.contact_name) newErrors.contact_name = 'Contact Person is required';
         if (!formData.license_number) newErrors.license_number = 'Business License # is required';
         if (!formData.ein) newErrors.ein = 'EIN/TaxID # is required';
         if (!formData.email) newErrors.email = 'Email is required';
@@ -175,6 +177,7 @@ export function WholesaleApplication() {
         email: formData.email.trim(),
         role,
         business_name: formData.business_name,
+        contact_name: formData.contact_name,
         license_number: formData.license_number,
         ein: formData.ein,
         website: formData.website || null,
@@ -363,6 +366,25 @@ export function WholesaleApplication() {
                     </div>
                     {showErrors && errors.business_name && (
                       <p className="text-red-400 text-xs">{errors.business_name}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="contact_name" className="text-gray-300">
+                      Contact Person <span className="text-red-400">*</span>
+                    </Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                      <Input
+                        id="contact_name"
+                        value={formData.contact_name}
+                        onChange={(e) => updateField('contact_name', e.target.value)}
+                        placeholder="John Smith"
+                        className={`pl-10 bg-[#0a0514] text-white ${showErrors && errors.contact_name ? 'border-red-500' : 'border-white/10'}`}
+                      />
+                    </div>
+                    {showErrors && errors.contact_name && (
+                      <p className="text-red-400 text-xs">{errors.contact_name}</p>
                     )}
                   </div>
 

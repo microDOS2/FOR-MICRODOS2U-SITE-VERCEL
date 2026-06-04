@@ -150,7 +150,7 @@ export const PaymentService = {
       currency: options.currency || 'USD',
       status: 'pending',
       processorToken: `mock_token_${intentId}`,
-      paymentUrl: `https://pay.microdos2.com/pay/${intentId}`, // Placeholder external URL
+      paymentUrl: `https://pay.microdos2u.com/pay/${intentId}`, // Placeholder external URL
       createdAt: new Date().toISOString(),
       metadata: options.metadata || {},
     };
@@ -214,7 +214,7 @@ export const PaymentService = {
       success: true,
       transactionId,
       errorMessage: null,
-      receiptUrl: `https://pay.microdos2.com/receipt/${transactionId}`,
+      receiptUrl: `https://pay.microdos2u.com/receipt/${transactionId}`,
     };
   },
 

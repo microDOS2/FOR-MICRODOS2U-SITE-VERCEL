@@ -92,7 +92,7 @@ const allNavItems = navSections.flatMap(s => s.items)
 export function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [adminName, setAdminName] = useState('Admin')
-  const [adminEmail, setAdminEmail] = useState('admin@microdos2.com')
+  const [adminEmail, setAdminEmail] = useState('admin@microdos2u.com')
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     'Primary Operations': true,
@@ -121,7 +121,7 @@ export function AdminLayout() {
       }
       if (data.role === 'admin') {
         setAdminName(data.business_name || 'Admin')
-        setAdminEmail(data.email || 'admin@microdos2.com')
+        setAdminEmail(data.email || 'admin@microdos2u.com')
         setIsAuthorized(true)
       } else {
         setIsAuthorized(false)

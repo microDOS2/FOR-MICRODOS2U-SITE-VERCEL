@@ -97,7 +97,7 @@ export function SalesRepPortal() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="you@microdos2.com"
+                    placeholder="you@microdos2u.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 bg-[#0a0514] border-white/10 text-white"

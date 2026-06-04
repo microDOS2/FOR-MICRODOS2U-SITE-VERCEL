@@ -1383,7 +1383,7 @@ export function UsersPage() {
             </div>
             <div>
               <Label className="text-gray-300">Email</Label>
-              <Input value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} placeholder="john@microdos2.com" className="bg-[#0a0514] border-white/10 text-white" />
+              <Input value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} placeholder="john@microdos2u.com" className="bg-[#0a0514] border-white/10 text-white" />
             </div>
             <div>
               <Label className="text-gray-300">Role</Label>

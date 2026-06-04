@@ -5,14 +5,14 @@ export const salesManagers: SalesManager[] = [
   {
     id: 'sm-001',
     name: 'Alex Thompson',
-    email: 'alex.thompson@microdos2.com',
+    email: 'alex.thompson@microdos2u.com',
     region: 'West Coast',
     salesRepIds: ['sr-001', 'sr-002', 'sr-003'],
   },
   {
     id: 'sm-002',
     name: 'Maria Garcia',
-    email: 'maria.garcia@microdos2.com',
+    email: 'maria.garcia@microdos2u.com',
     region: 'East Coast',
     salesRepIds: ['sr-004', 'sr-005'],
   },
@@ -23,7 +23,7 @@ export const salesReps: SalesRep[] = [
   {
     id: 'sr-001',
     name: 'John Doe',
-    email: 'john.doe@microdos2.com',
+    email: 'john.doe@microdos2u.com',
     managerId: 'sm-001',
     assignedWholesalerIds: ['who-001', 'who-002', 'who-003'],
     assignedDistributorIds: ['dist-001'],
@@ -31,7 +31,7 @@ export const salesReps: SalesRep[] = [
   {
     id: 'sr-002',
     name: 'Jane Smith',
-    email: 'jane.smith@microdos2.com',
+    email: 'jane.smith@microdos2u.com',
     managerId: 'sm-001',
     assignedWholesalerIds: ['who-004', 'who-005'],
     assignedDistributorIds: ['dist-002'],
@@ -39,7 +39,7 @@ export const salesReps: SalesRep[] = [
   {
     id: 'sr-003',
     name: 'Mike Johnson',
-    email: 'mike.johnson@microdos2.com',
+    email: 'mike.johnson@microdos2u.com',
     managerId: 'sm-001',
     assignedWholesalerIds: ['who-006'],
     assignedDistributorIds: [],
@@ -47,7 +47,7 @@ export const salesReps: SalesRep[] = [
   {
     id: 'sr-004',
     name: 'Sarah Williams',
-    email: 'sarah.williams@microdos2.com',
+    email: 'sarah.williams@microdos2u.com',
     managerId: 'sm-002',
     assignedWholesalerIds: ['who-007', 'who-008'],
     assignedDistributorIds: ['dist-003'],
@@ -55,7 +55,7 @@ export const salesReps: SalesRep[] = [
   {
     id: 'sr-005',
     name: 'David Brown',
-    email: 'david.brown@microdos2.com',
+    email: 'david.brown@microdos2u.com',
     managerId: 'sm-002',
     assignedWholesalerIds: ['who-009'],
     assignedDistributorIds: [],

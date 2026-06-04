@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              from: 'microDOS(2) <notifications@microdos2.com>',
+              from: 'microDOS(2) <notifications@microdos2u.com>',
               to: email,
               subject: 'Your microDOS(2) Account Has Been Created',
               html: emailHtml,

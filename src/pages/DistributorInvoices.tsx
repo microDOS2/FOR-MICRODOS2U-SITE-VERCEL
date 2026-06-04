@@ -44,7 +44,7 @@ export function DistributorInvoices() {
 
     const { data: invoicesData } = await supabase
       .from('invoices')
-      .select('id, order_id, amount, status, due_date, paid_at, created_at')
+      .select('id, order_id, amount, status, due_date, paid_date, created_at')
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: false });
 
@@ -116,8 +116,8 @@ export function DistributorInvoices() {
                             <p className="text-gray-500 text-xs mt-0.5">
                               Order #{invoice.order_id?.slice(0, 8)} • Due: {formatDate(invoice.due_date)}
                             </p>
-                            {invoice.paid_at && (
-                              <p className="text-[#44f80c] text-xs mt-0.5">Paid on {formatDate(invoice.paid_at)}</p>
+                            {invoice.paid_date && (
+                              <p className="text-[#44f80c] text-xs mt-0.5">Paid on {formatDate(invoice.paid_date)}</p>
                             )}
                           </div>
                         </div>

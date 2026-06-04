@@ -40,7 +40,7 @@ export function DistributorOrders() {
 
     const { data: ordersData } = await supabase
       .from('orders')
-      .select('id, total_amount, status, shipping_address, created_at')
+      .select('id, total, status, shipping_address, created_at')
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: false });
 
@@ -112,7 +112,7 @@ export function DistributorOrders() {
                           <p className="text-gray-600 text-xs">{order.shipping_address}</p>
                         )}
                       </div>
-                      <p className="text-white font-bold text-lg">${order.total_amount?.toLocaleString()}</p>
+                      <p className="text-white font-bold text-lg">${order.total?.toLocaleString()}</p>
                     </div>
                   ))}
                 </div>

@@ -167,7 +167,7 @@ function buildInvoiceReminderHTML(params: {
         </div>
       </div>
       <div style="text-align:center; margin:24px 0;">
-        <a href="https://for-microdos-2-u-site-vercel.vercel.app" style="background:linear-gradient(135deg,#9a02d0,#7a01a8); color:#ffffff; text-decoration:none; padding:12px 32px; border-radius:8px; font-weight:600; font-size:15px; display:inline-block;">Pay Now</a>
+        <a href="https://www.microdos2u.com" style="background:linear-gradient(135deg,#9a02d0,#7a01a8); color:#ffffff; text-decoration:none; padding:12px 32px; border-radius:8px; font-weight:600; font-size:15px; display:inline-block;">Pay Now</a>
       </div>
     </div>
     <div style="color:#6b7280; font-size:12px; text-align:center;">microDOS(2) | 9555 Las Vegas Blvd South, Suite 100 | info@microdos2u.com</div>

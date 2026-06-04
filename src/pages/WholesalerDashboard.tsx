@@ -631,18 +631,8 @@ export function WholesalerDashboard() {
         }
       }
       setStoreDialogOpen(false);
-    } catch {
-      // Local fallback
-      if (editingStore) {
-        const updated: StoreLocation = { ...editingStore, name: storeForm.name, address: storeForm.address, city: storeForm.city, state: storeForm.state, zip: storeForm.zip, phone: storeForm.phone || null, email: storeForm.email || null, license_number: storeForm.license_number || null, contact_name: storeForm.contact_name || null, is_primary: storeForm.is_primary };
-        setStores((prev) => prev.map((s) => (s.id === editingStore.id ? updated : s)));
-        localStorage.setItem('wholesaler_stores', JSON.stringify(stores.map((s) => (s.id === editingStore.id ? updated : s))));
-      } else {
-        const newStore: StoreLocation = { user_id: 'demo-user', name: storeForm.name, address: storeForm.address, city: storeForm.city, state: storeForm.state, zip: storeForm.zip, phone: storeForm.phone || null, email: storeForm.email || null, license_number: storeForm.license_number || null, contact_name: storeForm.contact_name || null, is_primary: storeForm.is_primary, is_active: true, id: crypto.randomUUID(), created_at: new Date().toISOString() };
-        setStores((prev) => [...prev, newStore]);
-        localStorage.setItem('wholesaler_stores', JSON.stringify([...stores, newStore]));
-      }
-      setStoreDialogOpen(false);
+    } catch (err: any) {
+      toast.error('Failed to save store: ' + (err?.message || 'Please try again.'));
     }
   };
 

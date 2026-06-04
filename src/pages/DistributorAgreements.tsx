@@ -44,7 +44,7 @@ export function DistributorAgreements() {
 
     const { data: agreementsData } = await supabase
       .from('agreements')
-      .select('id, title, version, status, file_url, sent_date, signed_date, created_at')
+      .select('id, title, version, status, document_url, sent_date, signed_date, created_at')
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: false });
 
@@ -122,7 +122,7 @@ export function DistributorAgreements() {
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          {agreement.file_url && (
+                          {agreement.document_url && (
                             <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
                               <Download className="w-4 h-4" />
                             </Button>

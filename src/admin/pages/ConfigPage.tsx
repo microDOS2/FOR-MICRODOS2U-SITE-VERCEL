@@ -107,7 +107,7 @@ export function ConfigPage() {
     const newVal = !current
     setter(newVal)
     try {
-      const { error } = await supabase.from('configuration').update({ value: String(newVal), updated_at: new Date().toISOString() }).eq('key', key)
+      const { error } = await supabase.from('app_config').update({ value: String(newVal), updated_at: new Date().toISOString() }).eq('key', key)
       if (error) throw error
       toast.success(`${key.replace('_enabled', '').replace(/_/g, ' ')} ${newVal ? 'enabled' : 'disabled'}`)
       fetchConfigs()

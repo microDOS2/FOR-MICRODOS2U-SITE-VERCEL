@@ -130,10 +130,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     // 2. Lookup variant IDs by SKU and insert order_items
     const skuList = items.map(i => i.sku);
-    const { data: variantData } = await supabase
+    const { data: variantData, error: variantErr } = await supabase
       .from('product_variants')
       .select('id,product_id,sku')
       .in('sku', skuList);
+
+    if (variantErr) {
+      // Clean up: delete order and any auto-created invoice
+      try { await supabase.from('order_items').delete().eq('order_id', orderData.id); } catch (e) { /* ignore */ }
+      try { await supabase.from('invoices').delete().eq('order_id', orderData.id); } catch (e) { /* ignore */ }
+      try { await supabase.from('orders').delete().eq('id', orderData.id); } catch (e) { /* ignore */ }
+      throw new Error('Failed to validate order items: ' + variantErr.message);
+    }
 
     const variantMap = new Map((variantData || []).map((v: any) => [v.sku, v]));
 
@@ -154,7 +162,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
     if (itemsError) {
-      await supabase.from('orders').delete().eq('id', orderData.id);
+      // Clean up: delete order and any auto-created invoice
+      try { await supabase.from('order_items').delete().eq('order_id', orderData.id); } catch (e) { /* ignore */ }
+      try { await supabase.from('invoices').delete().eq('order_id', orderData.id); } catch (e) { /* ignore */ }
+      try { await supabase.from('orders').delete().eq('id', orderData.id); } catch (e) { /* ignore */ }
       throw new Error('Failed to add order items: ' + itemsError.message);
     }
 

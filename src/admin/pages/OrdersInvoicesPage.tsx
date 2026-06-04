@@ -224,10 +224,30 @@ export function OrdersInvoicesPage() {
         line_total: lineTotal,
       });
       if (itemsError) {
+        // Clean up: delete the order since items failed
+        try { await supabase.from('orders').delete().eq('id', orderData.id); } catch (e) { /* ignore */ }
+        toast.error('Failed to add order items: ' + itemsError.message)
+        setOrderSubmitting(false)
+        return
       }
     }
 
-    toast.success('Order created successfully! Invoice auto-generated.')
+    // Explicitly create invoice (don't rely on trigger)
+    const poNumber = orderData.po_number || `PO-${Date.now().toString(36).toUpperCase()}`;
+    const { error: invError } = await supabase.from('invoices').insert({
+      invoice_number: poNumber,
+      order_id: orderData.id,
+      user_id: orderForm.userId,
+      amount: lineTotal,
+      status: 'pending',
+      date: new Date().toISOString(),
+      due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+    if (invError) {
+      toast.warning('Order created but invoice generation failed: ' + invError.message)
+    } else {
+      toast.success('Order and invoice created successfully!')
+    }
     setShowCreateOrder(false)
     setOrderForm({ userId: '', productId: '', variantId: '', quantity: 1, shippingAddress: '', contactPerson: '', contactPhone: '', notes: '' })
     fetchData()

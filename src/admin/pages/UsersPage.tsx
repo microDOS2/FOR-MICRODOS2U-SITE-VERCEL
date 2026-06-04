@@ -444,7 +444,7 @@ export function UsersPage() {
           body: JSON.stringify({
             to: newUserEmail,
             subject: 'Welcome to microDOS(2)',
-            html: `<p>Hi ${newUserName},</p><p>Your account has been created.</p><p><strong>Email:</strong> ${newUserEmail}<br><strong>Password:</strong> ${password}</p><p><a href="https://for-microdos-2-u-site-vercel.vercel.app">Log In</a></p>`,
+            html: `<p>Hi ${newUserName},</p><p>Your account has been created.</p><p><strong>Email:</strong> ${newUserEmail}<br><strong>Password:</strong> ${password}</p><p><a href="https://www.microdos2u.com">Log In</a></p>`,
           }),
         })
         if (!emailResp.ok) {

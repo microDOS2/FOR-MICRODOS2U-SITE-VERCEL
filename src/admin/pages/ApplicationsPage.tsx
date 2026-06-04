@@ -175,7 +175,7 @@ export function ApplicationsPage() {
           website: app.website,
           stock: 'In Stock',
           license_number: app.license_number,
-          source: 'admin',
+          source: 'wholesaler',
           is_active: true,
         })
         if (storeError) {
@@ -185,7 +185,30 @@ export function ApplicationsPage() {
         }
       }
 
-      // 5. Show success + password modal
+      // 5. Send approval email with credentials
+      try {
+        const { error: emailErr } = await supabase.functions.invoke('notify-application', {
+          body: {
+            type: 'application_approved',
+            email: app.email,
+            business_name: app.business_name,
+            account_type: app.account_type,
+            password,
+            site_url: 'https://www.microdos2u.com',
+          },
+        })
+        if (emailErr) {
+          console.error('Approval email failed:', emailErr)
+          toast.error('Account created but email failed to send. Share password manually.')
+        } else {
+          toast.success('Approval email sent with login credentials!')
+        }
+      } catch (emailErr: any) {
+        console.error('Approval email error:', emailErr)
+        toast.error('Account created but email failed. Share password manually.')
+      }
+
+      // 6. Show success + password modal
       toast.success(`${app.business_name} approved! Account created.`)
       setGeneratedPassword(password)
       setApprovedApp(app)
@@ -366,11 +389,11 @@ export function ApplicationsPage() {
             </div>
 
             <div className="p-5 space-y-4">
-              {/* No email sent notice */}
+              {/* Email sent notice */}
               <div className="bg-[#44f80c]/10 border border-[#44f80c]/20 rounded-lg p-3 flex items-center gap-3">
                 <Mail className="w-5 h-5 text-[#44f80c]" />
                 <p className="text-sm text-[#44f80c]">
-                  Account created for {approvedApp.email}. No welcome email sent — share the password below with the user.
+                  Account created for {approvedApp.email}. Welcome email with credentials sent!
                 </p>
               </div>
 

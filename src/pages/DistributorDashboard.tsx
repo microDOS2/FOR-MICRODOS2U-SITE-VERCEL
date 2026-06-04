@@ -1139,8 +1139,16 @@ export function DistributorDashboard() {
                   )}
                   {store.email && (
                     <div className="flex items-center gap-2 text-gray-300">
-                      <Globe className="w-3.5 h-3.5 text-gray-500" />
+                      <Mail className="w-3.5 h-3.5 text-gray-500" />
                       <span>{store.email}</span>
+                    </div>
+                  )}
+                  {store.website && (
+                    <div className="flex items-center gap-2 text-gray-300">
+                      <Globe className="w-3.5 h-3.5 text-[#44f80c]" />
+                      <a href={store.website.startsWith('http') ? store.website : `https://${store.website}`} target="_blank" rel="noopener noreferrer" className="text-[#44f80c] hover:underline truncate">
+                        {store.website}
+                      </a>
                     </div>
                   )}
                   {store.contact_name && (

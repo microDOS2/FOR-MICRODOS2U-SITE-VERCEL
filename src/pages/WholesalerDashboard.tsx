@@ -335,6 +335,7 @@ export function WholesalerDashboard() {
     zip: '',
     phone: '',
     email: '',
+    website: '',
     license_number: '',
     contact_name: '',
     is_primary: false,
@@ -555,13 +556,14 @@ export function WholesalerDashboard() {
         zip: store.zip || '',
         phone: store.phone || '',
         email: store.email || '',
+        website: store.website || '',
         license_number: store.license_number || '',
         contact_name: store.contact_name || '',
         is_primary: store.is_primary || false,
       });
     } else {
       setEditingStore(null);
-      setStoreForm({ name: '', address: '', city: '', state: '', zip: '', phone: '', email: '', license_number: '', contact_name: '', is_primary: false });
+      setStoreForm({ name: '', address: '', city: '', state: '', zip: '', phone: '', email: '', website: '', license_number: '', contact_name: '', is_primary: false });
     }
     setStoreDialogOpen(true);
   };
@@ -592,6 +594,7 @@ export function WholesalerDashboard() {
         zip: storeForm.zip,
         phone: storeForm.phone || null,
         email: storeForm.email || null,
+        website: storeForm.website || null,
         license_number: storeForm.license_number || null,
         contact_name: storeForm.contact_name || null,
         is_primary: storeForm.is_primary,
@@ -1854,6 +1857,16 @@ export function WholesalerDashboard() {
                   value={storeForm.email}
                   onChange={(e) => setStoreForm((prev) => ({ ...prev, email: e.target.value }))}
                   placeholder="store@example.com"
+                  className="bg-[#0a0514] border-white/10 text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="store-website" className="text-gray-300">Website</Label>
+                <Input
+                  id="store-website"
+                  value={storeForm.website}
+                  onChange={(e) => setStoreForm((prev) => ({ ...prev, website: e.target.value }))}
+                  placeholder="www.example.com"
                   className="bg-[#0a0514] border-white/10 text-white"
                 />
               </div>

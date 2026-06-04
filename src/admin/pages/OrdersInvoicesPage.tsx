@@ -301,7 +301,6 @@ export function OrdersInvoicesPage() {
             businessName: order.users.business_name || order.users.contact_name || 'Valued Customer',
             total: order.total,
             orderDate: order.created_at,
-            testEmail: 'holtcrowder@gmail.com',
           })
         }
       } catch (notifyErr: any) {
@@ -573,7 +572,31 @@ export function OrdersInvoicesPage() {
           >
             <Plus className="w-4 h-4" /> Create Invoice
           </button>
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 transition-colors">
+          <button
+            onClick={() => {
+              const csv = filteredOrders.map(o => ({
+                'PO Number': o.po_number,
+                'Business': o.users?.business_name || '',
+                'Contact': o.users?.contact_name || '',
+                'Email': o.users?.email || '',
+                'Items': o.items,
+                'Total': o.total,
+                'Status': o.status,
+                'Date': o.created_at ? new Date(o.created_at).toLocaleDateString() : '',
+              }));
+              if (csv.length === 0) return;
+              const headers = Object.keys(csv[0]);
+              const rows = csv.map(row => headers.map(h => `"${String((row as any)[h]).replace(/"/g, '""')}"`).join(','));
+              const blob = new Blob([headers.join(',') + '\n' + rows.join('\n')], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `orders-${new Date().toISOString().split('T')[0]}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 transition-colors"
+          >
             <Download className="w-4 h-4" /> Export
           </button>
         </div>

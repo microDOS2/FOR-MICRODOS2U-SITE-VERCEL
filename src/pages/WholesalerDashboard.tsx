@@ -569,7 +569,11 @@ export function WholesalerDashboard() {
   const saveStore = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id || 'demo-user';
+      if (!user?.id) {
+        toast.error('You must be logged in to add a store.');
+        return;
+      }
+      const userId = user.id;
       
       // Geocode address before saving
       let lat = null, lng = null;

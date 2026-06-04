@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getPrimaryImageUrl } from '@/pages/Products';
@@ -894,7 +894,7 @@ export function WholesalerDashboard() {
                   const StatusIcon = getStatusIcon(order.status);
                   const isExpanded = expandedOrders.has(order.id);
                   return (
-                    <>
+                    <React.Fragment key={order.id}>
                       <TableRow key={order.id} className="border-brand-700">
                         <TableCell className="font-medium text-white">{order.po_number}</TableCell>
                         <TableCell className="text-gray-300">{order.created_at?.slice(0, 10) || '—'}</TableCell>
@@ -1003,7 +1003,7 @@ export function WholesalerDashboard() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })
               )}
@@ -1143,7 +1143,7 @@ export function WholesalerDashboard() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })
               )}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getPrimaryImageUrl } from '@/pages/Products';
@@ -675,7 +675,6 @@ export function DistributorDashboard() {
               <SelectItem value="processing">Processing</SelectItem>
               <SelectItem value="shipped">Shipped</SelectItem>
               <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -712,7 +711,7 @@ export function DistributorDashboard() {
                   const StatusIcon = getStatusIcon(order.status);
                   const isExpanded = expandedOrders.has(order.id);
                   return (
-                    <>
+                    <React.Fragment key={order.id}>
                       <TableRow key={order.id} className="border-brand-700 hover:bg-brand-700/50">
                         <TableCell className="text-white font-medium">{order.po_number}</TableCell>
                         <TableCell className="text-gray-400">{order.items}</TableCell>
@@ -816,7 +815,7 @@ export function DistributorDashboard() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </TableBody>
@@ -879,7 +878,7 @@ export function DistributorDashboard() {
                 {paginatedInvoices.map((invoice) => {
                   const isInvExpanded = expandedInvoices.has(invoice.id);
                   return (
-                    <>
+                    <React.Fragment key={invoice.id}>
                       <TableRow key={invoice.id} className="border-brand-700 hover:bg-brand-700/50">
                         <TableCell className="text-white font-medium">{invoice.invoice_number}</TableCell>
                         <TableCell className="text-gray-400">{invoice.orders?.po_number || (invoice.order_id ? invoice.order_id.slice(0, 8) : 'N/A')}</TableCell>
@@ -954,7 +953,7 @@ export function DistributorDashboard() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </TableBody>

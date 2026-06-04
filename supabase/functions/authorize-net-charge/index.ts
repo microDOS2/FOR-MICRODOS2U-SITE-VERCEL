@@ -28,7 +28,7 @@ interface AuthorizeNetResponse {
 }
 
 const CORS = {
-  'Access-Control-Allow-Origin': 'https://for-microdos-2-u-site-vercel.vercel.app',
+  'Access-Control-Allow-Origin': 'https://www.microdos2u.com',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, content-type, apikey',
 }

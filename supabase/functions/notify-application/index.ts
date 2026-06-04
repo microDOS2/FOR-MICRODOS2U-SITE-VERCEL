@@ -6,7 +6,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://for-microdos-2-u-site-vercel.vercel.app',
+  'Access-Control-Allow-Origin': 'https://www.microdos2u.com',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -99,7 +99,7 @@ serve(async (req) => {
 
     let subject = '';
     let html = '';
-    const appUrl = site_url || 'https://for-microdos-2-u-site-vercel.vercel.app';
+    const appUrl = site_url || 'https://www.microdos2u.com';
 
     if (type === 'application_received') {
       // Email 2: Application received confirmation

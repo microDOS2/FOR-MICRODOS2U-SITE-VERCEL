@@ -5,7 +5,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://for-microdos-2-u-site-vercel.vercel.app',
+  'Access-Control-Allow-Origin': 'https://www.microdos2u.com',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
       if (RESEND_API_KEY) {
         try {
-          const appUrl = site_url || 'https://for-microdos-2-u-site-vercel.vercel.app';
+          const appUrl = site_url || 'https://www.microdos2u.com';
           const emailHtml = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background-color:#0a0514;font-family:Arial,Helvetica,sans-serif;">

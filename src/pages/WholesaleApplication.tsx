@@ -77,7 +77,7 @@ export function WholesaleApplication() {
   };
 
   const validateStep1 = () => {
-    if (!formData.business_name || !formData.contact_name || !formData.license_number || !formData.ein || !formData.email || !formData.password || !formData.account_type) {
+    if (!formData.business_name || !formData.contact_name || !formData.license_number || !formData.ein || !formData.website || !formData.email || !formData.password || !formData.account_type) {
       return false;
     }
     // Business type required only for wholesalers
@@ -130,6 +130,7 @@ export function WholesaleApplication() {
         if (!formData.contact_name) newErrors.contact_name = 'Contact Person is required';
         if (!formData.license_number) newErrors.license_number = 'Business License # is required';
         if (!formData.ein) newErrors.ein = 'EIN/TaxID # is required';
+        if (!formData.website) newErrors.website = 'Website is required';
         if (!formData.email) newErrors.email = 'Email is required';
         if (!formData.password) newErrors.password = 'Password is required';
         if (formData.password && formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
@@ -425,15 +426,18 @@ export function WholesaleApplication() {
 
                   <div className="space-y-2">
                     <Label htmlFor="website" className="text-gray-300">
-                      Website
+                      Website <span className="text-red-400">*</span>
                     </Label>
                     <Input
                       id="website"
                       value={formData.website}
                       onChange={(e) => updateField('website', e.target.value)}
                       placeholder="https://yourbusiness.com"
-                      className="bg-[#0a0514] border-white/10 text-white"
+                      className={`bg-[#0a0514] text-white ${showErrors && errors.website ? 'border-red-500' : 'border-white/10'}`}
                     />
+                    {showErrors && errors.website && (
+                      <p className="text-red-400 text-xs">{errors.website}</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">

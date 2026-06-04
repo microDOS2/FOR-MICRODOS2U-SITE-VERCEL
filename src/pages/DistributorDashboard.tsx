@@ -28,6 +28,7 @@ import {
   Phone,
   Store,
   Globe,
+  Mail,
   XCircle,
   Trash2,
   Archive,

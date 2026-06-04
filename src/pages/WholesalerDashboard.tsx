@@ -95,6 +95,7 @@ interface StoreLocation {
   zip: string;
   phone: string | null;
   email: string | null;
+  website: string | null;
   license_number: string | null;
   contact_name: string | null;
   is_primary: boolean;
@@ -1841,7 +1842,7 @@ export function WholesalerDashboard() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="store-phone" className="text-gray-300">Phone</Label>
+                <Label htmlFor="store-phone" className="text-gray-300">Phone <span className="text-red-400">*</span></Label>
                 <Input
                   id="store-phone"
                   value={storeForm.phone}
@@ -1851,7 +1852,7 @@ export function WholesalerDashboard() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="store-email" className="text-gray-300">Email</Label>
+                <Label htmlFor="store-email" className="text-gray-300">Email <span className="text-red-400">*</span></Label>
                 <Input
                   id="store-email"
                   value={storeForm.email}
@@ -1861,7 +1862,7 @@ export function WholesalerDashboard() {
                 />
               </div>
               <div>
-                <Label htmlFor="store-website" className="text-gray-300">Website</Label>
+                <Label htmlFor="store-website" className="text-gray-300">Website <span className="text-red-400">*</span></Label>
                 <Input
                   id="store-website"
                   value={storeForm.website}
@@ -1892,7 +1893,7 @@ export function WholesalerDashboard() {
               </Button>
               <Button
                 onClick={saveStore}
-                disabled={!storeForm.name || !storeForm.address || !storeForm.city || !storeForm.state || !storeForm.zip || !storeForm.contact_name}
+                disabled={!storeForm.name || !storeForm.address || !storeForm.city || !storeForm.state || !storeForm.zip || !storeForm.contact_name || !storeForm.phone || !storeForm.email || !storeForm.website}
                 className="flex-1 bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white font-semibold"
               >
                 {editingStore ? 'Save Changes' : 'Add Store'}

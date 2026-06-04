@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,7 +22,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import {
-  Users, Plus, Search, Check, Store, UserPlus, Loader2, X, Info, Pencil, Trash2, AlertTriangle, Download
+  Users, Plus, Search, Check, Store, UserPlus, Loader2, X, Info, Pencil, Trash2, AlertTriangle, Download, Upload
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DBUser } from '@/lib/supabase'
@@ -168,6 +168,10 @@ export function UsersPage() {
 
   // Territory state management loading
   const [savingStates, setSavingStates] = useState<string | null>(null)
+
+  // Upload snapshot
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingSnapshot, setUploadingSnapshot] = useState(false)
 
   // Manager state assignments map (replaces volume_estimate JSON)
   const [managerStateMap, setManagerStateMap] = useState<Map<string, string[]>>(new Map())
@@ -1023,6 +1027,134 @@ export function UsersPage() {
     toast.success(`Exported ${allAccounts.length} user(s) to CSV`)
   }
 
+  // ──── UPLOAD SNAPSHOT (IMPORT USERS FROM CSV) ────
+  const handleUploadSnapshot = async (file: File) => {
+    setUploadingSnapshot(true)
+    try {
+      const text = await file.text()
+      const lines = text.split('\n').filter(l => l.trim())
+      if (lines.length < 2) {
+        toast.error('CSV file is empty or missing data')
+        return
+      }
+
+      // Parse header to find column indices
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
+      const getIdx = (name: string) => headers.indexOf(name)
+
+      const colBusinessName = getIdx('business_name')
+      const colEmail = getIdx('email')
+      const colPhone = getIdx('phone')
+      const colRole = getIdx('role')
+      const colStatus = getIdx('status')
+      const colAddress = getIdx('address')
+      const colCity = getIdx('city')
+      const colState = getIdx('state')
+      const colZip = getIdx('zip')
+      const colLicense = getIdx('license_number')
+      const colEin = getIdx('ein')
+      const colWebsite = getIdx('website')
+      const colContactName = getIdx('contact_name')
+
+      if (colBusinessName === -1 || colEmail === -1) {
+        toast.error('CSV missing required columns: business_name, email')
+        return
+      }
+
+      let imported = 0
+      let skipped = 0
+      let failed = 0
+
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i]
+        if (!row.trim()) continue
+
+        // Parse CSV row (handle quoted values)
+        const values: string[] = []
+        let current = ''
+        let inQuotes = false
+        for (let j = 0; j < row.length; j++) {
+          const ch = row[j]
+          if (ch === '"') {
+            if (inQuotes && row[j + 1] === '"') {
+              current += '"'
+              j++
+            } else {
+              inQuotes = !inQuotes
+            }
+          } else if (ch === ',' && !inQuotes) {
+            values.push(current.trim())
+            current = ''
+          } else {
+            current += ch
+          }
+        }
+        values.push(current.trim())
+
+        const business_name = values[colBusinessName]?.replace(/^"|"$/g, '') || ''
+        const email = values[colEmail]?.replace(/^"|"$/g, '') || ''
+
+        if (!business_name || !email) {
+          skipped++
+          continue
+        }
+
+        // Check if user already exists
+        const { data: existing } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle()
+
+        if (existing) {
+          skipped++
+          continue
+        }
+
+        const getVal = (idx: number) => {
+          if (idx === -1) return null
+          const v = values[idx]?.replace(/^"|"$/g, '') || ''
+          return v || null
+        }
+
+        const { error } = await supabase.from('users').insert({
+          business_name,
+          contact_name: getVal(colContactName),
+          email,
+          phone: getVal(colPhone),
+          role: getVal(colRole) || 'wholesaler',
+          status: getVal(colStatus) || 'active',
+          address: getVal(colAddress),
+          city: getVal(colCity),
+          state: getVal(colState),
+          zip: getVal(colZip),
+          license_number: getVal(colLicense),
+          ein: getVal(colEin),
+          website: getVal(colWebsite),
+        })
+
+        if (error) {
+          console.error(`Failed to import row ${i}:`, error)
+          failed++
+        } else {
+          imported++
+        }
+      }
+
+      if (imported > 0) {
+        toast.success(`Imported ${imported} user(s)`)
+        await fetchAll() // Refresh list
+      }
+      if (skipped > 0) toast.info(`${skipped} skipped (empty or existing)`)
+      if (failed > 0) toast.error(`${failed} failed`)
+    } catch (err: any) {
+      toast.error('Upload failed: ' + err.message)
+    } finally {
+      setUploadingSnapshot(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   // ──── TERRITORY STATE MANAGEMENT ────
   const handleAddState = async (managerId: string, state: string) => {
     setSavingStates(managerId)
@@ -1108,6 +1240,26 @@ export function UsersPage() {
             className="border-[#44f80c]/30 text-[#44f80c] hover:bg-[#44f80c]/10 hover:text-[#44f80c]"
           >
             <Download className="w-4 h-4 mr-1" /> Download Snapshot
+          </Button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".csv"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) handleUploadSnapshot(file)
+            }}
+          />
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingSnapshot}
+            title="Upload users from a CSV snapshot"
+            className="border-[#9a02d0]/30 text-[#9a02d0] hover:bg-[#9a02d0]/10 hover:text-[#9a02d0]"
+          >
+            {uploadingSnapshot ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Upload className="w-4 h-4 mr-1" />}
+            Upload Snapshot
           </Button>
           <Button
             variant="outline"

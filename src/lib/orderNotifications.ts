@@ -1,5 +1,5 @@
 // Order notification email builder
-// Calls the existing 'send-email' edge function with styled HTML
+// Calls the working 'send-order-notification' edge function with styled HTML
 
 import { supabase } from './supabase';
 

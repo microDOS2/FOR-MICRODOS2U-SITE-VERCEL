@@ -62,8 +62,15 @@ function loadAcceptJsScript(mode: 'test' | 'live'): Promise<void> {
     }
     const existing = document.querySelector('script[data-acceptjs]') as HTMLScriptElement | null
     if (existing) {
-      existing.addEventListener('load', () => resolve())
-      if ((window as any).Accept) resolve()
+      // Script already in DOM. If Accept is ready, use it.
+      // Otherwise wait briefly for it to init (load may still be in progress).
+      if ((window as any).Accept) { resolve(); return }
+      let waited = 0
+      const timer = setInterval(() => {
+        if ((window as any).Accept) { clearInterval(timer); resolve(); return }
+        waited += 100
+        if (waited > 3000) { clearInterval(timer); reject(new Error('Accept.js init timeout')); }
+      }, 100)
       return
     }
     const script = document.createElement('script')
@@ -71,7 +78,17 @@ function loadAcceptJsScript(mode: 'test' | 'live'): Promise<void> {
     script.charset = 'utf-8'
     script.async = true
     script.setAttribute('data-acceptjs', mode)
-    script.onload = () => resolve()
+    script.onload = () => {
+      // Script downloaded, but library needs a moment to initialize.
+      // Poll for window.Accept instead of resolving immediately.
+      if ((window as any).Accept) { resolve(); return }
+      let elapsed = 0
+      const check = setInterval(() => {
+        if ((window as any).Accept) { clearInterval(check); resolve(); return }
+        elapsed += 50
+        if (elapsed > 2000) { clearInterval(check); resolve(); } // proceed anyway after 2s
+      }, 50)
+    }
     script.onerror = () => reject(new Error(`Failed to load Accept.js (${mode})`))
     document.head.appendChild(script)
   })

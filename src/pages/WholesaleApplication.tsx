@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PasswordInput } from '@/components/ui/password-input';
+// Password is created by admin on approval
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -50,8 +50,6 @@ export function WholesaleApplication() {
     ein: '',
     website: '',
     email: '',
-    password: '',
-    confirmPassword: '',
     phone: '',
     address: '',
     city: '',
@@ -77,17 +75,11 @@ export function WholesaleApplication() {
   };
 
   const validateStep1 = () => {
-    if (!formData.business_name || !formData.contact_name || !formData.license_number || !formData.ein || !formData.website || !formData.email || !formData.password || !formData.account_type) {
+    if (!formData.business_name || !formData.contact_name || !formData.license_number || !formData.ein || !formData.website || !formData.email || !formData.account_type) {
       return false;
     }
     // Business type required only for wholesalers
     if (formData.account_type === 'wholesaler' && !formData.business_type) {
-      return false;
-    }
-    if (formData.password !== formData.confirmPassword) {
-      return false;
-    }
-    if (formData.password.length < 8) {
       return false;
     }
     return true;
@@ -132,9 +124,6 @@ export function WholesaleApplication() {
         if (!formData.ein) newErrors.ein = 'EIN/TaxID # is required';
         if (!formData.website) newErrors.website = 'Website is required';
         if (!formData.email) newErrors.email = 'Email is required';
-        if (!formData.password) newErrors.password = 'Password is required';
-        if (formData.password && formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
-        if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
         if (!formData.account_type) newErrors.account_type = 'Account type is required';
         if (formData.account_type === 'wholesaler' && !formData.business_type) newErrors.business_type = 'Business type is required for wholesalers';
       } else if (step === 2) {
@@ -154,51 +143,30 @@ export function WholesaleApplication() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      // 1. Create Supabase auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email.trim(),
-        password: formData.password,
-      });
-      if (authError) {
-        toast.error(authError.message);
-        setLoading(false);
-        return;
-      }
-      if (!authData.user) {
-        toast.error('Failed to create account');
-        setLoading(false);
-        return;
-      }
-
-      // 2. Prepare user profile data
+      // Insert into applications table for admin review
       const role = formData.account_type as 'wholesaler' | 'distributor';
 
-      const userPayload = {
-        id: authData.user.id,
-        email: formData.email.trim(),
-        role,
+      const { error: appError } = await supabase.from('applications').insert({
         business_name: formData.business_name,
         contact_name: formData.contact_name,
-        license_number: formData.license_number,
-        ein: formData.ein,
-        website: formData.website || null,
+        email: formData.email.trim(),
         phone: formData.phone,
         address: formData.address,
         city: formData.city,
         state: formData.state,
         zip: formData.zip,
-        status: 'pending' as const,
+        license_number: formData.license_number,
+        ein: formData.ein,
+        website: formData.website || null,
+        account_type: role,
+        business_type: formData.business_type || null,
         volume_estimate: formData.volume_estimate || null,
-        referral_count: 0,
-        total_referral_sales: 0,
-      };
+        status: 'pending',
+        submitted_at: new Date().toISOString(),
+      });
 
-      // 3. Insert into users table
-      const { error: insertError } = await supabase.from('users').insert(userPayload);
-      if (insertError) {
-        // Rollback: delete auth user if profile insert fails
-        await supabase.auth.admin.deleteUser(authData.user.id);
-        toast.error('Failed to create profile: ' + insertError.message);
+      if (appError) {
+        toast.error('Failed to submit application: ' + appError.message);
         setLoading(false);
         return;
       }
@@ -248,11 +216,6 @@ export function WholesaleApplication() {
               <Link to="/">
                 <Button className="w-full bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white font-semibold">
                   Return to Home
-                </Button>
-              </Link>
-              <Link to="/wholesaler-portal">
-                <Button variant="outline" className="w-full border-[#9a02d0] text-[#9a02d0] hover:bg-[#9a02d0]/10">
-                  Sign In
                 </Button>
               </Link>
             </div>
@@ -460,40 +423,7 @@ export function WholesaleApplication() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="password" className="text-gray-300">
-                        Password <span className="text-red-400">*</span>
-                      </Label>
-                      <PasswordInput
-                        id="password"
-                        value={formData.password}
-                        onChange={(e) => updateField('password', e.target.value)}
-                        placeholder="••••••••"
-                        showLockIcon={false}
-                        className={`bg-[#0a0514] text-white ${showErrors && errors.password ? 'border-red-500' : 'border-white/10'}`}
-                      />
-                      {showErrors && errors.password && (
-                        <p className="text-red-400 text-xs">{errors.password}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="confirmPassword" className="text-gray-300">
-                        Confirm Password <span className="text-red-400">*</span>
-                      </Label>
-                      <PasswordInput
-                        id="confirmPassword"
-                        value={formData.confirmPassword}
-                        onChange={(e) => updateField('confirmPassword', e.target.value)}
-                        placeholder="••••••••"
-                        showLockIcon={false}
-                        className={`bg-[#0a0514] text-white ${showErrors && errors.confirmPassword ? 'border-red-500' : 'border-white/10'}`}
-                      />
-                      {showErrors && errors.confirmPassword && (
-                        <p className="text-red-400 text-xs">{errors.confirmPassword}</p>
-                      )}
-                    </div>
-                  </div>
+                  {/* Password is created by admin on approval */}
 
                   {/* Business Type - Only for Wholesalers (hidden for Distributor) */}
                   {formData.account_type === 'wholesaler' && (

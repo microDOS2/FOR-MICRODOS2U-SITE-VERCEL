@@ -1582,7 +1582,6 @@ export function DistributorDashboard() {
                       });
                     } catch (e) { /* silent */ }
                   }
-                }
               });
           }}
           onPaymentError={(error) => {

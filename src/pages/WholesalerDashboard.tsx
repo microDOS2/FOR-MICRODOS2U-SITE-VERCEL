@@ -1975,7 +1975,6 @@ export function WholesalerDashboard() {
                       }
                     } catch (e) { /* silent */ }
                   }
-                }
               });
           }}
           onPaymentError={(error) => {

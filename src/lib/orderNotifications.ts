@@ -110,7 +110,7 @@ export async function sendOrderNotification(params: {
   const results = [];
   for (const to of recipients) {
     try {
-      const { data, error } = await supabase.functions.invoke('send-email', {
+      const { data, error } = await supabase.functions.invoke('send-order-notification', {
         body: {
           to,
           subject: subjectMap[params.status] || `[microDOS(2)] Order ${params.poNumber} Update`,

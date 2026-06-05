@@ -763,7 +763,7 @@ export function CommissionsPage() {
           {loading ? (
             <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[#9a02d0]" /></div>
           ) : entries.length === 0 ? (
-            <div className="text-center py-12 text-gray-500"><DollarSign className="w-12 h-12 mx-auto mb-3 text-gray-600" /><p>No commission entries found</p><p className="text-xs text-gray-600 mt-1">Commissions are auto-generated when orders are marked as paid.</p></div>
+            <div className="text-center py-12 text-gray-500"><DollarSign className="w-12 h-12 mx-auto mb-3 text-gray-600" /><p>No commission entries found</p><p className="text-xs text-gray-600 mt-1">Commissions are auto-generated when orders are marked as shipped.</p></div>
           ) : viewMode === 'grouped' && groupedEntries ? (
             // Grouped view
             <div className="divide-y divide-white/5">

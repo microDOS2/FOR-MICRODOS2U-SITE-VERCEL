@@ -45,27 +45,63 @@ export function CommissionPayoutsPage() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      // Fetch ALL sales reps and managers (even those with $0 commissions)
+      const { data: allUsers, error: usersError } = await supabase
+        .from('users')
+        .select('id, business_name, email, phone, role, contact_name, status')
+        .in('role', ['sales_rep', 'sales_manager'])
+        .eq('status', 'approved')
+
+      if (usersError) throw usersError
+
+      // Fetch ALL commission payments
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from('commission_payments')
         .select(`
           id, user_id, order_id, amount, period_year, period_month, role_type, status,
           paid_at, approved_at, rate_percent, order_amount,
-          users!user_id (business_name, email, phone, role, contact_name),
           orders!order_id (po_number)
         `)
         .order('created_at', { ascending: false })
         .limit(1000)
 
-      if (error) {
-        console.error('Commission payments error:', error)
-        toast.error('Failed to load commission payouts: ' + error.message)
-        setPayments([])
-        setFiltered([])
-      } else {
-        const items = (data as any) || []
-        setPayments(items)
-        setFiltered(items)
-      }
+      if (paymentsError) throw paymentsError
+
+      const usersList = (allUsers as any) || []
+      const paymentsList = (paymentsData as any) || []
+
+      // Create $0 placeholder payments for every rep/manager with no commissions
+      // so they ALWAYS appear in the list
+      const existingUserIds = new Set(paymentsList.map((p: any) => p.user_id))
+      const placeholderPayments: any[] = usersList
+        .filter((u: any) => !existingUserIds.has(u.id))
+        .map((u: any) => ({
+          id: `placeholder-${u.id}`,
+          user_id: u.id,
+          order_id: null,
+          amount: 0,
+          period_year: new Date().getFullYear(),
+          period_month: new Date().getMonth() + 1,
+          role_type: u.role,
+          status: 'pending',
+          paid_at: null,
+          approved_at: null,
+          rate_percent: 0,
+          order_amount: 0,
+          users: {
+            business_name: u.business_name,
+            email: u.email,
+            phone: u.phone,
+            role: u.role,
+            contact_name: u.contact_name,
+          },
+          orders: { po_number: null },
+        }))
+
+      // Merge real payments with placeholders
+      const allPayments = [...paymentsList, ...placeholderPayments]
+      setPayments(allPayments)
+      setFiltered(allPayments)
     } catch (e: any) {
       console.error('Unexpected error:', e)
       toast.error('Failed to load commission payouts')
@@ -247,7 +283,7 @@ export function CommissionPayoutsPage() {
 
       {filtered.length === 0 ? (
         <div className="text-center py-12 text-gray-500 bg-[#150f24] border border-white/10 rounded-xl">
-          No commission records found. Commissions are generated when invoices are paid.
+          No commission records found. Commissions are generated when orders are shipped.
         </div>
       ) : (
         <div className="bg-[#150f24] border border-white/10 rounded-xl overflow-hidden">

@@ -140,6 +140,7 @@ export function UsersPage() {
   const [accountCity, setAccountCity] = useState('')
   const [accountState, setAccountState] = useState('')
   const [accountZip, setAccountZip] = useState('')
+  const [accountWebsite, setAccountWebsite] = useState('')
   const [accountLicense, setAccountLicense] = useState('')
   const [accountEin, setAccountEin] = useState('')
   const [addingAccount, setAddingAccount] = useState(false)
@@ -483,8 +484,8 @@ export function UsersPage() {
 
   // ──── ADD BUSINESS ACCOUNT ────
   const handleAddAccount = async () => {
-    if (!accountBusinessName || !accountContactName || !accountEmail || !accountPassword || !accountLicense || !accountEin) {
-      toast.error('Please fill in all required fields')
+    if (!accountBusinessName || !accountContactName || !accountEmail || !accountPassword || !accountLicense || !accountEin || !accountPhone || !accountAddress || !accountCity || !accountState || !accountZip || !accountWebsite) {
+      toast.error('Please fill in ALL fields — every field is required')
       return
     }
     setAddingAccount(true)
@@ -508,11 +509,12 @@ export function UsersPage() {
         email: accountEmail,
         business_name: accountBusinessName,
         contact_name: accountContactName,
-        phone: accountPhone || null,
-        address: accountAddress || null,
-        city: accountCity || null,
-        state: accountState || null,
-        zip: accountZip || null,
+        phone: accountPhone,
+        address: accountAddress,
+        city: accountCity,
+        state: accountState,
+        zip: accountZip,
+        website: accountWebsite,
         license_number: accountLicense,
         ein: accountEin,
         role: accountType,
@@ -528,7 +530,7 @@ export function UsersPage() {
       setAccountBusinessName(''); setAccountContactName(''); setAccountEmail('')
       setAccountPassword(''); setAccountPhone(''); setAccountAddress('')
       setAccountCity(''); setAccountState(''); setAccountZip('')
-      setAccountLicense(''); setAccountEin('')
+      setAccountWebsite(''); setAccountLicense(''); setAccountEin('')
     } catch (err: any) {
       toast.error(err?.message || 'Error')
     }
@@ -1620,18 +1622,24 @@ export function UsersPage() {
                 <Input value={accountEin} onChange={(e) => setAccountEin(e.target.value)} placeholder="12-3456789" className="bg-[#0a0514] border-white/10 text-white" />
               </div>
             </div>
-            <div>
-              <Label className="text-gray-300">Phone</Label>
-              <Input value={accountPhone} onChange={(e) => setAccountPhone(e.target.value)} placeholder="(555) 123-4567" className="bg-[#0a0514] border-white/10 text-white" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-gray-300">Phone <span className="text-red-400">*</span></Label>
+                <Input value={accountPhone} onChange={(e) => setAccountPhone(e.target.value)} placeholder="(555) 123-4567" className="bg-[#0a0514] border-white/10 text-white" />
+              </div>
+              <div>
+                <Label className="text-gray-300">Website <span className="text-red-400">*</span></Label>
+                <Input type="url" value={accountWebsite} onChange={(e) => setAccountWebsite(e.target.value)} placeholder="https://www.example.com" className="bg-[#0a0514] border-white/10 text-white" />
+              </div>
             </div>
             <div>
-              <Label className="text-gray-300">Address</Label>
+              <Label className="text-gray-300">Address <span className="text-red-400">*</span></Label>
               <Input value={accountAddress} onChange={(e) => setAccountAddress(e.target.value)} placeholder="123 Main St" className="bg-[#0a0514] border-white/10 text-white" />
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <div><Label className="text-gray-300">City</Label><Input value={accountCity} onChange={(e) => setAccountCity(e.target.value)} placeholder="Los Angeles" className="bg-[#0a0514] border-white/10 text-white" /></div>
-              <div><Label className="text-gray-300">State</Label><Input value={accountState} onChange={(e) => setAccountState(e.target.value)} placeholder="CA" className="bg-[#0a0514] border-white/10 text-white" /></div>
-              <div><Label className="text-gray-300">ZIP</Label><Input value={accountZip} onChange={(e) => setAccountZip(e.target.value)} placeholder="90001" className="bg-[#0a0514] border-white/10 text-white" /></div>
+              <div><Label className="text-gray-300">City <span className="text-red-400">*</span></Label><Input value={accountCity} onChange={(e) => setAccountCity(e.target.value)} placeholder="Los Angeles" className="bg-[#0a0514] border-white/10 text-white" /></div>
+              <div><Label className="text-gray-300">State <span className="text-red-400">*</span></Label><Input value={accountState} onChange={(e) => setAccountState(e.target.value)} placeholder="CA" className="bg-[#0a0514] border-white/10 text-white" /></div>
+              <div><Label className="text-gray-300">ZIP <span className="text-red-400">*</span></Label><Input value={accountZip} onChange={(e) => setAccountZip(e.target.value)} placeholder="90001" className="bg-[#0a0514] border-white/10 text-white" /></div>
             </div>
             <Button onClick={handleAddAccount} disabled={addingAccount} title="Create business account" className="w-full bg-gradient-to-r from-[#ff66c4] to-[#9a02d0] text-white">
               {addingAccount ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Store className="w-4 h-4 mr-2" />}

@@ -60,29 +60,74 @@ function loadAcceptJsScript(mode: 'test' | 'live'): Promise<void> {
       reject(new Error('Document not available'))
       return
     }
-    // Remove any stale Accept.js scripts (wrong mode, broken load, or DOM leftover)
-    // This prevents the "dead promise" bug where an existing script tag
-    // never fires 'load' again and window.Accept is missing.
-    document.querySelectorAll('script[data-acceptjs]').forEach((el) => el.remove())
 
-    // Reset module-level flags — we're loading a fresh copy
-    scriptLoaded = false
+    // Fast path: Accept.js already initialized
+    if (typeof (window as any).Accept !== 'undefined') {
+      resolve()
+      return
+    }
 
+    // Check for existing script tag (may be from previous modal open)
+    const existing = document.querySelector('script[data-acceptjs]') as HTMLScriptElement | null
+
+    if (existing) {
+      // Script tag exists but Accept isn't on window yet.
+      // The 'load' event already fired for an existing script tag,
+      // so it will NEVER fire again. Polling with timeout is the only
+      // safe way to wait for the library.
+      let elapsed = 0
+      const interval = setInterval(() => {
+        if (typeof (window as any).Accept !== 'undefined') {
+          clearInterval(interval)
+          resolve()
+          return
+        }
+        elapsed += 100
+        if (elapsed > 5000) {
+          clearInterval(interval)
+          // Accept never appeared — script was stale. Remove it and load fresh.
+          existing.remove()
+          try {
+            loadAcceptJsScript(mode).then(resolve).catch(reject)
+          } catch (e) {
+            reject(new Error('Accept.js failed to initialize'))
+          }
+        }
+      }, 100)
+      return
+    }
+
+    // No existing script — create and load a fresh one
     const script = document.createElement('script')
     script.src = ACCEPT_JS_URLS[mode]
     script.charset = 'utf-8'
     script.async = true
     script.setAttribute('data-acceptjs', mode)
-    script.onload = () => resolve()
+    script.onload = () => {
+      // Give library a moment to init, then verify
+      const verify = setInterval(() => {
+        if (typeof (window as any).Accept !== 'undefined') {
+          clearInterval(verify)
+          resolve()
+        }
+      }, 50)
+      setTimeout(() => { clearInterval(verify) }, 2000)
+    }
     script.onerror = () => reject(new Error(`Failed to load Accept.js (${mode})`))
     document.head.appendChild(script)
   })
 }
 
 async function ensureAcceptJsReady(mode?: 'test' | 'live', maxWait = 8000): Promise<void> {
-  if (scriptLoaded) return Promise.resolve()
+  // Fast path: already known to be ready
+  if (scriptLoaded) {
+    console.log('[Accept.js] Fast path: scriptLoaded=true')
+    return Promise.resolve()
+  }
+
+  // Another load is in progress — wait for it
   if (scriptLoading) {
-    // Wait for existing load
+    console.log('[Accept.js] Waiting for in-progress load...')
     return new Promise((resolve, reject) => {
       const start = Date.now()
       const check = () => {
@@ -94,36 +139,40 @@ async function ensureAcceptJsReady(mode?: 'test' | 'live', maxWait = 8000): Prom
     })
   }
 
-  // If Accept.js is already in DOM from elsewhere
+  // Check if Accept global exists (from previous load or external source)
   if (typeof (window as any).Accept !== 'undefined') {
+    console.log('[Accept.js] Accept global found, marking ready')
     scriptLoaded = true
     return Promise.resolve()
   }
 
   // Need to load it dynamically
   if (mode) {
+    console.log(`[Accept.js] Loading script for mode: ${mode}`)
     scriptLoading = true
     try {
-      // Race script load against 10s timeout — never hang forever
       await Promise.race([
         loadAcceptJsScript(mode),
         new Promise<void>((_, reject) =>
-          setTimeout(() => reject(new Error('Accept.js load timeout')), 10000)
+          setTimeout(() => reject(new Error('Accept.js load timeout')), maxWait)
         ),
       ])
       scriptLoaded = true
+      console.log('[Accept.js] Script loaded successfully')
     } finally {
       scriptLoading = false
     }
     return
   }
 
-  // No mode specified - try to detect from config or default to test
+  // No mode specified - poll for Accept global
+  console.log('[Accept.js] No mode, polling for Accept global...')
   return new Promise((resolve, reject) => {
     const start = Date.now()
     const check = () => {
       if (typeof (window as any).Accept !== 'undefined') {
         scriptLoaded = true
+        console.log('[Accept.js] Accept global detected via polling')
         resolve()
         return
       }
@@ -215,14 +264,17 @@ export async function tokenizeCard(
 
     // @ts-ignore — Accept.js is loaded globally
     if (typeof Accept === 'undefined') {
+      console.error('[Accept.js] CRITICAL: Accept global is undefined even after ensureAcceptJsReady')
       resolve({ success: false, errorMessage: 'Accept.js not loaded' })
       return
     }
 
+    console.log('[Accept.js] Calling dispatchData with apiLoginID:', authData.apiLoginID?.substring(0, 6) + '...')
+
     // @ts-ignore
     Accept.dispatchData(secureData, (response: any) => {
       // DEBUG: Log full response
-      console.log('[DEBUG] Accept.js response:', JSON.stringify(response, null, 2))
+      console.log('[Accept.js] dispatchData response:', JSON.stringify(response, null, 2))
 
       if (response.messages.resultCode === 'Error') {
         const errorMsg = response.messages.message?.[0]?.text || 'Card tokenization failed'

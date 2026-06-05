@@ -60,34 +60,21 @@ function loadAcceptJsScript(mode: 'test' | 'live'): Promise<void> {
       reject(new Error('Document not available'))
       return
     }
-    const existing = document.querySelector('script[data-acceptjs]') as HTMLScriptElement | null
-    if (existing) {
-      // Script already in DOM. If Accept is ready, use it.
-      // Otherwise wait briefly for it to init (load may still be in progress).
-      if ((window as any).Accept) { resolve(); return }
-      let waited = 0
-      const timer = setInterval(() => {
-        if ((window as any).Accept) { clearInterval(timer); resolve(); return }
-        waited += 100
-        if (waited > 3000) { clearInterval(timer); reject(new Error('Accept.js init timeout')); }
-      }, 100)
-      return
-    }
+    // Remove any stale Accept.js script to force a clean reload
+    // (prevents cached/broken instances from persisting across modal opens)
+    const stale = document.querySelector('script[data-acceptjs]')
+    if (stale) stale.remove()
+    // Also clear any zombie Accept global
+    try { delete (window as any).Accept } catch (e) { /* ignore */ }
+
     const script = document.createElement('script')
     script.src = ACCEPT_JS_URLS[mode]
     script.charset = 'utf-8'
     script.async = true
     script.setAttribute('data-acceptjs', mode)
     script.onload = () => {
-      // Script downloaded, but library needs a moment to initialize.
-      // Poll for window.Accept instead of resolving immediately.
-      if ((window as any).Accept) { resolve(); return }
-      let elapsed = 0
-      const check = setInterval(() => {
-        if ((window as any).Accept) { clearInterval(check); resolve(); return }
-        elapsed += 50
-        if (elapsed > 2000) { clearInterval(check); resolve(); } // proceed anyway after 2s
-      }, 50)
+      // Give Accept.js 500ms to initialize after download
+      setTimeout(resolve, 500)
     }
     script.onerror = () => reject(new Error(`Failed to load Accept.js (${mode})`))
     document.head.appendChild(script)

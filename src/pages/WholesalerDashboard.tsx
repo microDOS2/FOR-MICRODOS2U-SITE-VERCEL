@@ -1929,24 +1929,22 @@ export function WholesalerDashboard() {
           customerEmail={user?.email || ''}
           description={`Payment for Invoice ${paymentInvoice.invoiceNumber}`}
           onPaymentSuccess={(result) => {
+            // Edge function already updated invoice in DB — just refresh local state
+            setInvoices((prev) =>
+              prev.map((inv) =>
+                inv.invoice_number === paymentInvoice.invoiceNumber
+                  ? { ...inv, status: 'paid', transaction_id: result.transactionId }
+                  : inv
+              )
+            );
+            // Refresh invoice list from server to get accurate state
             supabase
               .from('invoices')
-              .update({ status: 'paid', transaction_id: result.transactionId })
-              .eq('id', paymentInvoice.id)
               .select('order_id')
+              .eq('invoice_number', paymentInvoice.invoiceNumber)
               .single()
-              .then(({ data: invData, error }) => {
-                if (error) console.error('Failed to update invoice:', error);
-                else {
-                  setInvoices((prev) =>
-                    prev.map((inv) =>
-                      inv.id === paymentInvoice.id
-                        ? { ...inv, status: 'paid', transaction_id: result.transactionId }
-                        : inv
-                    )
-                  );
-                  // Update linked order to processing + forward to fulfillment
-                  if (invData?.order_id) {
+              .then(({ data: invData }) => {
+                if (invData?.order_id) {
                     supabase.from('orders').update({
                       status: 'processing',
                       forwarded_to_fulfillment_at: new Date().toISOString(),

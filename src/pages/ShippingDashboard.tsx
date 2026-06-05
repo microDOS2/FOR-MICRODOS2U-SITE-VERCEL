@@ -128,6 +128,23 @@ export function ShippingDashboard() {
       toast.error('Failed to mark as shipped: ' + error.message);
     } else {
       toast.success('Order marked as shipped!');
+
+      // Generate commissions for this order (commissions pay on SHIPPED, not paid)
+      try {
+        const { data: commResult, error: commErr } = await supabase
+          .rpc('generate_order_commissions', { p_order_id: orderId })
+        if (commErr) {
+          console.error('Commission generation error:', commErr)
+        } else if (commResult) {
+          const result = typeof commResult === 'string' ? JSON.parse(commResult) : commResult
+          if (result?.success && result?.rep_amount > 0) {
+            toast.success(`Commission generated: $${Number(result.rep_amount).toFixed(2)} for rep`)
+          }
+        }
+      } catch (commErr: any) {
+        console.error('Commission generation failed:', commErr)
+      }
+
       // Send shipment notification email
       try {
         const order = orders.find((o) => o.id === orderId);

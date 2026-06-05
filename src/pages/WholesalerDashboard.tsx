@@ -986,7 +986,20 @@ export function WholesalerDashboard() {
                                     <div><span className="text-gray-500 text-xs">Carrier:</span> <span className="text-white">{order.carrier}</span></div>
                                   )}
                                   {order.tracking_number && (
-                                    <div><span className="text-gray-500 text-xs">Tracking #:</span> <span className="text-[#44f80c] font-mono">{order.tracking_number}</span></div>
+                                    <div>
+                                      <span className="text-gray-500 text-xs">Tracking #:</span>{' '}
+                                      <a
+                                        href={order.carrier?.toLowerCase().includes('ups') ? `https://www.ups.com/track?tracknum=${order.tracking_number}` :
+                                              order.carrier?.toLowerCase().includes('fedex') ? `https://www.fedex.com/fedextrack/?trknbr=${order.tracking_number}` :
+                                              order.carrier?.toLowerCase().includes('usps') ? `https://tools.usps.com/go/TrackConfirmAction?tLabels=${order.tracking_number}` :
+                                              `https://www.google.com/search?q=${order.tracking_number}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[#44f80c] font-mono hover:underline"
+                                      >
+                                        {order.tracking_number} ↗
+                                      </a>
+                                    </div>
                                   )}
                                   {order.shipped_date && (
                                     <div><span className="text-gray-500 text-xs">Shipped:</span> <span className="text-white">{new Date(order.shipped_date).toLocaleDateString()}</span></div>

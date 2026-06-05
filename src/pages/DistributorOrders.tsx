@@ -40,7 +40,7 @@ export function DistributorOrders() {
 
     const { data: ordersData } = await supabase
       .from('orders')
-      .select('id, total, status, shipping_address, created_at')
+      .select('id, total, status, shipping_address, created_at, tracking_number, carrier, shipped_date')
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: false });
 
@@ -110,6 +110,22 @@ export function DistributorOrders() {
                         </p>
                         {order.shipping_address && (
                           <p className="text-gray-600 text-xs">{order.shipping_address}</p>
+                        )}
+                        {order.tracking_number && (
+                          <p className="text-xs mt-1">
+                            <span className="text-gray-500">Tracking:</span>{' '}
+                            <a
+                              href={order.carrier?.toLowerCase().includes('ups') ? `https://www.ups.com/track?tracknum=${order.tracking_number}` :
+                                    order.carrier?.toLowerCase().includes('fedex') ? `https://www.fedex.com/fedextrack/?trknbr=${order.tracking_number}` :
+                                    order.carrier?.toLowerCase().includes('usps') ? `https://tools.usps.com/go/TrackConfirmAction?tLabels=${order.tracking_number}` :
+                                    `https://www.google.com/search?q=${order.tracking_number}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[#44f80c] font-mono hover:underline"
+                            >
+                              {order.tracking_number} ↗
+                            </a>
+                          </p>
                         )}
                       </div>
                       <p className="text-white font-bold text-lg">${order.total?.toLocaleString()}</p>

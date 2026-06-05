@@ -60,12 +60,14 @@ function loadAcceptJsScript(mode: 'test' | 'live'): Promise<void> {
       reject(new Error('Document not available'))
       return
     }
-    const existing = document.querySelector('script[data-acceptjs]') as HTMLScriptElement | null
-    if (existing) {
-      existing.addEventListener('load', () => resolve())
-      if ((window as any).Accept) resolve()
-      return
-    }
+    // Remove any stale Accept.js scripts (wrong mode, broken load, or DOM leftover)
+    // This prevents the "dead promise" bug where an existing script tag
+    // never fires 'load' again and window.Accept is missing.
+    document.querySelectorAll('script[data-acceptjs]').forEach((el) => el.remove())
+
+    // Reset module-level flags — we're loading a fresh copy
+    scriptLoaded = false
+
     const script = document.createElement('script')
     script.src = ACCEPT_JS_URLS[mode]
     script.charset = 'utf-8'
@@ -102,7 +104,13 @@ async function ensureAcceptJsReady(mode?: 'test' | 'live', maxWait = 8000): Prom
   if (mode) {
     scriptLoading = true
     try {
-      await loadAcceptJsScript(mode)
+      // Race script load against 10s timeout — never hang forever
+      await Promise.race([
+        loadAcceptJsScript(mode),
+        new Promise<void>((_, reject) =>
+          setTimeout(() => reject(new Error('Accept.js load timeout')), 10000)
+        ),
+      ])
       scriptLoaded = true
     } finally {
       scriptLoading = false

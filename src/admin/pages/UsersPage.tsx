@@ -426,13 +426,18 @@ export function UsersPage() {
         throw new Error(signUpErr?.message || 'Failed to create auth user')
       }
 
-      // 3. Insert into public.users table via RPC (bypasses RLS)
-      const { error: insertErr } = await supabase.rpc('insert_user_admin', {
-        p_id: userId,
-        p_email: newUserEmail,
-        p_business_name: newUserName,
-        p_role: newUserRole,
-        p_status: 'approved',
+      // 3. Insert into public.users table (direct insert)
+      const { error: insertErr } = await supabase.from('users').insert({
+        id: userId,
+        email: newUserEmail,
+        business_name: newUserName,
+        contact_name: newUserName,
+        role: newUserRole,
+        status: 'approved',
+        manager_id: null,
+        total_referral_sales: 0,
+        referral_count: 0,
+        also_rep: false,
       })
       if (insertErr) throw new Error('Failed to insert user record: ' + insertErr.message)
 

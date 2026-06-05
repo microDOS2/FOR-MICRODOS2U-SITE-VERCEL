@@ -189,7 +189,7 @@ export async function sendInvoiceReminder(params: {
   const subject = `[microDOS(2)] Invoice ${params.invoiceNumber} - ${params.daysOverdue} Days Overdue - Please Submit Payment`;
 
   try {
-    const { data, error } = await supabase.functions.invoke('send-email', {
+    const { data, error } = await supabase.functions.invoke('send-order-notification', {
       body: { to: params.customerEmail, subject, html },
     });
     return { success: !error, id: data?.id || null, error: error?.message };

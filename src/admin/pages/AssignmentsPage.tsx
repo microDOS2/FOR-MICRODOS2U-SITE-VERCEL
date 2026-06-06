@@ -483,7 +483,7 @@ export function AccountsPage() {
                             const repMgrId = acct.assigned_rep_id ? repManagerMap.get(acct.assigned_rep_id) : null
                             const hasMgr = repMgrId !== null && repMgrId !== undefined
                             // Compare by manager NAME too, in case duplicate manager records have different IDs
-                            const repMgrName = repMgrId ? (managerMap.get(repMgrId)?.business_name || managerMap.get(repMgrId)?.email) : null
+                            const repMgrName = repMgrId ? (managers.find(m => m.id === repMgrId)?.business_name || managers.find(m => m.id === repMgrId)?.email) : null
                             const acctMgrName = acct.manager_name
                             const sameManager = repMgrId === acct.manager_id || (repMgrName && acctMgrName && repMgrName === acctMgrName)
                             const isCrossTerritory = hasMgr && acct.manager_id && !sameManager

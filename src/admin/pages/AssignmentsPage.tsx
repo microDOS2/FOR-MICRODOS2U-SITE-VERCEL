@@ -269,10 +269,11 @@ export function AccountsPage() {
       setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, manager_name: managerId ? (newMgr?.business_name || newMgr?.email || 'Unknown') : null } : a))
 
       // Refresh rep-manager map so Unmanaged badge updates
-      if (acct?.assigned_rep_id && managerId) {
+      const repId = acct?.assigned_rep_id
+      if (repId && managerId) {
         setRepManagerMap(prev => {
           const next = new Map(prev)
-          next.set(acct.assigned_rep_id, managerId)
+          next.set(repId as string, managerId)
           return next
         })
       }

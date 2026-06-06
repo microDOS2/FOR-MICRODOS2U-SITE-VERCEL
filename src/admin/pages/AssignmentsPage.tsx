@@ -250,9 +250,8 @@ export function AccountsPage() {
     setSaving(null)
   }
   const handleUnassignAccount = async (accountId: string) => { 
-    if (!confirm('Remove?')) return
     const { error } = await supabase.from('rep_account_assignments').delete().eq('account_id', accountId)
-    if (error) { toast.error('Error') } else {
+    if (error) { toast.error('Failed to unassign: ' + error.message) } else {
       await logAudit('account_rep_unassigned', 'rep_account_assignments', accountId, null, null)
       toast.success('Unassigned')
       fetchAll()

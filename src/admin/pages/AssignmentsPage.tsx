@@ -251,12 +251,32 @@ export function AccountsPage() {
     try {
       const acct = accounts.find(a => a.id === accountId)
       const oldManager = acct?.manager_name
-      const { error } = await supabase.from('users').update({
+      const newMgr = managers.find(m => m.id === managerId)
+
+      // 1. Update the account's manager_id
+      const { error: acctErr } = await supabase.from('users').update({
         manager_id: managerId || null
       }).eq('id', accountId)
-      if (error) throw error
-      setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, manager_name: managerId ? (managers.find(m => m.id === managerId)?.business_name || managers.find(m => m.id === managerId)?.email || 'Unknown') : null } : a))
-      const newMgr = managers.find(m => m.id === managerId)
+      if (acctErr) throw acctErr
+
+      // 2. ALSO update the assigned rep's manager_id so they're not "unmanaged"
+      if (acct?.assigned_rep_id && managerId) {
+        await supabase.from('users').update({
+          manager_id: managerId
+        }).eq('id', acct.assigned_rep_id)
+      }
+
+      setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, manager_name: managerId ? (newMgr?.business_name || newMgr?.email || 'Unknown') : null } : a))
+
+      // Refresh rep-manager map so Unmanaged badge updates
+      if (acct?.assigned_rep_id && managerId) {
+        setRepManagerMap(prev => {
+          const next = new Map(prev)
+          next.set(acct.assigned_rep_id, managerId)
+          return next
+        })
+      }
+
       await logAudit(
         managerId ? 'manager_assigned' : 'manager_unassigned',
         'users',
@@ -264,7 +284,7 @@ export function AccountsPage() {
         oldManager || null,
         newMgr?.business_name || newMgr?.email || managerId || null
       )
-      toast.success(managerId ? 'Manager assigned!' : 'Manager removed')
+      toast.success(managerId ? 'Manager assigned to account and rep!' : 'Manager removed')
     } catch (err: any) {
       toast.error(err?.message || 'Failed to update manager')
       await fetchAll()

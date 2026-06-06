@@ -168,7 +168,15 @@ export function AccountsPage() {
     const repMap = new Map(); (repsData || []).forEach((r: any) => repMap.set(r.id, r))
     const repMgrMap = new Map<string, string | null>(); (repsData || []).forEach((r: any) => repMgrMap.set(r.id, r.manager_id || null))
     setRepManagerMap(repMgrMap)
-    const managerMap = new Map(); (managersData || []).forEach((m: any) => managerMap.set(m.id, m))
+    // Deduplicate managers by name — keep first occurrence of each name
+    const seenNames = new Set<string>()
+    const uniqueManagers = (managersData || []).filter((m: any) => {
+      const name = m.business_name || m.email
+      if (seenNames.has(name)) return false
+      seenNames.add(name)
+      return true
+    })
+    const managerMap = new Map(); uniqueManagers.forEach((m: any) => managerMap.set(m.id, m))
     const acctAssignMap = new Map(); (acctAssignData || []).forEach((a: any) => acctAssignMap.set(a.account_id, a.rep_id))
 
     const storesByAcctNum = new Map<string, any[]>()
@@ -213,7 +221,7 @@ export function AccountsPage() {
 
     setAccounts(accountItems)
     setReps((repsData || []).map((r: any) => ({ id: r.id, business_name: r.business_name, email: r.email })))
-    setManagers((managersData || []).map((m: any) => ({ id: m.id, business_name: m.business_name, email: m.email })))
+    setManagers(uniqueManagers.map((m: any) => ({ id: m.id, business_name: m.business_name, email: m.email })))
     setLoading(false)
   }, [])
 
@@ -474,7 +482,11 @@ export function AccountsPage() {
                           {(() => {
                             const repMgrId = acct.assigned_rep_id ? repManagerMap.get(acct.assigned_rep_id) : null
                             const hasMgr = repMgrId !== null && repMgrId !== undefined
-                            const isCrossTerritory = hasMgr && acct.manager_id && repMgrId !== acct.manager_id
+                            // Compare by manager NAME too, in case duplicate manager records have different IDs
+                            const repMgrName = repMgrId ? (managerMap.get(repMgrId)?.business_name || managerMap.get(repMgrId)?.email) : null
+                            const acctMgrName = acct.manager_name
+                            const sameManager = repMgrId === acct.manager_id || (repMgrName && acctMgrName && repMgrName === acctMgrName)
+                            const isCrossTerritory = hasMgr && acct.manager_id && !sameManager
                             if (acct.assigned_rep_name && !hasMgr) {
                               return <Badge className="bg-yellow-500/20 text-yellow-400">⚠️ Unmanaged</Badge>
                             }

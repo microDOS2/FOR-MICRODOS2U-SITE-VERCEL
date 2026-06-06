@@ -246,10 +246,17 @@ export function AccountsPage() {
   }
 
   const handleAssignManager = async (accountId: string) => {
-    const managerId = selectedManager[accountId]
+    // If dropdown wasn't changed, use the account's current manager
+    let managerId = selectedManager[accountId]
+    const acct = accounts.find(a => a.id === accountId)
+    if (!managerId && acct?.manager_id) {
+      // User clicked checkmark without changing dropdown — keep current manager
+      toast.info('Manager already assigned')
+      setSavingManager(null)
+      return
+    }
     setSavingManager(accountId)
     try {
-      const acct = accounts.find(a => a.id === accountId)
       const oldManager = acct?.manager_name
       const newMgr = managers.find(m => m.id === managerId)
 
@@ -259,21 +266,28 @@ export function AccountsPage() {
       }).eq('id', accountId)
       if (acctErr) throw acctErr
 
-      // 2. ALSO update the assigned rep's manager_id so they're not "unmanaged"
-      if (acct?.assigned_rep_id && managerId) {
-        await supabase.from('users').update({
-          manager_id: managerId
-        }).eq('id', acct.assigned_rep_id)
-      }
-
-      setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, manager_name: managerId ? (newMgr?.business_name || newMgr?.email || 'Unknown') : null } : a))
-
-      // Refresh rep-manager map so Unmanaged badge updates
+      // 2. Update the assigned rep's manager_id (check error!)
       const repId = acct?.assigned_rep_id
       if (repId && managerId) {
+        const { error: repErr } = await supabase.from('users').update({
+          manager_id: managerId
+        }).eq('id', repId)
+        if (repErr) console.warn('Rep manager update failed:', repErr.message)
+        // Don't throw — rep update is best-effort, not critical
+      }
+
+      // 3. Update React state — include BOTH manager_name AND manager_id
+      setAccounts(prev => prev.map(a => a.id === accountId ? {
+        ...a,
+        manager_name: managerId ? (newMgr?.business_name || newMgr?.email || 'Unknown') : null,
+        manager_id: managerId || null
+      } : a))
+
+      // 4. Refresh rep-manager map
+      if (repId) {
         setRepManagerMap(prev => {
           const next = new Map(prev)
-          next.set(repId as string, managerId)
+          next.set(repId as string, managerId || null)
           return next
         })
       }
@@ -285,7 +299,7 @@ export function AccountsPage() {
         oldManager || null,
         newMgr?.business_name || newMgr?.email || managerId || null
       )
-      toast.success(managerId ? 'Manager assigned to account and rep!' : 'Manager removed')
+      toast.success(managerId ? 'Manager assigned!' : 'Manager removed')
     } catch (err: any) {
       toast.error(err?.message || 'Failed to update manager')
       await fetchAll()

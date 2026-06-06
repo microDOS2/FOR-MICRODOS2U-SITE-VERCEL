@@ -228,7 +228,13 @@ export function AccountsPage() {
   useEffect(() => { fetchAll() }, [fetchAll])
 
   const handleAssignAccount = async (accountId: string) => {
-    const repId = selectedRep[accountId]; if (!repId) { toast.error('Select a Sales Rep'); return }
+    const repId = selectedRep[accountId]
+    const acct = accounts.find(a => a.id === accountId)
+    if (repId === undefined && acct?.assigned_rep_id) {
+      toast.info('Account Rep already assigned')
+      return
+    }
+    if (!repId) { toast.error('Select a Sales Rep'); return }
     setSaving(accountId)
     const { error } = await supabase.rpc('assign_rep_to_account', {
       p_rep_id: repId,
@@ -254,11 +260,13 @@ export function AccountsPage() {
   }
 
   const handleAssignManager = async (accountId: string) => {
-    // If dropdown wasn't changed, use the account's current manager
-    let managerId = selectedManager[accountId]
+    const managerId = selectedManager[accountId]
     const acct = accounts.find(a => a.id === accountId)
-    if (!managerId && acct?.manager_id) {
-      // User clicked checkmark without changing dropdown — keep current manager
+    // managerId is undefined if user never touched the dropdown
+    // managerId is "" if user selected "— No Manager —"
+    // managerId has a value if user selected a specific manager
+    if (managerId === undefined && acct?.manager_id) {
+      // User clicked checkmark without changing dropdown — do nothing
       toast.info('Manager already assigned')
       setSavingManager(null)
       return

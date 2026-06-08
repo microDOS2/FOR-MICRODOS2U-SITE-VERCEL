@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Download, CheckCircle, Loader2, Calendar, Truck } from 'lucide-react'
+import { Download, CheckCircle, Loader2, Calendar, Truck, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface CompletedOrder {
@@ -25,6 +25,8 @@ export function CompletedOrdersPage() {
   const [dateRange, setDateRange] = useState<DateRange>('all')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
+  const [orderDetails, setOrderDetails] = useState<Record<string, any[]>>({})
 
   useEffect(() => { fetchData() }, [])
 
@@ -49,6 +51,29 @@ export function CompletedOrdersPage() {
       setFiltered((data as any) || [])
     }
     setLoading(false)
+  }
+
+  const fetchOrderItems = async (orderId: string) => {
+    if (orderDetails[orderId]) return
+    try {
+      const { data, error } = await supabase
+        .from('order_items')
+        .select('product_name, variant_sku, quantity, unit_price, total_price')
+        .eq('order_id', orderId)
+      if (error) throw error
+      setOrderDetails(prev => ({ ...prev, [orderId]: data || [] }))
+    } catch (e) {
+      console.error('Failed to fetch order items:', e)
+    }
+  }
+
+  const toggleExpand = (orderId: string) => {
+    if (expandedOrder === orderId) {
+      setExpandedOrder(null)
+    } else {
+      setExpandedOrder(orderId)
+      fetchOrderItems(orderId)
+    }
   }
 
   useEffect(() => {
@@ -152,37 +177,68 @@ export function CompletedOrdersPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map(order => (
-            <div key={order.id} className="bg-[#150f24] border border-white/10 rounded-xl p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-sm text-gray-300">{order.po_number}</span>
-                  <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded text-xs">
-                    <Truck className="w-3 h-3" /> Shipped
-                  </span>
+          {filtered.map(order => {
+            const isExpanded = expandedOrder === order.id
+            const invoice = order.invoices?.[0]
+            return (
+              <div key={order.id} className="bg-[#150f24] border border-white/10 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3 cursor-pointer" onClick={() => toggleExpand(order.id)}>
+                  <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}`} />
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 flex-1">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="font-mono text-sm text-gray-300">{order.po_number}</span>
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded text-xs">
+                        <Truck className="w-3 h-3" /> Shipped
+                      </span>
+                      {invoice && (
+                        <span className="font-mono text-xs text-emerald-400">
+                          {invoice.invoice_number}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-lg font-bold text-white">${(order.total || 0).toFixed(2)}</p>
+                  </div>
                 </div>
-                <p className="text-lg font-bold text-white">${(order.total || 0).toFixed(2)}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                  <div>
+                    <p className="text-gray-500 text-xs">Business</p>
+                    <p className="text-white">{order.users?.business_name || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs">Shipped Date</p>
+                    <p className="text-white">{order.shipped_date ? new Date(order.shipped_date).toLocaleDateString() : '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs">Carrier</p>
+                    <p className="text-white">{order.carrier || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs">Tracking</p>
+                    <p className="text-purple-300 font-mono">{order.tracking_number || '—'}</p>
+                  </div>
+                </div>
+                {isExpanded && (
+                  <div className="mt-4 pt-4 border-t border-white/10">
+                    {orderDetails[order.id]?.length > 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-gray-400 mb-2">Order Items:</p>
+                        {orderDetails[order.id].map((oi: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between text-sm px-3 py-1.5 bg-[#0a0514] rounded">
+                            <span className="text-white flex-1">{oi.product_name}</span>
+                            <span className="text-gray-400 mx-4">{oi.variant_sku}</span>
+                            <span className="text-gray-400 mx-4">Qty: {oi.quantity}</span>
+                            <span className="text-white">${(oi.total_price || 0).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-sm">Loading items...</p>
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                <div>
-                  <p className="text-gray-500 text-xs">Business</p>
-                  <p className="text-white">{order.users?.business_name || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 text-xs">Shipped Date</p>
-                  <p className="text-white">{order.shipped_date ? new Date(order.shipped_date).toLocaleDateString() : '—'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 text-xs">Carrier</p>
-                  <p className="text-white">{order.carrier || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 text-xs">Tracking</p>
-                  <p className="text-purple-300 font-mono">{order.tracking_number || '—'}</p>
-                </div>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

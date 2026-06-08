@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Download, CreditCard, Loader2, Calendar } from 'lucide-react'
+import { Download, CreditCard, Loader2, Calendar, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface PaidInvoice {
@@ -24,6 +24,8 @@ export function PaidInvoicesPage() {
   const [dateRange, setDateRange] = useState<DateRange>('all')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
+  const [expandedInvoice, setExpandedInvoice] = useState<string | null>(null)
+  const [invoiceDetails, setInvoiceDetails] = useState<Record<string, any[]>>({})
 
   useEffect(() => { fetchData() }, [])
 
@@ -48,6 +50,29 @@ export function PaidInvoicesPage() {
       setFiltered((data as any) || [])
     }
     setLoading(false)
+  }
+
+  const fetchOrderItems = async (orderId: string) => {
+    if (invoiceDetails[orderId]) return
+    try {
+      const { data, error } = await supabase
+        .from('order_items')
+        .select('product_name, variant_sku, quantity, unit_price, total_price')
+        .eq('order_id', orderId)
+      if (error) throw error
+      setInvoiceDetails(prev => ({ ...prev, [orderId]: data || [] }))
+    } catch (e) {
+      console.error('Failed to fetch order items:', e)
+    }
+  }
+
+  const toggleExpand = (invoiceId: string, orderId?: string) => {
+    if (expandedInvoice === invoiceId) {
+      setExpandedInvoice(null)
+    } else {
+      setExpandedInvoice(invoiceId)
+      if (orderId) fetchOrderItems(orderId)
+    }
   }
 
   useEffect(() => {
@@ -184,6 +209,7 @@ export function PaidInvoicesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/10 text-gray-400 text-left">
+                  <th className="px-4 py-3 font-medium w-8"></th>
                   <th className="px-4 py-3 font-medium">Invoice #</th>
                   <th className="px-4 py-3 font-medium">PO #</th>
                   <th className="px-4 py-3 font-medium">Business</th>
@@ -193,20 +219,39 @@ export function PaidInvoicesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {filtered.map(inv => (
-                  <tr key={inv.id} className="hover:bg-white/5 transition-colors">
-                    <td className="px-4 py-3 font-mono text-gray-300">{inv.invoice_number}</td>
-                    <td className="px-4 py-3 text-gray-400">{inv.orders?.po_number || '—'}</td>
-                    <td className="px-4 py-3 text-white">{inv.users?.business_name || '—'}</td>
-                    <td className="px-4 py-3 text-right text-emerald-400 font-medium">${(inv.amount || 0).toFixed(2)}</td>
-                    <td className="px-4 py-3 text-gray-400">{inv.paid_date || '—'}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded text-xs capitalize">
-                        {inv.paid_method || '—'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map(inv => {
+                  const isExpanded = expandedInvoice === inv.id
+                  return (
+                    <>
+                      <tr
+                        key={inv.id}
+                        className="hover:bg-white/5 transition-colors cursor-pointer"
+                        onClick={() => toggleExpand(inv.id, inv.orders?.po_number ? undefined : inv.id)}
+                      >
+                        <td className="px-4 py-3">
+                          <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                        </td>
+                        <td className="px-4 py-3 font-mono text-gray-300">{inv.invoice_number}</td>
+                        <td className="px-4 py-3 text-gray-400">{inv.orders?.po_number || '—'}</td>
+                        <td className="px-4 py-3 text-white">{inv.users?.business_name || '—'}</td>
+                        <td className="px-4 py-3 text-right text-emerald-400 font-medium">${(inv.amount || 0).toFixed(2)}</td>
+                        <td className="px-4 py-3 text-gray-400">{inv.paid_date || '—'}</td>
+                        <td className="px-4 py-3">
+                          <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded text-xs capitalize">
+                            {inv.paid_method || '—'}
+                          </span>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr key={`${inv.id}-details`}>
+                          <td colSpan={7} className="px-4 py-3 bg-white/[0.02]">
+                            <p className="text-gray-500 text-sm">Order details feature coming soon.</p>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  )
+                })}
               </tbody>
             </table>
           </div>

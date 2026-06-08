@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Download, XCircle, Loader2, Calendar, ShoppingCart, FileText } from 'lucide-react'
+import { Download, XCircle, Loader2, Calendar, ShoppingCart, FileText, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface CancelledItem {
@@ -135,8 +135,33 @@ export function CancelledItemsPage() {
     toast.success(`Exported ${filtered.length} cancelled items`)
   }
 
+  const [expandedItem, setExpandedItem] = useState<string | null>(null)
+  const [itemDetails, setItemDetails] = useState<Record<string, any[]>>({})
   const orderCount = filtered.filter(i => i.type === 'order').length
   const invoiceCount = filtered.filter(i => i.type === 'invoice').length
+
+  const fetchOrderDetails = async (orderId: string) => {
+    if (itemDetails[orderId]) return
+    try {
+      const { data, error } = await supabase
+        .from('order_items')
+        .select('product_name, variant_sku, quantity, unit_price, total_price')
+        .eq('order_id', orderId)
+      if (error) throw error
+      setItemDetails(prev => ({ ...prev, [orderId]: data || [] }))
+    } catch (e) {
+      console.error('Failed to fetch order items:', e)
+    }
+  }
+
+  const toggleExpand = (key: string, orderId?: string) => {
+    if (expandedItem === key) {
+      setExpandedItem(null)
+    } else {
+      setExpandedItem(key)
+      if (orderId) fetchOrderDetails(orderId)
+    }
+  }
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -194,8 +219,11 @@ export function CancelledItemsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/10 text-gray-400 text-left">
+                  <th className="px-4 py-3 font-medium w-8"></th>
                   <th className="px-4 py-3 font-medium">Type</th>
                   <th className="px-4 py-3 font-medium">Number</th>
+                  <th className="px-4 py-3 font-medium">PO #</th>
+                  <th className="px-4 py-3 font-medium">Invoice #</th>
                   <th className="px-4 py-3 font-medium">Business</th>
                   <th className="px-4 py-3 font-medium text-right">Amount</th>
                   <th className="px-4 py-3 font-medium">Cancelled Date</th>
@@ -203,27 +231,63 @@ export function CancelledItemsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {filtered.map(item => (
-                  <tr key={`${item.type}-${item.id}`} className="hover:bg-white/5 transition-colors">
-                    <td className="px-4 py-3">
-                      <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs ${
-                        item.type === 'order'
-                          ? 'bg-blue-500/10 text-blue-400'
-                          : 'bg-pink-500/10 text-pink-400'
-                      }`}>
-                        {item.type === 'order' ? <ShoppingCart className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
-                        {item.type === 'order' ? 'Order' : 'Invoice'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-gray-300">{item.number}</td>
-                    <td className="px-4 py-3 text-white">{item.users?.business_name || '—'}</td>
-                    <td className="px-4 py-3 text-right text-red-400 font-medium">${item.amount.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-gray-400">
-                      {item.updated_at ? new Date(item.updated_at).toLocaleDateString() : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 max-w-xs truncate">{item.cancelled_reason || '—'}</td>
-                  </tr>
-                ))}
+                {filtered.map(item => {
+                  const expandKey = `${item.type}-${item.id}`
+                  const isExpanded = expandedItem === expandKey
+                  return (
+                    <>
+                      <tr
+                        key={expandKey}
+                        className="hover:bg-white/5 transition-colors cursor-pointer"
+                        onClick={() => toggleExpand(expandKey, item.type === 'order' ? item.id : undefined)}
+                      >
+                        <td className="px-4 py-3">
+                          <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs ${
+                            item.type === 'order'
+                              ? 'bg-blue-500/10 text-blue-400'
+                              : 'bg-pink-500/10 text-pink-400'
+                          }`}>
+                            {item.type === 'order' ? <ShoppingCart className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+                            {item.type === 'order' ? 'Order' : 'Invoice'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-gray-300">{item.number}</td>
+                        <td className="px-4 py-3 text-gray-400">{item.type === 'order' ? item.number : item.order_po || '—'}</td>
+                        <td className="px-4 py-3 text-gray-400">{item.type === 'invoice' ? item.number : '—'}</td>
+                        <td className="px-4 py-3 text-white">{item.users?.business_name || '—'}</td>
+                        <td className="px-4 py-3 text-right text-red-400 font-medium">${item.amount.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-gray-400">
+                          {item.updated_at ? new Date(item.updated_at).toLocaleDateString() : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-400 max-w-xs truncate">{item.cancelled_reason || '—'}</td>
+                      </tr>
+                      {isExpanded && item.type === 'order' && (
+                        <tr key={`${expandKey}-details`}>
+                          <td colSpan={9} className="px-4 py-3 bg-white/[0.02]">
+                            {itemDetails[item.id]?.length > 0 ? (
+                              <div className="space-y-2">
+                                <p className="text-xs font-medium text-gray-400 mb-2">Order Items:</p>
+                                {itemDetails[item.id].map((oi: any, idx: number) => (
+                                  <div key={idx} className="flex items-center justify-between text-sm px-3 py-1.5 bg-[#0a0514] rounded">
+                                    <span className="text-white">{oi.product_name}</span>
+                                    <span className="text-gray-400">{oi.variant_sku}</span>
+                                    <span className="text-gray-400">Qty: {oi.quantity}</span>
+                                    <span className="text-white">${(oi.total_price || 0).toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-gray-500 text-sm">Loading items...</p>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  )
+                })}
               </tbody>
             </table>
           </div>

@@ -27,6 +27,7 @@ export function CompletedOrdersPage() {
   const [customEnd, setCustomEnd] = useState('')
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
   const [orderDetails, setOrderDetails] = useState<Record<string, any[]>>({})
+  const [orderDetailsLoading, setOrderDetailsLoading] = useState<Record<string, boolean>>({})
 
   useEffect(() => { fetchData() }, [])
 
@@ -54,16 +55,24 @@ export function CompletedOrdersPage() {
   }
 
   const fetchOrderItems = async (orderId: string) => {
-    if (orderDetails[orderId]) return
+    if (orderDetails[orderId] !== undefined) return
+    setOrderDetailsLoading(prev => ({ ...prev, [orderId]: true }))
     try {
       const { data, error } = await supabase
         .from('order_items')
         .select('product_name, variant_sku, quantity, unit_price, total_price')
         .eq('order_id', orderId)
-      if (error) throw error
-      setOrderDetails(prev => ({ ...prev, [orderId]: data || [] }))
+      if (error) {
+        console.error('Order items error:', error)
+        setOrderDetails(prev => ({ ...prev, [orderId]: [] }))
+      } else {
+        setOrderDetails(prev => ({ ...prev, [orderId]: data || [] }))
+      }
     } catch (e) {
       console.error('Failed to fetch order items:', e)
+      setOrderDetails(prev => ({ ...prev, [orderId]: [] }))
+    } finally {
+      setOrderDetailsLoading(prev => ({ ...prev, [orderId]: false }))
     }
   }
 
@@ -219,7 +228,9 @@ export function CompletedOrdersPage() {
                 </div>
                 {isExpanded && (
                   <div className="mt-4 pt-4 border-t border-white/10">
-                    {orderDetails[order.id]?.length > 0 ? (
+                    {orderDetailsLoading[order.id] ? (
+                      <p className="text-gray-500 text-sm">Loading items...</p>
+                    ) : orderDetails[order.id]?.length > 0 ? (
                       <div className="space-y-2">
                         <p className="text-xs font-medium text-gray-400 mb-2">Order Items:</p>
                         {orderDetails[order.id].map((oi: any, idx: number) => (
@@ -232,7 +243,7 @@ export function CompletedOrdersPage() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-gray-500 text-sm">Loading items...</p>
+                      <p className="text-gray-500 text-sm">No items found for this order.</p>
                     )}
                   </div>
                 )}

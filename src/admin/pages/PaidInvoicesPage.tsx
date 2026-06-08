@@ -26,6 +26,7 @@ export function PaidInvoicesPage() {
   const [customEnd, setCustomEnd] = useState('')
   const [expandedInvoice, setExpandedInvoice] = useState<string | null>(null)
   const [invoiceDetails, setInvoiceDetails] = useState<Record<string, any[]>>({})
+  const [invoiceDetailsLoading, setInvoiceDetailsLoading] = useState<Record<string, boolean>>({})
 
   useEffect(() => { fetchData() }, [])
 
@@ -53,16 +54,24 @@ export function PaidInvoicesPage() {
   }
 
   const fetchOrderItems = async (orderId: string) => {
-    if (invoiceDetails[orderId]) return
+    if (invoiceDetails[orderId] !== undefined) return
+    setInvoiceDetailsLoading(prev => ({ ...prev, [orderId]: true }))
     try {
       const { data, error } = await supabase
         .from('order_items')
         .select('product_name, variant_sku, quantity, unit_price, total_price')
         .eq('order_id', orderId)
-      if (error) throw error
-      setInvoiceDetails(prev => ({ ...prev, [orderId]: data || [] }))
+      if (error) {
+        console.error('Order items error:', error)
+        setInvoiceDetails(prev => ({ ...prev, [orderId]: [] }))
+      } else {
+        setInvoiceDetails(prev => ({ ...prev, [orderId]: data || [] }))
+      }
     } catch (e) {
       console.error('Failed to fetch order items:', e)
+      setInvoiceDetails(prev => ({ ...prev, [orderId]: [] }))
+    } finally {
+      setInvoiceDetailsLoading(prev => ({ ...prev, [orderId]: false }))
     }
   }
 
@@ -71,7 +80,10 @@ export function PaidInvoicesPage() {
       setExpandedInvoice(null)
     } else {
       setExpandedInvoice(invoiceId)
-      if (orderId) fetchOrderItems(orderId)
+      // Try to find order_id from the invoice data if not passed
+      const inv = invoices.find(i => i.id === invoiceId)
+      const oid = orderId || inv?.orders?.id
+      if (oid) fetchOrderItems(oid)
     }
   }
 
@@ -245,7 +257,23 @@ export function PaidInvoicesPage() {
                       {isExpanded && (
                         <tr key={`${inv.id}-details`}>
                           <td colSpan={7} className="px-4 py-3 bg-white/[0.02]">
-                            <p className="text-gray-500 text-sm">Order details feature coming soon.</p>
+                            {invoiceDetailsLoading[inv.id] ? (
+                              <p className="text-gray-500 text-sm">Loading items...</p>
+                            ) : invoiceDetails[inv.id]?.length > 0 ? (
+                              <div className="space-y-2">
+                                <p className="text-xs font-medium text-gray-400 mb-2">Order Items:</p>
+                                {invoiceDetails[inv.id].map((oi: any, idx: number) => (
+                                  <div key={idx} className="flex items-center justify-between text-sm px-3 py-1.5 bg-[#0a0514] rounded">
+                                    <span className="text-white flex-1">{oi.product_name}</span>
+                                    <span className="text-gray-400 mx-4">{oi.variant_sku}</span>
+                                    <span className="text-gray-400 mx-4">Qty: {oi.quantity}</span>
+                                    <span className="text-white">${(oi.total_price || 0).toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-gray-500 text-sm">No items found for this order.</p>
+                            )}
                           </td>
                         </tr>
                       )}

@@ -167,7 +167,11 @@ function buildInvoiceReminderHTML(params: {
         </div>
       </div>
       <div style="text-align:center; margin:24px 0;">
-        <a href="https://www.microdos2u.com" style="background:linear-gradient(135deg,#9a02d0,#7a01a8); color:#ffffff; text-decoration:none; padding:12px 32px; border-radius:8px; font-weight:600; font-size:15px; display:inline-block;">Pay Now</a>
+        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+          <a href="https://www.microdos2u.com/#/login" style="background:#150f24; border:1px solid rgba(255,255,255,0.2); color:#ffffff; text-decoration:none; padding:10px 24px; border-radius:8px; font-weight:600; font-size:14px; display:inline-block;">&#128274; Login</a>
+          <a href="https://www.microdos2u.com/#/wholesaler-dashboard" style="background:linear-gradient(135deg,#9a02d0,#7a01a8); color:#ffffff; text-decoration:none; padding:10px 24px; border-radius:8px; font-weight:600; font-size:14px; display:inline-block;">&#128179; Pay</a>
+          <a href="https://www.microdos2u.com/#/wholesaler-dashboard" style="background:#150f24; border:1px solid #ff4444; color:#ff4444; text-decoration:none; padding:10px 24px; border-radius:8px; font-weight:600; font-size:14px; display:inline-block;">&#10060; Cancel Order</a>
+        </div>
       </div>
     </div>
     <div style="color:#6b7280; font-size:12px; text-align:center;">microDOS(2) | 9555 Las Vegas Blvd South, Suite 100 | info@microdos2u.com</div>

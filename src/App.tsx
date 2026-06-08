@@ -120,16 +120,21 @@ function AppContent() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-          {/* Auth-protected portal routes */}
-          <Route path="/wholesaler-portal" element={<RequireAuth allowedRoles={['wholesaler', 'admin']}><WholesalerPortal /></RequireAuth>} />
+          {/* Public portal login routes — each portal has its own role verification after login */}
+          <Route path="/wholesaler-portal" element={<WholesalerPortal />} />
+          <Route path="/distributor-portal" element={<DistributorPortal />} />
+          <Route path="/sales-manager-portal" element={<SalesManagerPortal />} />
+          <Route path="/sales-rep-portal" element={<SalesRepPortal />} />
+          <Route path="/admin-portal" element={<AdminPortal />} />
+          <Route path="/shipping-portal" element={<ShippingPortal />} />
+
+          {/* Auth-protected dashboard routes */}
           <Route path="/wholesaler-dashboard" element={<RequireAuth allowedRoles={['wholesaler', 'admin']}><WholesalerDashboard /></RequireAuth>} />
-          <Route path="/distributor-portal" element={<RequireAuth allowedRoles={['distributor', 'admin']}><DistributorPortal /></RequireAuth>} />
           <Route path="/distributor-dashboard" element={<RequireAuth allowedRoles={['distributor', 'admin']}><DistributorDashboard /></RequireAuth>} />
           <Route path="/distributor-orders" element={<RequireAuth allowedRoles={['distributor', 'admin']}><DistributorOrders /></RequireAuth>} />
           <Route path="/distributor-invoices" element={<RequireAuth allowedRoles={['distributor', 'admin']}><DistributorInvoices /></RequireAuth>} />
           <Route path="/distributor-agreements" element={<RequireAuth allowedRoles={['distributor', 'admin']}><DistributorAgreements /></RequireAuth>} />
           <Route path="/distributor-settings" element={<RequireAuth allowedRoles={['distributor', 'admin']}><DistributorSettings /></RequireAuth>} />
-          <Route path="/sales-manager-portal" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerPortal /></RequireAuth>} />
           <Route path="/sales-manager-dashboard" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerDashboard /></RequireAuth>} />
           <Route path="/sales-manager-team" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerTeam /></RequireAuth>} />
           <Route path="/sales-manager-accounts" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerAccounts /></RequireAuth>} />
@@ -138,7 +143,6 @@ function AppContent() {
           <Route path="/sales-manager-stores" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerStores /></RequireAuth>} />
           <Route path="/sales-manager-settings" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerSettings /></RequireAuth>} />
           <Route path="/sales-manager-rep-dashboard" element={<RequireAuth allowedRoles={['sales_manager', 'admin']}><SalesManagerRepDashboard /></RequireAuth>} />
-          <Route path="/sales-rep-portal" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepPortal /></RequireAuth>} />
           <Route path="/sales-rep-dashboard" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepDashboard /></RequireAuth>} />
           <Route path="/sales-rep-accounts" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepAccounts /></RequireAuth>} />
           <Route path="/sales-rep-stores" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepStores /></RequireAuth>} />
@@ -147,9 +151,7 @@ function AppContent() {
           <Route path="/sales-rep-notifications" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepNotifications /></RequireAuth>} />
           <Route path="/sales-rep-settings" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepSettings /></RequireAuth>} />
           <Route path="/sales-rep-visits" element={<RequireAuth allowedRoles={['sales_rep', 'admin']}><SalesRepVisits /></RequireAuth>} />
-          <Route path="/admin-portal" element={<RequireAuth allowedRoles={['admin']}><AdminPortal /></RequireAuth>} />
           <Route path="/products" element={<RequireAuth><Products /></RequireAuth>} />
-          <Route path="/shipping-portal" element={<RequireAuth allowedRoles={['shipping_fulfillment', 'admin']}><ShippingPortal /></RequireAuth>} />
           <Route path="/shipping-dashboard" element={<RequireAuth allowedRoles={['shipping_fulfillment', 'admin']}><ShippingDashboard /></RequireAuth>} />
 
           {/* Admin Command Center — /admin/* */}

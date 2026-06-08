@@ -1,5 +1,5 @@
 // Order notification email builder
-// Calls the working 'send-order-notification' edge function with styled HTML
+// Sends order notification emails via the send-email-single edge function
 
 import { supabase } from './supabase';
 
@@ -110,7 +110,7 @@ export async function sendOrderNotification(params: {
   const results = [];
   for (const to of recipients) {
     try {
-      const { data, error } = await supabase.functions.invoke('send-order-notification', {
+      const { data, error } = await supabase.functions.invoke('send-email-single', {
         body: {
           to,
           subject: subjectMap[params.status] || `[microDOS(2)] Order ${params.poNumber} Update`,
@@ -193,7 +193,7 @@ export async function sendInvoiceReminder(params: {
   const subject = `[microDOS(2)] Invoice ${params.invoiceNumber} - ${params.daysOverdue} Days Overdue - Please Submit Payment`;
 
   try {
-    const { data, error } = await supabase.functions.invoke('send-order-notification', {
+    const { data, error } = await supabase.functions.invoke('send-email-single', {
       body: { to: params.customerEmail, subject, html },
     });
     return { success: !error, id: data?.id || null, error: error?.message };

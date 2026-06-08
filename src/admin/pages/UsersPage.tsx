@@ -523,6 +523,30 @@ export function UsersPage() {
       if (insertErr) throw new Error('Failed to insert business account: ' + insertErr.message)
 
       await fetchAll()
+
+      // Send welcome email via edge function
+      try {
+        const portalPath = accountType === 'distributor' ? '/distributor-portal' : '/wholesaler-portal'
+        const emailResp = await fetch(`${SUPABASE_URL}/functions/v1/send-order-notification`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'apikey': SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({
+            to: accountEmail,
+            subject: 'Welcome to microDOS(2) - Your Account Has Been Created',
+            html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#0a0514;font-family:Arial,Helvetica,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0a0514;"><tr><td align="center" style="padding:40px 20px;"><table width="600" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding-bottom:30px;"><span style="font-size:28px;font-weight:bold;"><span style="color:#44f80c;">micro</span><span style="color:#9a02d0;">DOS</span><span style="color:#ff66c4;">(2)</span></span></td></tr><tr><td style="background:#150f24;border-radius:12px;padding:40px;border:1px solid rgba(255,255,255,0.1);"><h1 style="color:#fff;font-size:24px;margin:0 0 10px 0;text-align:center;">Welcome to microDOS(2)</h1><p style="color:#9a02d0;font-size:14px;margin:0 0 30px 0;text-align:center;font-weight:bold;">Your Account Has Been Created</p><div style="color:#d1d5db;font-size:15px;line-height:1.7;margin-bottom:30px;"><p>Hi ${accountContactName},</p><p>Your ${accountType} account has been created on the <strong style="color:#fff;">microDOS(2)</strong> platform.</p><p style="margin-top:20px;"><strong style="color:#fff;">Your Login Credentials:</strong></p><table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:15px 0;background:#0a0514;border-radius:8px;padding:20px;border:1px solid rgba(255,255,255,0.1);"><tr><td style="padding:10px 20px;"><p style="margin:0;color:#9a02d0;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Email / Username</p><p style="margin:5px 0 0 0;color:#fff;font-size:16px;font-family:monospace;">${accountEmail}</p></td></tr><tr><td style="padding:10px 20px;"><p style="margin:0;color:#9a02d0;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Temporary Password</p><p style="margin:5px 0 0 0;color:#44f80c;font-size:16px;font-family:monospace;font-weight:bold;">${accountPassword}</p></td></tr></table><p style="font-size:13px;color:#ff66c4;"><strong>Please change your password after your first login.</strong></p></div><table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;"><tr><td align="center"><a href="https://www.microdos2u.com/#${portalPath}" style="display:inline-block;background:linear-gradient(135deg,#9a02d0,#7a01a8);color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:bold;">Log In Now</a></td></tr></table></td></tr><tr><td align="center" style="padding-top:30px;color:#6b7280;font-size:12px;line-height:1.6;"><p style="margin:0;">microDOS(2) · Premium Microdosing Solutions</p></td></tr></table></td></tr></table></body></html>`,
+          }),
+        })
+        if (!emailResp.ok) {
+          console.error('[AddBusinessAccount] Welcome email failed:', emailResp.status)
+        }
+      } catch (emailErr: any) {
+        console.error('[AddBusinessAccount] Welcome email exception:', emailErr)
+      }
+
       toast.success(`${roleLabels[accountType]} account created!`)
       setShowAddAccountModal(false)
       setSentEmailTo(accountEmail)

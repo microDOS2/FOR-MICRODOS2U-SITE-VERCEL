@@ -114,14 +114,11 @@ export function ShippingDashboard() {
     }
     setProcessingId(orderId);
     const { error } = await supabase
-      .from('orders')
-      .update({
-        status: 'shipped',
-        tracking_number: inputs.tracking,
-        carrier: inputs.carrier,
-        shipped_date: new Date().toISOString(),
-      })
-      .eq('id', orderId);
+      .rpc('mark_order_shipped', {
+        p_order_id: orderId,
+        p_tracking_number: inputs.tracking,
+        p_carrier: inputs.carrier,
+      });
 
     if (error) {
       console.error('Mark shipped error:', error);

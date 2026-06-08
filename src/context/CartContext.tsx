@@ -212,6 +212,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     clearCart();
     setIsOpen(false);
 
+    // Refresh page so dashboard shows new order/invoice
+    window.location.reload();
+
     return {
       orderId: orderData.id,
       poNumber: orderData.po_number,

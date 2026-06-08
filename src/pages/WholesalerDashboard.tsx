@@ -1933,10 +1933,17 @@ export function WholesalerDashboard() {
             setInvoices((prev) =>
               prev.map((inv) =>
                 inv.invoice_number === paymentInvoice.invoiceNumber
-                  ? { ...inv, status: 'paid', transaction_id: result.transactionId }
+                  ? { ...inv, status: 'paid', transaction_id: result.transactionId, paid_method: 'card' }
                   : inv
               )
             );
+            // Also update the invoice in DB with paid_method
+            supabase.from('invoices').update({
+              status: 'paid',
+              paid_method: 'card',
+              transaction_id: result.transactionId,
+              paid_at: new Date().toISOString(),
+            }).eq('invoice_number', paymentInvoice.invoiceNumber).then();
             // Refresh invoice list from server to get accurate state
             supabase
               .from('invoices')

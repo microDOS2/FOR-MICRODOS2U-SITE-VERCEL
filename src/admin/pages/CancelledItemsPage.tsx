@@ -137,20 +137,29 @@ export function CancelledItemsPage() {
 
   const [expandedItem, setExpandedItem] = useState<string | null>(null)
   const [itemDetails, setItemDetails] = useState<Record<string, any[]>>({})
+  const [itemDetailsLoading, setItemDetailsLoading] = useState<Record<string, boolean>>({})
   const orderCount = filtered.filter(i => i.type === 'order').length
   const invoiceCount = filtered.filter(i => i.type === 'invoice').length
 
   const fetchOrderDetails = async (orderId: string) => {
-    if (itemDetails[orderId]) return
+    if (itemDetails[orderId] !== undefined) return
+    setItemDetailsLoading(prev => ({ ...prev, [orderId]: true }))
     try {
       const { data, error } = await supabase
         .from('order_items')
         .select('product_name, variant_sku, quantity, unit_price, total_price')
         .eq('order_id', orderId)
-      if (error) throw error
-      setItemDetails(prev => ({ ...prev, [orderId]: data || [] }))
+      if (error) {
+        console.error('Order items error:', error)
+        setItemDetails(prev => ({ ...prev, [orderId]: [] }))
+      } else {
+        setItemDetails(prev => ({ ...prev, [orderId]: data || [] }))
+      }
     } catch (e) {
       console.error('Failed to fetch order items:', e)
+      setItemDetails(prev => ({ ...prev, [orderId]: [] }))
+    } finally {
+      setItemDetailsLoading(prev => ({ ...prev, [orderId]: false }))
     }
   }
 
@@ -267,7 +276,9 @@ export function CancelledItemsPage() {
                       {isExpanded && item.type === 'order' && (
                         <tr key={`${expandKey}-details`}>
                           <td colSpan={9} className="px-4 py-3 bg-white/[0.02]">
-                            {itemDetails[item.id]?.length > 0 ? (
+                            {itemDetailsLoading[item.id] ? (
+                              <p className="text-gray-500 text-sm">Loading items...</p>
+                            ) : itemDetails[item.id]?.length > 0 ? (
                               <div className="space-y-2">
                                 <p className="text-xs font-medium text-gray-400 mb-2">Order Items:</p>
                                 {itemDetails[item.id].map((oi: any, idx: number) => (
@@ -280,7 +291,7 @@ export function CancelledItemsPage() {
                                 ))}
                               </div>
                             ) : (
-                              <p className="text-gray-500 text-sm">Loading items...</p>
+                              <p className="text-gray-500 text-sm">No items found for this order.</p>
                             )}
                           </td>
                         </tr>

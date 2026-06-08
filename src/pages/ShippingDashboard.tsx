@@ -129,20 +129,11 @@ export function ShippingDashboard() {
     } else {
       toast.success('Order marked as shipped!');
 
-      // Generate commissions for this order (commissions pay on SHIPPED, not paid)
+      // Generate commissions silently in background (shipper doesn't need to see this)
       try {
-        const { data: commResult, error: commErr } = await supabase
-          .rpc('generate_order_commissions', { p_order_id: orderId })
-        if (commErr) {
-          console.error('Commission generation error:', commErr)
-        } else if (commResult) {
-          const result = typeof commResult === 'string' ? JSON.parse(commResult) : commResult
-          if (result?.success && result?.rep_amount > 0) {
-            toast.success(`Commission generated: $${Number(result.rep_amount).toFixed(2)} for rep`)
-          }
-        }
-      } catch (commErr: any) {
-        console.error('Commission generation failed:', commErr)
+        await supabase.rpc('generate_order_commissions', { p_order_id: orderId })
+      } catch {
+        // Silently fail — admin will verify commissions in their dashboard
       }
 
       // Send shipment notification email
@@ -508,7 +499,7 @@ export function ShippingDashboard() {
                                     <select
                                       value={trackingInputs[order.id]?.carrier || ''}
                                       onChange={(e) => updateTrackingInput(order.id, 'carrier', e.target.value)}
-                                      className="h-10 px-3 rounded-md bg-brand-900 border border-brand-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#9a02d0] sm:w-40"
+                                      className="h-10 px-3 rounded-md bg-[#150f24] border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#9a02d0] sm:w-40"
                                     >
                                       <option value="">Select carrier</option>
                                       {CARRIERS.map((c) => (

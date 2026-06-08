@@ -445,7 +445,7 @@ export function UsersPage() {
       // 4. Send welcome email
       try {
         const portalPath = newUserRole === 'distributor' ? '/distributor-portal' : '/wholesaler-portal'
-        const emailResp = await fetch(`${SUPABASE_URL}/functions/v1/send-email-single`, {
+        const emailResp = await fetch(`${SUPABASE_URL}/functions/v1/send-order-notification`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

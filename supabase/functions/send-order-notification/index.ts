@@ -1,13 +1,20 @@
 // supabase/functions/send-order-notification/index.ts
 // Sends email notification to customer when order status changes
+// ALSO supports direct email sending with {to, subject, html} for welcome emails & invoice reminders
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
-interface NotificationPayload {
+interface OrderNotificationPayload {
   order_id: string;
   status: 'processing' | 'shipped' | 'cancelled';
-  test_email?: string; // Optional: send copy to test email
+  test_email?: string;
+}
+
+interface DirectEmailPayload {
+  to: string;
+  subject: string;
+  html: string;
 }
 
 const corsHeaders = {
@@ -23,7 +30,7 @@ const emailColors = {
   cancelled: { bg: '#1a0808', border: '#ef4444', accent: '#f87171' },
 };
 
-function buildEmailHTML(params: {
+function buildOrderEmailHTML(params: {
   status: string;
   poNumber: string;
   businessName: string;
@@ -48,7 +55,7 @@ function buildEmailHTML(params: {
 
   const trackingHTML = params.status === 'shipped' && params.trackingNumber
     ? `<div style="background:#150f24;border:1px solid ${colors.border};border-radius:8px;padding:20px;margin:24px 0;">
-        <h3 style="color:${colors.accent};margin:0 0 12px 0;font-size:16px;">📦 Tracking Information</h3>
+        <h3 style="color:${colors.accent};margin:0 0 12px 0;font-size:16px;">&#128230; Tracking Information</h3>
         <p style="margin:4px 0;color:#e0e0e0;"><strong>Carrier:</strong> ${params.carrier || 'N/A'}</p>
         <p style="margin:4px 0;color:#e0e0e0;"><strong>Tracking Number:</strong> <span style="font-family:monospace;background:#0a0514;padding:4px 8px;border-radius:4px;">${params.trackingNumber}</span></p>
         ${params.shippedDate ? `<p style="margin:4px 0;color:#e0e0e0;"><strong>Shipped:</strong> ${new Date(params.shippedDate).toLocaleDateString()}</p>` : ''}
@@ -60,23 +67,18 @@ function buildEmailHTML(params: {
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background:#0a0514;font-family:system-ui,-apple-system,sans-serif;">
   <div style="max-width:600px;margin:0 auto;padding:24px;">
-    <!-- Header -->
     <div style="text-align:center;padding:24px 0;border-bottom:1px solid #44f80c;">
       <h1 style="color:#44f80c;margin:0;font-size:28px;display:inline;">micro</h1>
       <h1 style="color:#9a02d0;margin:0;font-size:28px;display:inline;">DOS</h1>
       <span style="color:#ff66c4;font-size:28px;font-weight:bold;">(2)</span>
       <p style="color:#888;margin:8px 0 0 0;font-size:14px;">Order Notification</p>
     </div>
-
-    <!-- Status Banner -->
     <div style="background:${colors.bg};border:1px solid ${colors.border};border-radius:12px;padding:24px;margin:24px 0;text-align:center;">
       <h2 style="color:${colors.accent};margin:0 0 12px 0;font-size:22px;">${statusLabels[params.status] || 'Order Update'}</h2>
       <p style="color:#ccc;margin:0;font-size:15px;line-height:1.6;">${statusMessages[params.status] || ''}</p>
     </div>
-
-    <!-- Order Details -->
     <div style="background:#150f24;border:1px solid #2a2440;border-radius:8px;padding:24px;margin:24px 0;">
-      <h3 style="color:#fff;margin:0 0 16px 0;font-size:16px;">📋 Order Details</h3>
+      <h3 style="color:#fff;margin:0 0 16px 0;font-size:16px;">&#128203; Order Details</h3>
       <table style="width:100%;color:#ccc;font-size:14px;border-collapse:collapse;">
         <tr><td style="padding:6px 0;color:#888;">PO Number</td><td style="padding:6px 0;text-align:right;font-family:monospace;">${params.poNumber}</td></tr>
         <tr><td style="padding:6px 0;color:#888;">Account</td><td style="padding:6px 0;text-align:right;">${params.businessName}</td></tr>
@@ -87,10 +89,7 @@ function buildEmailHTML(params: {
         </tr>
       </table>
     </div>
-
     ${trackingHTML}
-
-    <!-- Footer -->
     <div style="text-align:center;padding:24px 0;border-top:1px solid #2a2440;margin-top:24px;color:#888;font-size:13px;">
       <p>Questions? Reply to this email or contact us at info@microdos2u.com</p>
       <p style="margin-top:12px;">microDOS(2) | 9555 Las Vegas Blvd South, Suite 100 | Las Vegas, NV 89123</p>
@@ -99,6 +98,48 @@ function buildEmailHTML(params: {
   </div>
 </body>
 </html>`;
+}
+
+// Send via Resend API
+async function sendViaResend(params: { to: string; subject: string; html: string }): Promise<{ success: boolean; id?: string; error?: string }> {
+  const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+  if (!RESEND_API_KEY) {
+    return { success: false, error: 'RESEND_API_KEY not configured' };
+  }
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'microDOS(2) <notifications@microdos2u.com>',
+        to: params.to,
+        subject: params.subject,
+        html: params.html,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.message || 'Resend API error' };
+    }
+    return { success: true, id: data.id };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// Check if payload is direct email format
+function isDirectEmail(payload: any): payload is DirectEmailPayload {
+  return payload && typeof payload.to === 'string' && typeof payload.subject === 'string' && typeof payload.html === 'string';
+}
+
+// Check if payload is order notification format
+function isOrderNotification(payload: any): payload is OrderNotificationPayload {
+  return payload && typeof payload.order_id === 'string' && typeof payload.status === 'string';
 }
 
 serve(async (req) => {
@@ -116,89 +157,100 @@ serve(async (req) => {
 
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const FUNCTION_SECRET = Deno.env.get('FUNCTION_SECRET') || '';
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
   });
 
   try {
-    const payload: NotificationPayload = await req.json();
-    const { order_id, status, test_email } = payload;
+    const payload = await req.json();
 
-    // Fetch order with customer details
-    const { data: order, error: orderErr } = await supabase
-      .from('orders')
-      .select('id, po_number, total, status, created_at, tracking_number, carrier, shipped_date, users!inner(email, business_name, contact_name)')
-      .eq('id', order_id)
-      .single();
-
-    if (orderErr || !order) {
-      console.error('Order fetch error:', orderErr);
-      return new Response(JSON.stringify({ error: 'Order not found' }), {
-        status: 404,
-        headers: { ...corsHeaders },
+    // MODE 1: Direct email — {to, subject, html}
+    // Used by: welcome emails (UsersPage), invoice reminders
+    if (isDirectEmail(payload)) {
+      const result = await sendViaResend(payload);
+      return new Response(JSON.stringify(result), {
+        status: result.success ? 200 : 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const userData = order.users as any;
-    const customerEmail = userData?.email;
-    const businessName = userData?.business_name || userData?.contact_name || 'Valued Customer';
+    // MODE 2: Order notification — {order_id, status, test_email?}
+    // Used by: order status changes (processing/shipped/cancelled)
+    if (isOrderNotification(payload)) {
+      const { order_id, status, test_email } = payload;
 
-    if (!customerEmail) {
-      return new Response(JSON.stringify({ error: 'Customer email not found' }), {
-        status: 400,
-        headers: { ...corsHeaders },
+      // Fetch order with customer details
+      const { data: order, error: orderErr } = await supabase
+        .from('orders')
+        .select('id, po_number, total, status, created_at, tracking_number, carrier, shipped_date, users!inner(email, business_name, contact_name)')
+        .eq('id', order_id)
+        .single();
+
+      if (orderErr || !order) {
+        console.error('Order fetch error:', orderErr);
+        return new Response(JSON.stringify({ error: 'Order not found' }), {
+          status: 404,
+          headers: { ...corsHeaders },
+        });
+      }
+
+      const userData = order.users as any;
+      const customerEmail = userData?.email;
+      const businessName = userData?.business_name || userData?.contact_name || 'Valued Customer';
+
+      if (!customerEmail) {
+        return new Response(JSON.stringify({ error: 'Customer email not found' }), {
+          status: 400,
+          headers: { ...corsHeaders },
+        });
+      }
+
+      // Build email HTML
+      const html = buildOrderEmailHTML({
+        status,
+        poNumber: order.po_number,
+        businessName,
+        total: order.total,
+        trackingNumber: order.tracking_number || undefined,
+        carrier: order.carrier || undefined,
+        shippedDate: order.shipped_date || undefined,
+        orderDate: order.created_at,
       });
-    }
 
-    // Build email HTML
-    const html = buildEmailHTML({
-      status,
-      poNumber: order.po_number,
-      businessName,
-      total: order.total,
-      trackingNumber: order.tracking_number || undefined,
-      carrier: order.carrier || undefined,
-      shippedDate: order.shipped_date || undefined,
-      orderDate: order.created_at,
-    });
+      const subjectMap: Record<string, string> = {
+        processing: `[microDOS(2)] Order ${order.po_number} Confirmed - Being Processed`,
+        shipped: `[microDOS(2)] Order ${order.po_number} Has Shipped!`,
+        cancelled: `[microDOS(2)] Order ${order.po_number} Cancelled`,
+      };
 
-    const subjectMap: Record<string, string> = {
-      processing: `[microDOS(2)] Order ${order.po_number} Confirmed - Being Processed`,
-      shipped: `[microDOS(2)] Order ${order.po_number} Has Shipped!`,
-      cancelled: `[microDOS(2)] Order ${order.po_number} Cancelled`,
-    };
+      const recipients = [customerEmail];
+      if (test_email) {
+        recipients.push(test_email);
+      }
 
-    // Send to customer
-    const recipients = [customerEmail];
-    // Add test email if provided (for development testing)
-    if (test_email) {
-      recipients.push(test_email);
-    }
-
-    const results = [];
-    for (const to of recipients) {
-      const sendRes = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const results = [];
+      for (const to of recipients) {
+        const result = await sendViaResend({
           to,
           subject: subjectMap[status] || `[microDOS(2)] Order ${order.po_number} Update`,
           html,
-        }),
-      });
+        });
+        results.push({ to, ...result });
+      }
 
-      const sendData = await sendRes.json();
-      results.push({ to, success: sendRes.ok, id: sendData.id });
-      console.log(`Notification sent to ${to}:`, sendData.id || sendData.error);
+      return new Response(JSON.stringify({ success: true, results }), {
+        status: 200,
+        headers: { ...corsHeaders },
+      });
     }
 
-    return new Response(JSON.stringify({ success: true, results }), {
-      status: 200,
+    // Unknown payload format
+    return new Response(JSON.stringify({
+      error: 'Invalid payload. Expected {order_id, status} or {to, subject, html}',
+      received: Object.keys(payload),
+    }), {
+      status: 400,
       headers: { ...corsHeaders },
     });
 

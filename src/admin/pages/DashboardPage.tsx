@@ -221,25 +221,29 @@ export function DashboardPage() {
       let sent = 0
       for (const inv of pendingInvoices) {
         const createdAt = new Date(inv.created_at)
-        const reminderSentAt = inv.reminder_sent_at ? new Date(inv.reminder_sent_at) : null
-        const daysSinceCreated = Math.floor((now.getTime() - createdAt.getTime()) / fiveDaysMs * 5)
+        const daysSinceCreated = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24))
         if (daysSinceCreated < 5) continue
-        if (reminderSentAt && Math.floor((now.getTime() - reminderSentAt.getTime()) / fiveDaysMs * 5) < 5) continue
+        // Only send the "became overdue" email once (when reminder_count is 0)
+        const isFirstOverdue = !(inv.reminder_count || 0)
         const order = ordersData.find((o: any) => o.id === inv.order_id)
         if (!order?.users?.email) continue
-        await sendInvoiceReminder({
-          invoiceNumber: inv.invoice_number, poNumber: order.po_number,
-          customerEmail: order.users.email,
-          businessName: order.users.business_name || order.users.contact_name || 'Valued Customer',
-          total: inv.amount, dueDate: createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          daysOverdue: daysSinceCreated,
-        })
+        if (isFirstOverdue) {
+          await sendInvoiceReminder({
+            invoiceNumber: inv.invoice_number, poNumber: order.po_number,
+            customerEmail: order.users.email,
+            businessName: order.users.business_name || order.users.contact_name || 'Valued Customer',
+            total: inv.amount, dueDate: createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            daysOverdue: daysSinceCreated,
+          })
+        }
         await supabase.from('invoices').update({
-          reminder_sent_at: now.toISOString(), reminder_count: ((inv.reminder_count || 0) as number) + 1,
+          status: 'overdue',
+          reminder_sent_at: now.toISOString(),
+          reminder_count: ((inv.reminder_count || 0) as number) + 1,
         }).eq('id', inv.id)
         sent++
       }
-      if (sent > 0) toast.info(`Sent ${sent} overdue invoice reminder${sent > 1 ? 's' : ''}`)
+      if (sent > 0) toast.info(`Updated ${sent} invoice${sent > 1 ? 's' : ''} to overdue`)
     } catch (err) { console.error('Overdue check error:', err) }
   }
 

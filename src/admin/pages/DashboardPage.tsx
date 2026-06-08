@@ -213,7 +213,6 @@ export function DashboardPage() {
   const checkOverdueInvoices = async (ordersData: any[], _invoicesData: any[], _fiveDaysAgo: string) => {
     try {
       const now = new Date()
-      const fiveDaysMs = 5 * 24 * 60 * 60 * 1000
       const { data: pendingInvoices } = await supabase
         .from('invoices').select('id, invoice_number, amount, created_at, reminder_sent_at, reminder_count, order_id')
         .eq('status', 'pending').order('created_at', { ascending: true })

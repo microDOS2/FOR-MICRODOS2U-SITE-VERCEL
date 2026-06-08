@@ -344,13 +344,13 @@ export function ShippingDashboard() {
               placeholder="Search PO or business..."
               value={orderSearch}
               onChange={(e) => setOrderSearch(e.target.value)}
-              className="pl-10 bg-brand-900 border-brand-700 text-white w-full sm:w-64"
+              className="pl-10 bg-[#150f24] border-white/20 text-white w-full sm:w-64"
             />
           </div>
           <select
             value={orderFilter}
             onChange={(e) => setOrderFilter(e.target.value as OrderStatus | 'all')}
-            className="h-10 px-3 rounded-md bg-brand-900 border border-brand-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#9a02d0]"
+            className="h-10 px-3 rounded-md bg-[#150f24] border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#9a02d0]"
           >
             <option value="all">All Status</option>
             <option value="processing">Processing</option>
@@ -494,7 +494,7 @@ export function ShippingDashboard() {
                                       placeholder="Tracking number"
                                       value={trackingInputs[order.id]?.tracking || ''}
                                       onChange={(e) => updateTrackingInput(order.id, 'tracking', e.target.value)}
-                                      className="!bg-brand-900 border-brand-700 text-white sm:w-56"
+                                      className="bg-[#150f24] border-white/20 text-white sm:w-56"
                                     />
                                     <select
                                       value={trackingInputs[order.id]?.carrier || ''}

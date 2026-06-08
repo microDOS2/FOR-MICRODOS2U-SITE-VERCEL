@@ -12,7 +12,7 @@ interface PaidInvoice {
   paid_reference: string | null
   created_at: string
   users?: { business_name: string; email: string }
-  orders?: { po_number: string }
+  orders?: { id: string; po_number: string }
 }
 
 type DateRange = 'all' | '30days' | 'quarter' | 'year' | 'custom'
@@ -37,7 +37,7 @@ export function PaidInvoicesPage() {
       .select(`
         id, invoice_number, amount, paid_date, paid_method, paid_reference, created_at,
         users!user_id (business_name, email),
-        orders:order_id (po_number)
+        orders:order_id (id, po_number)
       `)
       .eq('status', 'paid')
       .order('paid_date', { ascending: false })

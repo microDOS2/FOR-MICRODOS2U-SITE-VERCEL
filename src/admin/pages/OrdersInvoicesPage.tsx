@@ -316,6 +316,7 @@ export function OrdersInvoicesPage() {
         if (order?.users?.email) {
           await sendOrderNotification({
             status: 'processing',
+            orderId: orderId,
             poNumber: order.po_number,
             customerEmail: order.users.email,
             businessName: order.users.business_name || order.users.contact_name || 'Valued Customer',

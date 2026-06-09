@@ -199,6 +199,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const { sendOrderNotification } = await import('@/lib/orderNotifications');
         await sendOrderNotification({
           status: 'processing',
+          orderId: orderData.id,
           poNumber: orderData.po_number,
           customerEmail: user.email || '',
           businessName: user.contact_name || user.business_name || 'Valued Customer',

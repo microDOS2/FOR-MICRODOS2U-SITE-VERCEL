@@ -1577,6 +1577,7 @@ export function DistributorDashboard() {
                             import('@/lib/orderNotifications').then(({ sendOrderNotification }) => {
                               sendOrderNotification({
                                 status: 'processing',
+                                orderId: invData.order_id,
                                 poNumber: orderData.po_number,
                                 customerEmail: userData?.email || '',
                                 businessName: userData?.contact_name || userData?.business_name || 'Valued Customer',

@@ -1972,6 +1972,7 @@ export function WholesalerDashboard() {
                         import('@/lib/orderNotifications').then(({ sendOrderNotification }) => {
                           sendOrderNotification({
                             status: 'processing',
+                            orderId: invData.order_id,
                             poNumber: matchedOrder.po_number,
                             customerEmail: user.email || '',
                             businessName: user.contact_name || user.business_name || 'Valued Customer',

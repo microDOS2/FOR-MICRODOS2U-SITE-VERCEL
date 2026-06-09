@@ -6,6 +6,7 @@ import { supabase } from './supabase';
 
 export async function sendOrderNotification(params: {
   status: 'processing' | 'shipped' | 'cancelled';
+  orderId: string;
   poNumber: string;
   customerEmail: string;
   businessName: string;
@@ -16,25 +17,13 @@ export async function sendOrderNotification(params: {
   shippedDate?: string;
   testEmail?: string; // holtcrowder@gmail.com for testing
 }) {
-  // Look up order_id by PO number — the edge function needs order_id, not poNumber
-  const { data: orderRow, error: lookupErr } = await supabase
-    .from('orders')
-    .select('id')
-    .eq('po_number', params.poNumber)
-    .single();
-
-  if (lookupErr || !orderRow) {
-    console.error('[sendOrderNotification] Failed to find order_id for PO:', params.poNumber, lookupErr);
-    return [{ to: params.customerEmail, success: false, error: 'Order not found for PO ' + params.poNumber }];
-  }
-
   const results = [];
 
   // Send to customer
   try {
     const { data, error } = await supabase.functions.invoke('send-order-notification', {
       body: {
-        order_id: orderRow.id,
+        order_id: params.orderId,
         status: params.status,
       },
     });
@@ -53,7 +42,7 @@ export async function sendOrderNotification(params: {
     try {
       const { data, error } = await supabase.functions.invoke('send-order-notification', {
         body: {
-          order_id: orderRow.id,
+          order_id: params.orderId,
           status: params.status,
           test_email: params.testEmail,
         },

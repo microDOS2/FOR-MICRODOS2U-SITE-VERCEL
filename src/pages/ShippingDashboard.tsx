@@ -139,6 +139,7 @@ export function ShippingDashboard() {
         if (order?.users?.email) {
           await sendOrderNotification({
             status: 'shipped',
+            orderId: order.id,
             poNumber: order.po_number,
             customerEmail: order.users.email,
             businessName: order.users.business_name || order.users.contact_name || 'Valued Customer',

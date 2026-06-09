@@ -495,7 +495,7 @@ export function ShippingDashboard() {
                                       className="bg-[#150f24] border-white/20 text-white sm:w-56"
                                     />
                                     <select
-                                      value={trackingInputs[order.id]?.carrier || ''}
+                                      value={trackingInputs[order.id]?.carrier || 'UPS'}
                                       onChange={(e) => updateTrackingInput(order.id, 'carrier', e.target.value)}
                                       className="h-10 px-3 rounded-md bg-[#150f24] border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#9a02d0] sm:w-40"
                                     >

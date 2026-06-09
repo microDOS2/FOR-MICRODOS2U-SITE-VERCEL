@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
-import { sendOrderNotification } from '@/lib/orderNotifications';
+// Email notifications are now handled by backend (mark_order_shipped RPC + trigger)
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
@@ -133,25 +133,8 @@ export function ShippingDashboard() {
         // Silently fail — admin will verify commissions in their dashboard
       }
 
-      // Send shipment notification email
-      try {
-        const order = orders.find((o) => o.id === orderId);
-        if (order?.users?.email) {
-          await sendOrderNotification({
-            status: 'shipped',
-            orderId: order.id,
-            poNumber: order.po_number,
-            customerEmail: order.users.email,
-            businessName: order.users.business_name || order.users.contact_name || 'Valued Customer',
-            total: order.total,
-            orderDate: order.created_at,
-            trackingNumber: inputs.tracking,
-            carrier: inputs.carrier,
-          });
-        }
-      } catch (notifyErr: any) {
-        console.error('Notification error:', notifyErr);
-      }
+      // Backend now sends the shipped email automatically via trigger
+      // (mark_order_shipped RPC + send_shipped_email trigger handle it)
       await fetchOrders();
     }
     setProcessingId(null);

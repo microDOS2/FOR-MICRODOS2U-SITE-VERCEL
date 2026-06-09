@@ -918,7 +918,17 @@ export function UsersPage() {
       let userDeleted = 0
       let userFailed = 0
       for (const u of nonAdminUsers) {
-        // Try to delete auth user first (best effort via edge function)
+        // Delete from users table first (will cascade to stores via FK)
+        const { error } = await supabase.from('users').delete().eq('id', u.id)
+        if (error) {
+          console.error(`[Cleanup] Failed to delete user ${u.email}:`, error.message);
+          toast.error(`Failed to delete ${u.email}: ${error.message}`);
+          userFailed++
+        } else {
+          userDeleted++
+        }
+
+        // Try to delete auth user (best effort)
         try {
           await fetch(`${SUPABASE_URL}/functions/v1/delete-auth-user`, {
             method: 'POST',
@@ -929,17 +939,14 @@ export function UsersPage() {
             },
             body: JSON.stringify({ user_id: u.id }),
           })
-        } catch (e: any) {
-          console.error('[UsersPage] delete-auth-user failed:', e);
-          toast.warning('Database user deleted but auth cleanup failed: ' + e.message);
+        } catch {
           results.authFailed++
         }
-
-        // Delete from users table
-        const { error } = await supabase.from('users').delete().eq('id', u.id)
-        if (error) { userFailed++ } else { userDeleted++ }
       }
       results.users = userDeleted
+      if (userFailed > 0) {
+        toast.warning(`${userFailed} user(s) could not be deleted — check error messages above`);
+      }
 
       // 6. Refresh the list
       await fetchAll()

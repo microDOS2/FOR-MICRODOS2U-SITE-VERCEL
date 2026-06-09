@@ -438,9 +438,19 @@ export function ShippingDashboard() {
                                 </div>
                                 <div className="space-y-1 md:col-span-2">
                                   <p className="text-xs font-medium text-gray-400 flex items-center gap-1">
-                                    <MapPin className="w-3 h-3" /> Shipping Address
+                                    <MapPin className="w-3 h-3" />
+                                    {order.store?.name
+                                      ? `Shipping to: ${order.store.name}${order.store.is_primary ? ' (Primary)' : ''}`
+                                      : 'Shipping Address'}
                                   </p>
                                   <p className="text-white">{order.shipping_address || '—'}</p>
+                                  {order.store?.phone && (
+                                    <p className="text-gray-400 text-xs">
+                                      <Phone className="w-3 h-3 inline mr-1" />
+                                      {order.store.phone}
+                                      {order.store.contact_name && ` — Contact: ${order.store.contact_name}`}
+                                    </p>
+                                  )}
                                   {order.tracking_number && (
                                     <p className="text-gray-300">
                                       <span className="text-gray-500">Tracking:</span>{' '}

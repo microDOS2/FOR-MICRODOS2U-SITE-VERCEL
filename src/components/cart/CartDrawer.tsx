@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Minus, Plus, Trash2, ShoppingCart, Loader2, CreditCard, FileText } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingCart, Loader2, CreditCard, FileText, MapPin } from 'lucide-react';
 import { formatPrice } from '@/data/products';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -12,7 +12,11 @@ import { CartPaymentForm } from './CartPaymentForm';
 type CheckoutStep = 'cart' | 'payment' | 'success';
 
 export function CartDrawer() {
-  const { items, removeItem, updateQuantity, clearCart, placeOrder, totalPrice, isOpen, setIsOpen } = useCart();
+  const {
+    items, removeItem, updateQuantity, clearCart, placeOrder, totalPrice,
+    isOpen, setIsOpen,
+    stores, selectedStoreId, setSelectedStoreId, storesLoading,
+  } = useCart();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [step, setStep] = useState<CheckoutStep>('cart');
   const [lastOrder, setLastOrder] = useState<{ poNumber: string; total: number } | null>(null);
@@ -21,6 +25,7 @@ export function CartDrawer() {
 
   const handleSubmitOrder = async () => {
     if (!user) { toast.error('Please log in'); return; }
+    if (!selectedStoreId && stores.length > 0) { toast.error('Please select a shipping location'); return; }
     setIsCheckingOut(true);
     try {
       const result = await placeOrder();
@@ -42,6 +47,7 @@ export function CartDrawer() {
 
   const handlePayAndPlace = async (transactionId: string) => {
     if (!user) { toast.error('Please log in'); return; }
+    if (!selectedStoreId && stores.length > 0) { toast.error('Please select a shipping location'); return; }
     setIsCheckingOut(true);
     try {
       const result = await placeOrder(transactionId);
@@ -79,6 +85,8 @@ export function CartDrawer() {
     }, 400);
   };
 
+  const selectedStore = stores.find((s) => s.id === selectedStoreId);
+
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetContent className="bg-[#150f24] border-l border-white/10 w-full sm:max-w-md flex flex-col">
@@ -106,6 +114,7 @@ export function CartDrawer() {
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {/* Cart items */}
                   {items.map((item) => (
                     <div key={item.id} className="bg-[#0a0514] rounded-lg p-4 border border-white/10">
                       <div className="flex items-start justify-between mb-2">
@@ -132,6 +141,42 @@ export function CartDrawer() {
                       </div>
                     </div>
                   ))}
+
+                  {/* === STORE SELECTOR === */}
+                  {stores.length > 0 && (
+                    <div className="bg-[#0a0514] rounded-lg p-4 border border-white/10">
+                      <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+                        <MapPin className="w-4 h-4 text-[#9a02d0]" />
+                        Ship To:
+                      </label>
+                      <select
+                        value={selectedStoreId || ''}
+                        onChange={(e) => setSelectedStoreId(e.target.value || null)}
+                        className="w-full bg-[#150f24] border border-white/20 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:border-[#9a02d0]"
+                      >
+                        {stores.map((store) => (
+                          <option key={store.id} value={store.id}>
+                            {store.name}
+                            {store.is_primary ? ' (Primary)' : ''}
+                            {store.address ? ` — ${store.address}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedStore && (
+                        <div className="mt-2 text-xs text-gray-400 space-y-0.5">
+                          {selectedStore.address && <p>{selectedStore.address}</p>}
+                          {(selectedStore.city || selectedStore.state || selectedStore.zip) && (
+                            <p>{[selectedStore.city, selectedStore.state, selectedStore.zip].filter(Boolean).join(', ')}</p>
+                          )}
+                          {selectedStore.contact_name && <p>Contact: {selectedStore.contact_name}</p>}
+                          {selectedStore.phone && <p>Phone: {selectedStore.phone}</p>}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {storesLoading && (
+                    <p className="text-gray-500 text-xs text-center">Loading store locations...</p>
+                  )}
                 </div>
               )}
             </>

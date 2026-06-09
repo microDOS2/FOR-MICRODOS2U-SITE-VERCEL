@@ -771,219 +771,29 @@ export function UsersPage() {
   // Call this ONCE before going live to clear all test data and start fresh.
   const handleDeleteAllNonAdmin = async () => {
     setDeletingAll(true)
+    toast.info('Starting cleanup...')
+
     try {
-      // 1. Identify all non-admin users
-      const nonAdminUsers = allAccounts.filter(u => u.role !== 'admin' && u.source === 'users')
-      if (nonAdminUsers.length === 0) {
-        toast.info('No non-admin users to delete')
-        setDeletingAll(false)
-        setShowDeleteAllDialog(false)
-        return
-      }
-      const nonAdminIds = nonAdminUsers.map(u => u.id)
+      const { data, error } = await supabase.rpc('cleanup_delete_all')
+      if (error) throw new Error(error.message)
 
-      let results = {
-        orderItems: 0, orders: 0, invoices: 0,
-        stores: 0, agreements: 0, repAssignments: 0,
-        stateAssignments: 0, transactions: 0,
-        applications: 0, auditLog: 0, users: 0,
-        commissions: 0, authFailed: 0,
-        archivedReset: 0, shippingReset: 0,
-        paidReset: 0, remindersReset: 0,
-      }
-
-      // ═══════════════════════════════════════════════
-      // PHASE 1: RESET ALL FLAGS ON EXISTING RECORDS
-      // ═══════════════════════════════════════════════
-
-      // 1a. Reset archived_at on ALL orders
-      const { data: rarO, error: rarOErr } = await supabase
-        .from('orders').update({ archived_at: null })
-        .neq('id', '00000000-0000-0000-0000-000000000000').select('id')
-      if (!rarOErr && rarO) results.archivedReset += rarO.length
-
-      // 1b. Reset archived_at on ALL invoices
-      const { data: rarI, error: rarIErr } = await supabase
-        .from('invoices').update({ archived_at: null })
-        .neq('id', '00000000-0000-0000-0000-000000000000').select('id')
-      if (!rarIErr && rarI) results.archivedReset += rarI.length
-
-      // 1c. Clear shipped_date, carrier, tracking_number on ALL orders
-      const { data: rsData, error: rsErr } = await supabase
-        .from('orders').update({ shipped_date: null, carrier: null, tracking_number: null })
-        .neq('id', '00000000-0000-0000-0000-000000000000').select('id')
-      if (!rsErr && rsData) results.shippingReset = rsData.length
-
-      // 1d. Clear paid_at, paid_method, paid_reference on ALL invoices
-      const { data: rpData, error: rpErr } = await supabase
-        .from('invoices').update({ paid_at: null, paid_method: null, paid_reference: null })
-        .neq('id', '00000000-0000-0000-0000-000000000000').select('id')
-      if (!rpErr && rpData) results.paidReset = rpData.length
-
-      // 1e. Reset reminder_sent_at and reminder_count on ALL invoices
-      const { data: rrData, error: rrErr } = await supabase
-        .from('invoices').update({ reminder_sent_at: null, reminder_count: 0 })
-        .neq('id', '00000000-0000-0000-0000-000000000000').select('id')
-      if (!rrErr && rrData) results.remindersReset = rrData.length
-
-      // ═══════════════════════════════════════════════
-      // PHASE 2: DELETE ALL ORDERS AND INVOICES (ALL USERS)
-      // ═══════════════════════════════════════════════
-
-      // 2a. Fetch ALL order IDs, then delete order items
-      const { data: allOrderIds } = await supabase.from('orders').select('id').limit(10000)
-      const orderIdList = (allOrderIds || []).map((r: any) => r.id)
-      if (orderIdList.length > 0) {
-        const { data: oiData, error: oiErr } = await supabase
-          .from('order_items').delete().in('order_id', orderIdList).select('id')
-        if (!oiErr && oiData) results.orderItems = oiData.length
-      }
-
-      // 2b. Delete ALL orders (admin + non-admin test orders)
-      const { data: oData, error: oErr } = await supabase
-        .from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000').select('id')
-      if (!oErr && oData) results.orders = oData.length
-
-      // 2c. Delete ALL invoices
-      const { data: iData, error: iErr } = await supabase
-        .from('invoices').delete().neq('id', '00000000-0000-0000-0000-000000000000').select('id')
-      if (!iErr && iData) results.invoices = iData.length
-
-      // ═══════════════════════════════════════════════
-      // PHASE 3: DELETE ALL COMMISSION PAYMENTS
-      // ═══════════════════════════════════════════════
-
-      const { data: cpData, error: cpErr } = await supabase
-        .from('commission_payments').delete().neq('id', '00000000-0000-0000-0000-000000000000').select('id')
-      if (!cpErr && cpData) results.commissions = cpData.length
-
-      // ═══════════════════════════════════════════════
-      // PHASE 4: DELETE NON-ADMIN USER DATA
-      // ═══════════════════════════════════════════════
-
-      // 4a. Delete store locations
-      const { data: sData, error: sErr } = await supabase
-        .from('wholesaler_store_locations').delete().in('user_id', nonAdminIds).select('id')
-      if (!sErr && sData) results.stores = sData.length
-
-      // 4a2. Delete stores table (Primary Locations)
-      try {
-        const { data: s2Data } = await supabase
-          .from('stores').delete().in('user_id', nonAdminIds).select('id')
-        if (s2Data) results.stores += s2Data.length
-      } catch { /* skip */ }
-
-      // 4b. Delete agreements
-      const { data: aData, error: aErr } = await supabase
-        .from('agreements').delete().in('user_id', nonAdminIds).select('id')
-      if (!aErr && aData) results.agreements = aData.length
-
-      // 4c. Delete transactions (skip if table doesn't exist)
-      try {
-        const { data: tData } = await supabase
-          .from('transactions').delete().in('user_id', nonAdminIds).select('id')
-        if (tData) results.transactions = tData.length
-      } catch { /* table may not exist */ }
-
-      // 4d. Delete rep-account assignments
-      const { data: raData, error: raErr } = await supabase
-        .from('rep_account_assignments').delete()
-        .or(`account_id.in.(${nonAdminIds.join(',')}),rep_id.in.(${nonAdminIds.join(',')})`)
-        .select('id')
-      if (!raErr && raData) results.repAssignments = raData.length
-
-      // 4e. Delete manager state assignments
-      const { data: msData, error: msErr } = await supabase
-        .from('manager_state_assignments').delete().in('manager_id', nonAdminIds).select('id')
-      if (!msErr && msData) results.stateAssignments = msData.length
-
-      // 4f. Delete ALL assignment transfers (has FKs to users — must delete before users)
-      const { data: atData, error: atErr } = await supabase
-        .from('assignment_transfers').delete().not('id', 'is', null).select('id')
-      if (atErr) console.error('[Cleanup] assignment_transfers error:', atErr.message)
-      else if (atData) results.stateAssignments += atData.length
-
-      // ═══════════════════════════════════════════════
-      // PHASE 5: DELETE GLOBAL TABLES
-      // ═══════════════════════════════════════════════
-
-      // 5a. Delete ALL applications
-      const { data: appData, error: appErr } = await supabase
-        .from('applications').delete().neq('id', '00000000-0000-0000-0000-000000000000').select('id')
-      if (!appErr && appData) results.applications = appData.length
-
-      // 5b. Delete ALL audit logs
-      const { data: alData, error: alErr } = await supabase
-        .from('audit_log').delete().neq('id', '00000000-0000-0000-0000-000000000000').select('id')
-      if (!alErr && alData) results.auditLog = alData.length
-
-      // ═══════════════════════════════════════════════
-      // PHASE 6: DELETE NON-ADMIN USERS
-      // ═══════════════════════════════════════════════
-
-      let userDeleted = 0
-      let userFailed = 0
-      for (const u of nonAdminUsers) {
-        // Delete from users table first (will cascade to stores via FK)
-        const { error } = await supabase.from('users').delete().eq('id', u.id)
-        if (error) {
-          console.error(`[Cleanup] Failed to delete user ${u.email}:`, error.message);
-          toast.error(`Failed to delete ${u.email}: ${error.message}`);
-          userFailed++
-        } else {
-          userDeleted++
-        }
-
-        // Try to delete auth user (best effort)
-        try {
-          await fetch(`${SUPABASE_URL}/functions/v1/delete-auth-user`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-              'apikey': SUPABASE_ANON_KEY,
-            },
-            body: JSON.stringify({ user_id: u.id }),
-          })
-        } catch {
-          results.authFailed++
-        }
-      }
-      results.users = userDeleted
-      if (userFailed > 0) {
-        toast.warning(`${userFailed} user(s) could not be deleted — check error messages above`);
-      }
-
-      // 6. Refresh the list
-      await fetchAll()
-
-      // 7. Show detailed results
+      const r = data[0]
       const summary = [
-        `${results.users} user(s) deleted`,
-        results.orders > 0 ? `${results.orders} order(s)` : null,
-        results.orderItems > 0 ? `${results.orderItems} order item(s)` : null,
-        results.invoices > 0 ? `${results.invoices} invoice(s)` : null,
-        results.commissions > 0 ? `${results.commissions} commission(s)` : null,
-        results.stores > 0 ? `${results.stores} store(s)` : null,
-        results.agreements > 0 ? `${results.agreements} agreement(s)` : null,
-        results.transactions > 0 ? `${results.transactions} transaction(s)` : null,
-        results.repAssignments > 0 ? `${results.repAssignments} rep assignment(s)` : null,
-        results.stateAssignments > 0 ? `${results.stateAssignments} territory assignment(s)` : null,
-        results.applications > 0 ? `${results.applications} application(s)` : null,
-        results.auditLog > 0 ? `${results.auditLog} audit log(s)` : null,
-        results.archivedReset > 0 ? `${results.archivedReset} archive flag(s) reset` : null,
-        results.shippingReset > 0 ? `${results.shippingReset} shipping field(s) cleared` : null,
-        results.paidReset > 0 ? `${results.paidReset} payment field(s) cleared` : null,
-        results.remindersReset > 0 ? `${results.remindersReset} reminder(s) reset` : null,
-        results.authFailed > 0 ? `${results.authFailed} auth cleanup(s) skipped` : null,
+        `${r.deleted_users} user(s) deleted`,
+        r.deleted_orders > 0 ? `${r.deleted_orders} order(s)` : null,
+        r.deleted_invoices > 0 ? `${r.deleted_invoices} invoice(s)` : null,
+        r.deleted_items > 0 ? `${r.deleted_items} linked record(s)` : null,
       ].filter(Boolean).join(', ')
 
       toast.success(`Database cleaned: ${summary}`)
-      setShowDeleteAllDialog(false)
+      await fetchAll()
     } catch (err: any) {
-      toast.error(err?.message || 'Database cleanup failed')
+      toast.error('Cleanup failed: ' + (err.message || 'Unknown error'))
+      console.error('[Cleanup] RPC error:', err)
     }
+
     setDeletingAll(false)
+    setShowDeleteAllDialog(false)
   }
 
   // ──── EXPORT ALL USERS TO CSV (snapshot backup) ────

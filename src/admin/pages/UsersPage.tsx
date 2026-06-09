@@ -899,7 +899,7 @@ export function UsersPage() {
 
       // 4f. Delete ALL assignment transfers (has FKs to users — must delete before users)
       const { data: atData, error: atErr } = await supabase
-        .from('assignment_transfers').delete().neq('id','0').select('id')
+        .from('assignment_transfers').delete().not('id', 'is', null).select('id')
       if (atErr) console.error('[Cleanup] assignment_transfers error:', atErr.message)
       else if (atData) results.stateAssignments += atData.length
 

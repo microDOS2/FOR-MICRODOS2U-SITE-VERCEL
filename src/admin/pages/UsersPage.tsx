@@ -897,14 +897,11 @@ export function UsersPage() {
         .from('manager_state_assignments').delete().in('manager_id', nonAdminIds).select('id')
       if (!msErr && msData) results.stateAssignments = msData.length
 
-      // 4f. Delete assignment transfers (has FKs to users — MUST delete before users)
-      try {
-        const { data: atData } = await supabase
-          .from('assignment_transfers').delete()
-          .or(`account_id.in.(${nonAdminIds.join(',')}),rep_id.in.(${nonAdminIds.join(',')}),new_manager_id.in.(${nonAdminIds.join(',')})`)
-          .select('id')
-        if (atData) results.stateAssignments += atData.length
-      } catch { /* table may have different columns */ }
+      // 4f. Delete ALL assignment transfers (has FKs to users — must delete before users)
+      const { data: atData, error: atErr } = await supabase
+        .from('assignment_transfers').delete().neq('id','0').select('id')
+      if (atErr) console.error('[Cleanup] assignment_transfers error:', atErr.message)
+      else if (atData) results.stateAssignments += atData.length
 
       // ═══════════════════════════════════════════════
       // PHASE 5: DELETE GLOBAL TABLES

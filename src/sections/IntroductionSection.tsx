@@ -10,7 +10,7 @@ export function IntroductionSection() {
               Introduction
             </h2>
             <h3 className="text-3xl md:text-4xl font-bold mb-6">
-              What's in{'\u00A0'}<span className="text-psy-neonGreen">micro</span>{'\u00A0'}<span className="text-psy-neonPurple">DOS</span><span className="text-psy-neonPink">(2)</span>?
+              What's in <span className="text-psy-neonGreen ml-1">micro</span><span className="text-psy-neonPurple">DOS</span><span className="text-psy-neonPink">(2)</span>?
             </h3>
 
             <div className="bg-psy-card border border-white/10 rounded-2xl p-8 mb-6 card-hover">

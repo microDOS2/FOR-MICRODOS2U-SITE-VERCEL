@@ -42,7 +42,7 @@ export function useAuth() {
         if (cached && cached.id === session.user.id) {
           setUser(cached);
         }
-        loadUser(session.user.id);
+        loadUser(session.user.id, session.user.email);
       } else {
         clearUser();
         setLoading(false);
@@ -67,18 +67,25 @@ export function useAuth() {
       }
 
       if (session?.user) {
-        loadUser(session.user.id);
+        loadUser(session.user.id, session.user.email);
       } else if (!session) {
         // Transient null state during token refresh — don't clear
       }
     });
 
-    async function loadUser(userId: string) {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+    async function loadUser(userId: string, email?: string) {
+      // Look up by email when available (handles auth users whose id doesn't match public.users.id)
+      const { data, error } = email
+        ? await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .maybeSingle()
+        : await supabase
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
 
       if (!active) return;
 

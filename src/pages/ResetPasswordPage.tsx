@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Button } from '@/components/ui/button';
 import { KeyRound, ArrowLeft, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -152,8 +152,7 @@ export function ResetPasswordPage() {
                 )}
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">New Password</label>
-                  <Input
-                    type="password"
+                  <PasswordInput
                     placeholder="Min 6 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -164,8 +163,7 @@ export function ResetPasswordPage() {
                 </div>
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Confirm Password</label>
-                  <Input
-                    type="password"
+                  <PasswordInput
                     placeholder="Repeat password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Loader2 } from 'lucide-react';
 import {
@@ -42,6 +42,18 @@ interface Video {
 }
 
 export function LandingPage() {
+  const navigate = useNavigate()
+
+  // Handle password reset redirect from Supabase auth callback
+  // Supabase redirects to /?redirect=reset-password, we send to /#/reset-password
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const redirect = params.get('redirect')
+    if (redirect === 'reset-password') {
+      navigate('/reset-password', { replace: true })
+    }
+  }, [navigate])
+
   const [videos, setVideos] = useState<Video[]>([]);
   const [videoLoading, setVideoLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);

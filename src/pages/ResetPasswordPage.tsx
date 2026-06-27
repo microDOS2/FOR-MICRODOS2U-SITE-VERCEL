@@ -15,10 +15,48 @@ export function ResetPasswordPage() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  // Check for hash fragment on mount (Supabase sends token in URL hash)
+  // Process auth callback params from URL on mount
+  // Supabase sends recovery tokens in the URL after redirect
   useEffect(() => {
-    // Supabase sends recovery token as URL hash parameters
-    // We handle it automatically when updateUser is called
+    const handleAuthCallback = async () => {
+      // Check both query string and hash fragment for auth params
+      // With HashRouter, tokens may be in: #/reset-password?access_token=xxx...
+      const hash = window.location.hash
+      const search = window.location.search
+      const hasAuthParams = hash.includes('access_token=') || hash.includes('error=') ||
+                            search.includes('access_token=') || search.includes('error=')
+
+      if (!hasAuthParams) return
+
+      // Try to get session (Supabase client auto-detects tokens in URL)
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+      if (sessionError) {
+        console.error('[ResetPassword] Session error:', sessionError)
+        // Extract error from URL
+        const params = new URLSearchParams(search)
+        const hashParams = new URLSearchParams(hash.split('?')[1] || '')
+        const errorDesc = params.get('error_description') || hashParams.get('error_description') ||
+                          params.get('error') || hashParams.get('error')
+        if (errorDesc) {
+          setError(decodeURIComponent(errorDesc).replace(/[+]/g, ' '))
+        }
+        return
+      }
+
+      if (!session) {
+        // Tokens might be in hash but not yet processed
+        // Wait a moment and retry
+        setTimeout(async () => {
+          const { data: { session: retrySession } } = await supabase.auth.getSession()
+          if (!retrySession) {
+            setError('Invalid or expired reset link. Please request a new one.')
+          }
+        }, 500)
+      }
+    }
+
+    handleAuthCallback()
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,6 +73,15 @@ export function ResetPasswordPage() {
     }
 
     setLoading(true);
+
+    // Ensure we have a session before updating password
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      setError('Your reset session has expired. Please request a new password reset link.')
+      setLoading(false)
+      return
+    }
+
     const { error: updateError } = await supabase.auth.updateUser({
       password,
     });

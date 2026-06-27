@@ -20,11 +20,14 @@ export function ForgotPasswordPage() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/#/reset-password`,
+    const { data, error } = await supabase.functions.invoke('send-password-reset', {
+      body: {
+        email: email.trim(),
+        redirectTo: `${window.location.origin}/#/reset-password`,
+      },
     });
-    if (error) {
-      toast.error(error.message || 'Failed to send reset email');
+    if (error || data?.error) {
+      toast.error((error?.message || data?.error) || 'Failed to send reset email');
     } else {
       setSent(true);
       toast.success('Password reset email sent! Check your inbox.');

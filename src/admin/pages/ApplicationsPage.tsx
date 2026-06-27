@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
-import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -85,43 +84,39 @@ export function ApplicationsPage() {
     const password = generatePassword()
 
     try {
-      // 1. Create auth user via Supabase signUp (handle orphaned auth users)
+      // 1. Create auth user via edge function (handles existing users gracefully)
       let userId: string
-      const signUpOptions: any = {
-        email: app.email,
-        password,
-        options: {
-          data: { business_name: app.business_name, role: app.account_type },
-          email_confirm: true,
-        },
-      }
-      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp(signUpOptions)
-
-      if (signUpData?.user) {
-        userId = signUpData.user.id
-      } else if (signUpErr?.message?.toLowerCase().includes('already') || signUpErr?.code === 'user_already_exists') {
-        // Orphaned auth user — try to recover via sign-in with temp client
-        const tempSupabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-          auth: { storage: window.localStorage, autoRefreshToken: false }
-        })
-        const { data: signInData } = await tempSupabase.auth.signInWithPassword({
+      const { data: efData, error: efError } = await supabase.functions.invoke('create-auth-user', {
+        body: {
           email: app.email,
           password,
+          business_name: app.business_name,
+          role: app.account_type,
+          site_url: 'https://www.microdos2u.com',
+        },
+      })
+
+      if (efError || !efData?.user?.id) {
+        toast.error('Failed to create auth user: ' + (efError?.message || efData?.error || 'Unknown error'))
+        setActionLoading(null)
+        return
+      }
+
+      userId = efData.user.id
+
+      // If user already existed in auth, update their password so they can log in with the new one
+      if (efData.existing) {
+        const { error: pwdError } = await supabase.functions.invoke('update-auth-password', {
+          body: {
+            user_id: userId,
+            new_password: password,
+          },
         })
-        if (signInData?.user) {
-          userId = signInData.user.id
-        } else {
-          toast.error(
-            'This email is already registered with a different password. ' +
-            'Go to Supabase Dashboard → Authentication → Users, delete "' + app.email + '", then try again.'
-          )
+        if (pwdError) {
+          toast.error('User exists but password update failed: ' + pwdError.message)
           setActionLoading(null)
           return
         }
-      } else {
-        toast.error('Auth error: ' + (signUpErr?.message || 'Unknown error'))
-        setActionLoading(null)
-        return
       }
 
       // 2. Insert into users table (direct insert, admin has RLS bypass via service role in edge function)

@@ -119,8 +119,8 @@ export function ApplicationsPage() {
         }
       }
 
-      // 2. Insert into users table (direct insert, admin has RLS bypass via service role in edge function)
-      const { error: userError } = await supabase.from('users').insert({
+      // 2. Upsert into users table (insert if new, update if existing)
+      const { error: userError } = await supabase.from('users').upsert({
         id: userId,
         email: app.email,
         business_name: app.business_name,
@@ -142,7 +142,7 @@ export function ApplicationsPage() {
         total_referral_sales: 0,
         referral_count: 0,
         also_rep: false,
-      })
+      }, { onConflict: 'id' })
 
       if (userError) {
         toast.error('Failed to create user profile: ' + userError.message)

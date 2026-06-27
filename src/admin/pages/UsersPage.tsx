@@ -609,7 +609,13 @@ export function UsersPage() {
               'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
               'apikey': SUPABASE_ANON_KEY,
             },
-            body: JSON.stringify({ user_id: editingUser.id, new_password: editPassword })
+            body: JSON.stringify({
+              user_id: editingUser.id,
+              new_password: editPassword,
+              send_notification: true,
+              email: editingUser.email,
+              business_name: editingUser.business_name,
+            })
           })
           const result = await resp.json()
           if (!resp.ok || result.error) {

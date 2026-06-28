@@ -567,7 +567,14 @@ export function LandingPage() {
           </h2>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
-            <div className="bg-[#150f24] border border-white/10 p-8 rounded-2xl">
+            <a
+              href="https://daytryp.com/psilocybin/psilocybin-microdosing-a-comprehensive-2023-guide/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block bg-[#150f24] border border-white/10 p-8 rounded-2xl cursor-pointer hover:border-[#44f80c]/70 hover:shadow-[0_0_25px_rgba(68,248,12,0.2)] transition-all duration-200"
+              title="More information"
+              aria-label="Read Psilocybin Microdosing comprehensive guide"
+            >
               <h3 className="text-3xl font-bold mb-2 text-[#44f80c]">Microdosing</h3>
               <p className="text-gray-400 uppercase tracking-widest text-sm mb-8">
                 Sub-Hallucinogenic Doses
@@ -576,37 +583,48 @@ export function LandingPage() {
                 <div>
                   <h4 className="font-bold text-white mb-1">Dosage</h4>
                   <p className="text-gray-300 text-sm">
-                    0.5-1 tab (1-2mg) — quarter or half tablets for gentler effects
+                    0.25 -1 tab (.5 - 2mg) — quarter or half tablets for gentler - sub perceptional.
                   </p>
                 </div>
+
                 <div>
-                  <h4 className="font-bold text-white mb-1">Schedule</h4>
-                  <p className="text-gray-300 text-sm">
-                    3x weekly or 4 days on, 3 days off. No daily tolerance buildup.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-bold text-white mb-3">Benefits:</h4>
+                  <h4 className="font-bold text-white mb-3">Potential Benefits:</h4>
                   <ul className="text-sm text-gray-300 space-y-2">
-                    <li className="flex items-center gap-2">
-                      <Check className="text-[#44f80c]" weight="bold" />
-                      Improved mood & focus
-                    </li>
                     <li className="flex items-center gap-2">
                       <Check className="text-[#44f80c]" weight="bold" />
                       Enhanced creativity
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="text-[#44f80c]" weight="bold" />
-                      Decreased anxiety & stress
+                      Increased mental flexibility
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="text-[#44f80c]" weight="bold" />
-                      Daily wellness without intoxication
+                      Improved mood
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="text-[#44f80c]" weight="bold" />
-                      No perceptual disturbances
+                      Reduced overthinking
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="text-[#44f80c]" weight="bold" />
+                      Sustained energy
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="text-[#44f80c]" weight="bold" />
+                      Better focus & motivation
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="text-[#44f80c]" weight="bold" />
+                      Decreased social anxiety
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="text-[#44f80c]" weight="bold" />
+                      Migraine & headache relief
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="text-[#44f80c]" weight="bold" />
+                      Heightened sensory awareness
                     </li>
                   </ul>
                 </div>
@@ -615,7 +633,7 @@ export function LandingPage() {
                   <strong className="text-[#44f80c]">Daily optimization</strong>
                 </div>
               </div>
-            </div>
+            </a>
 
             <div className="bg-[#150f24] border border-white/10 p-8 rounded-2xl">
               <h3 className="text-3xl font-bold mb-2 text-[#9a02d0]">Macrodosing</h3>

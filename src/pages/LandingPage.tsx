@@ -585,6 +585,9 @@ export function LandingPage() {
                   <p className="text-gray-300 text-sm">
                     0.25 -1 tab (.5 - 2mg) — quarter or half tablets for gentler - sub perceptional.
                   </p>
+                  <p className="text-gray-500 text-xs mt-1">
+                    (Each tablet can = up to 4 micro doses.)
+                  </p>
                 </div>
 
                 <div>

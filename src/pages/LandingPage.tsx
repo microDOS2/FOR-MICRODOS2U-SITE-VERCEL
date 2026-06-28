@@ -449,8 +449,8 @@ export function LandingPage() {
                   <div className="w-2 h-2 rounded-full bg-[#44f80c]" />
                   Great for beginners
                 </li>
-                <li className="flex items-center gap-2 text-xs text-gray-500">
-                  <div className="w-2 h-2 rounded-full bg-[#44f80c]/50" />
+                <li className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[#44f80c]" />
                   (Each tablet can = up to 4 micro doses.)
                 </li>
               </ul>

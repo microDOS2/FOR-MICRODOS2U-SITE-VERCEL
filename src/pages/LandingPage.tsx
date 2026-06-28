@@ -555,8 +555,8 @@ export function LandingPage() {
             <div>
               <h5 className="font-bold text-lg mb-1 text-white">Pro Tip</h5>
               <p className="text-gray-300 text-sm">
-                Start low and assess. Quarter- or half-tab microdosing provides gentler effects for
-                daily wellness. Effects typically begin around 1-2mg.
+                Start low and assess. Quarter- or half-tab micro dosing provides gentler to sub perceptional effects for
+                daily wellness. Effects typically begin around .5-2mg.
               </p>
             </div>
           </div>

@@ -449,6 +449,10 @@ export function LandingPage() {
                   <div className="w-2 h-2 rounded-full bg-[#44f80c]" />
                   Great for beginners
                 </li>
+                <li className="flex items-center gap-2 text-xs text-gray-500">
+                  <div className="w-2 h-2 rounded-full bg-[#44f80c]/50" />
+                  (Each tablet can = up to 4 micro doses.)
+                </li>
               </ul>
               <div className="text-xs text-gray-500 pt-4 border-t border-white/10">
                 ≈ ½ gram dried mushrooms

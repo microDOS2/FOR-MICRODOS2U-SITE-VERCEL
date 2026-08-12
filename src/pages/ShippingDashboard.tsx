@@ -375,8 +375,8 @@ export function ShippingDashboard() {
                         <TableCell className="font-medium text-white">{order.po_number}</TableCell>
                         <TableCell className="text-gray-300">
                           <div className="flex flex-col">
-                            <span>{order.account_name || '—'}</span>
-                            <span className="text-xs text-gray-500">{order.account_email}</span>
+                            <span>{order.users?.business_name || '—'}</span>
+                            <span className="text-xs text-gray-500">{order.users?.email || ''}</span>
                           </div>
                         </TableCell>
                         <TableCell className="text-gray-300">{order.created_at?.slice(0, 10) || '—'}</TableCell>

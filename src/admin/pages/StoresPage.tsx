@@ -57,6 +57,8 @@ export function StoresPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [showModal, setShowModal] = useState(false)
   const [editingStore, setEditingStore] = useState<StoreItem | null>(null)
+  const [accountOptions, setAccountOptions] = useState<any[]>([])
+  const [selectedAccountId, setSelectedAccountId] = useState('')
   const [reps, setReps] = useState<any[]>([])
   const [selectedRep, setSelectedRep] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState<string | null>(null)
@@ -119,7 +121,7 @@ export function StoresPage() {
           owner_manager_id: rep?.manager_id || null,
         }
       })
-      setStores(transformed); setTotalCount(count || 0)
+      setStores(transformed); setTotalCount(count || 0); setAccountOptions(usersData || [])
     } catch (err) {
       setStores([])
     }
@@ -131,8 +133,13 @@ export function StoresPage() {
   const handleSave = async () => {
     const payload: any = { name: formData.name, address: formData.address, city: formData.city, state: formData.state, zip: formData.zip, lat: formData.lat ? parseFloat(formData.lat) : null, lng: formData.lng ? parseFloat(formData.lng) : null, phone: formData.phone || null, email: formData.email || null, contact_name: formData.contact_name || null, website: formData.website || null }
     if (editingStore) { const { error } = await supabase.from('wholesaler_store_locations').update(payload).eq('id', editingStore.id); error ? toast.error('Error') : toast.success('Updated') }
-    else { const { error } = await supabase.from('wholesaler_store_locations').insert([{ ...payload, stock: 'In Stock', is_active: true, source: 'wholesaler' }]); error ? toast.error('Error') : toast.success('Created') }
-    setShowModal(false); setEditingStore(null); setFormData({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '', contact_name: '', website: '' }); fetchStores()
+    else {
+      const acct = accountOptions.find((a: any) => a.id === selectedAccountId)
+      if (!acct) { toast.error('Select which business account this store belongs to'); return }
+      const { error } = await supabase.from('wholesaler_store_locations').insert([{ ...payload, user_id: acct.id, stock: 'In Stock', is_active: true, source: acct.role }])
+      error ? toast.error('Error creating store: ' + error.message) : toast.success('Store created for ' + (acct.business_name || acct.email))
+    }
+    setShowModal(false); setEditingStore(null); setSelectedAccountId(''); setFormData({ name: '', address: '', city: '', state: '', zip: '', lat: '', lng: '', phone: '', email: '', contact_name: '', website: '' }); fetchStores()
   }
   const handleDelete = async (id: string) => { if (!confirm('Delete?')) return; const { error } = await supabase.from('wholesaler_store_locations').delete().eq('id', id); error ? toast.error('Error') : toast.success('Deleted'); fetchStores() }
   const handleSetPending = async (id: string) => { if (!confirm('Set to Pending?')) return; const { error } = await supabase.from('wholesaler_store_locations').update({ is_active: false }).eq('id', id); error ? toast.error('Error') : toast.success('Pending'); fetchStores() }
@@ -292,6 +299,15 @@ export function StoresPage() {
               <button onClick={() => setShowModal(false)} title="Close modal" className="p-1.5 hover:bg-white/5 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             <div className="p-5 space-y-4">
+              {!editingStore && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1.5">Account (business owner) <span className="text-red-400">*</span></label>
+                  <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white">
+                    <option value="">Select account…</option>
+                    {accountOptions.map((a: any) => <option key={a.id} value={a.id}>{a.business_name || a.email} ({a.role})</option>)}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1.5">Name <span className="text-red-400">*</span></label>
                 <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2.5 bg-[#0a0514] border border-white/10 rounded-lg text-sm text-white" />
@@ -324,7 +340,7 @@ export function StoresPage() {
             </div>
             <div className="flex justify-end gap-3 p-5 border-t border-white/10">
               <button onClick={() => setShowModal(false)} title="Close without saving" className="px-4 py-2.5 bg-[#0a0514] hover:bg-white/5 rounded-lg text-sm text-gray-300">Cancel</button>
-              <button onClick={handleSave} disabled={!formData.name || !formData.address || !formData.city || !formData.state || !formData.zip || !formData.phone || !formData.email || !formData.contact_name} title={editingStore ? 'Save changes to this store' : 'Create new store'} className="px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white disabled:opacity-50">{editingStore ? 'Update' : 'Create'}</button>
+              <button onClick={handleSave} disabled={!formData.name || !formData.address || !formData.city || !formData.state || !formData.zip || !formData.phone || !formData.email || !formData.contact_name || (!editingStore && !selectedAccountId)} title={editingStore ? 'Save changes to this store' : 'Create new store'} className="px-4 py-2.5 bg-[#9a02d0] hover:bg-[#7a01a8] rounded-lg text-sm text-white disabled:opacity-50">{editingStore ? 'Update' : 'Create'}</button>
             </div>
           </div>
         </div>

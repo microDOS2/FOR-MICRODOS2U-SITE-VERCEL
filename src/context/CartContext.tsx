@@ -68,7 +68,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const fetchStores = async () => {
       setStoresLoading(true);
       const { data, error } = await supabase
-        .from('stores')
+        .from('wholesaler_store_locations') // unified store table (was legacy 'stores')
         .select('id, name, address, city, state, zip, phone, contact_name, is_primary')
         .eq('user_id', user.id)
         .eq('is_active', true)

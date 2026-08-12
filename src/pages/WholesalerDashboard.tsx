@@ -326,6 +326,7 @@ export function WholesalerDashboard() {
   const [stores, setStores] = useState<StoreLocation[]>([]);
   const [storesLoading, setStoresLoading] = useState(false);
   const [storeDialogOpen, setStoreDialogOpen] = useState(false);
+  const [savingStore, setSavingStore] = useState(false);
   const [showStoreUploadModal, setShowStoreUploadModal] = useState(false);
   const [editingStore, setEditingStore] = useState<StoreLocation | null>(null);
   const [storeForm, setStoreForm] = useState({
@@ -570,6 +571,8 @@ export function WholesalerDashboard() {
   };
 
   const saveStore = async () => {
+    if (savingStore) return; // guard against double-clicks creating duplicate stores
+    setSavingStore(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.id) {
@@ -578,12 +581,18 @@ export function WholesalerDashboard() {
       }
       const userId = user.id;
       
-      // Geocode address before saving
+      // Geocode address before saving (with timeout so a slow/unreachable
+      // geocoder can never hang the save silently)
       let lat = null, lng = null;
       const fullAddress = [storeForm.address, storeForm.city, storeForm.state, storeForm.zip].filter(Boolean).join(', ');
       if (fullAddress) {
-        const geo = await geocodeAddress(fullAddress);
-        if (geo) { lat = geo.lat; lng = geo.lng; }
+        try {
+          const geo = await Promise.race([
+            geocodeAddress(fullAddress),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+          ]);
+          if (geo) { lat = geo.lat; lng = geo.lng; }
+        } catch { /* geocoding is best-effort */ }
       }
       
       const payload = {
@@ -635,8 +644,11 @@ export function WholesalerDashboard() {
         }
       }
       setStoreDialogOpen(false);
+      toast.success(editingStore ? 'Store updated' : 'Store added');
     } catch (err: any) {
       toast.error('Failed to save store: ' + (err?.message || 'Please try again.'));
+    } finally {
+      setSavingStore(false);
     }
   };
 
@@ -1906,10 +1918,10 @@ export function WholesalerDashboard() {
               </Button>
               <Button
                 onClick={saveStore}
-                disabled={!storeForm.name || !storeForm.address || !storeForm.city || !storeForm.state || !storeForm.zip || !storeForm.contact_name || !storeForm.phone || !storeForm.email || !storeForm.website}
+                disabled={savingStore || !storeForm.name || !storeForm.address || !storeForm.city || !storeForm.state || !storeForm.zip || !storeForm.contact_name || !storeForm.phone || !storeForm.email || !storeForm.website}
                 className="flex-1 bg-gradient-to-r from-[#9a02d0] to-[#44f80c] text-white font-semibold"
               >
-                {editingStore ? 'Save Changes' : 'Add Store'}
+                {savingStore ? 'Saving…' : (editingStore ? 'Save Changes' : 'Add Store')}
               </Button>
             </div>
           </div>

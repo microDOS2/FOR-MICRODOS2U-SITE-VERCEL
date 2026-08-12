@@ -163,30 +163,10 @@ export function ApplicationsPage() {
         return
       }
 
-      // 4. Auto-create store location for wholesaler/distributor (direct query, no RPC)
-      if (app.account_type === 'wholesaler' || app.account_type === 'distributor') {
-        const { error: storeError } = await supabase.from('wholesaler_store_locations').insert({
-          user_id: userId,
-          name: app.business_name,
-          contact_name: app.contact_name || '',
-          address: app.address || '',
-          city: app.city || '',
-          state: app.state || '',
-          zip: app.zip || '',
-          phone: app.phone || '',
-          email: app.email,
-          website: app.website,
-          stock: 'In Stock',
-          license_number: app.license_number,
-          source: 'wholesaler',
-          is_active: true,
-        })
-        if (storeError) {
-          toast.error('Account approved but store creation failed: ' + storeError.message)
-        } else {
-          toast.success('Store location created and published to Store Locator!')
-        }
-      }
+      // 4. Store location is auto-created by the `auto_create_primary_store` DB trigger
+      //    (public.create_primary_store) when the users row is inserted above.
+      //    A direct insert here previously caused duplicate Store Locator entries and
+      //    hardcoded source='wholesaler' for all account types — removed (fix: locator dedupe).
 
       // 5. Send approval email with credentials
       try {
